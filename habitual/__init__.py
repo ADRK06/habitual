@@ -1,5 +1,5 @@
-from flask import Flask, render_template
-from flask_login import LoginManager
+from flask import Flask, redirect, render_template, url_for
+from flask_login import LoginManager, current_user, login_required
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
@@ -23,9 +23,19 @@ def create_app(config_class=Config):
     login_manager.login_view = "auth.login"
 
     from habitual import models  # noqa: F401 registers models with SQLAlchemy/Migrate
+    from habitual.auth import auth as auth_blueprint
+
+    app.register_blueprint(auth_blueprint)
 
     @app.get("/")
-    def hello():
+    def home():
+        if current_user.is_authenticated:
+            return redirect(url_for("dashboard"))
         return render_template("home.html")
+
+    @app.get("/dashboard")
+    @login_required
+    def dashboard():
+        return f"Welcome, {current_user.name}! (real dashboard comes in Phase 2)"
 
     return app

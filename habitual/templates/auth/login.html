@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Log in · Habitual{% endblock %}
+
+{% block content %}
+<div class="flex min-h-screen items-center justify-center px-4 py-12">
+  <div class="w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur p-8">
+    <h1 class="font-heading text-2xl font-semibold text-text mb-6">Log in</h1>
+
+    <form method="post" x-data="{ showPassword: false }" class="space-y-4">
+      {{ form.hidden_tag() }}
+      {{ form.next }}
+
+      <div>
+        <label for="username" class="block text-sm text-text-muted mb-1">Username</label>
+        {{ form.username(id='username', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:ring-2 focus:ring-accent', autocomplete='username') }}
+      </div>
+
+      <div>
+        <label for="password" class="block text-sm text-text-muted mb-1">Password</label>
+        <div class="relative">
+          {{ form.password(
+            id='password',
+            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 pr-16 text-text focus:outline-none focus:ring-2 focus:ring-accent',
+            autocomplete='current-password',
+            **{':type': "showPassword ? 'text' : 'password'"}
+          ) }}
+          <button
+            type="button"
+            @click="showPassword = !showPassword"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-text"
+          >
+            <span x-text="showPassword ? 'Hide' : 'Show'"></span>
+          </button>
+        </div>
+      </div>
+
+      {% for error in form.username.errors %}<p class="text-sm text-danger">{{ error }}</p>{% endfor %}
+
+      <button type="submit" class="w-full rounded-2xl bg-accent px-4 py-2 font-medium text-bg transition hover:opacity-90">
+        Log in
+      </button>
+    </form>
+
+    <p class="mt-4 text-center text-sm text-text-muted">
+      New here?
+      <a href="{{ url_for('auth.signup', next=form.next.data or none) }}" class="text-accent hover:underline">Create an account</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

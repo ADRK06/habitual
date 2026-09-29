@@ -15,9 +15,11 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     timezone = db.Column(db.String(50), nullable=False, default="Asia/Kolkata")
     theme = db.Column(db.String(10), nullable=False, default="dark")
-    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(dt_timezone.utc))
+    created_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(dt_timezone.utc)
+    )
     failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
-    locked_until = db.Column(db.DateTime, nullable=True)
+    locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
