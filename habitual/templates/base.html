@@ -33,6 +33,8 @@
     Skip to content
   </a>
 
+  <script type="application/json" id="flashed-messages">{{ get_flashed_messages(with_categories=true) | tojson }}</script>
+
   <div
     x-data="{
       toasts: [],
@@ -47,9 +49,7 @@
       },
     }"
     x-init="
-      {% for category, message in get_flashed_messages(with_categories=true) %}
-      push({{ message | tojson }}, {{ category | tojson }});
-      {% endfor %}
+      JSON.parse(document.getElementById('flashed-messages').textContent).forEach(([category, message]) => push(message, category));
       window.addEventListener('toast', (e) => push(e.detail.message, e.detail.type || 'info'));
     "
     class="fixed top-4 right-4 z-50 flex flex-col gap-2 w-80"

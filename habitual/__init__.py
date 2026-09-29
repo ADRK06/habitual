@@ -36,6 +36,6 @@ def create_app(config_class=Config):
     @app.get("/dashboard")
     @login_required
     def dashboard():
-        return f"Welcome, {current_user.name}! (real dashboard comes in Phase 2)"
+        return render_template("dashboard.html")
 
     return app

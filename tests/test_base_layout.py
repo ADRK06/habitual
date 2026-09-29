@@ -1,5 +1,7 @@
 import re
 
+from flask import flash
+
 from habitual import create_app, db
 from habitual.config import TestConfigWithCSRF
 
@@ -13,6 +15,26 @@ def test_home_renders_base_layout(client):
     assert "htmx.min.js" in html
     assert "alpinejs" in html
     assert "Habitual" in html
+
+
+def test_flashed_message_with_quotes_does_not_break_page(app, client):
+    @app.get("/__test_flash")
+    def _test_flash():
+        # A double-quote in the message used to break x-init="..." (tojson's
+        # output is a raw double-quoted JSON string, embedded in a
+        # double-quoted HTML attribute).
+        flash('Say "hello" to htmx', "success")
+        return "set"
+
+    client.get("/__test_flash")
+    html = client.get("/").get_data(as_text=True)
+
+    assert 'id="flashed-messages"' in html
+    assert 'Say \\"hello\\" to htmx' in html
+    # The rest of the document must still be intact, not swallowed into a
+    # broken attribute.
+    assert "</body>" in html
+    assert "htmx.min.js" in html
 
 
 def test_htmx_header_satisfies_csrf():
