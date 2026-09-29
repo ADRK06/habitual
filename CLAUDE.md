@@ -261,7 +261,8 @@ flask --app app db upgrade
 # tests
 pytest
 
-# tailwind (standalone CLI binary in project root)
+# tailwind (standalone CLI binary in project root, gitignored - fetch it first)
+./scripts/get-tailwind.sh
 ./tailwindcss -i tailwind/input.css -o habitual/static/css/app.css --watch
 ./tailwindcss -i tailwind/input.css -o habitual/static/css/app.css --minify   # before committing
 ```

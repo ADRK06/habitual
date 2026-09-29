@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Progressive enhancement: unsupported browsers just do a normal navigation. */
+@media not (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: auto;
+  }
+}
+
 @theme {
   --color-bg: #0b0f1a;
   --color-surface: #141a2e;
