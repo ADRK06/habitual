@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 .env
+.env.prod
 .vercel/
 node_modules/
 *.log

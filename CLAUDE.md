@@ -254,9 +254,13 @@ pip install -r requirements.txt
 # run locally
 flask --app app run --debug
 
-# database migrations
+# database migrations (against the Neon dev branch, via .env)
 flask --app app db migrate -m "message"
 flask --app app db upgrade
+
+# database migrations against prod (Neon main branch)
+# put the prod pooled DATABASE_URL in .env.prod (gitignored, see .env.prod.example)
+./scripts/migrate-prod.sh
 
 # tests
 pytest
@@ -267,8 +271,8 @@ pytest
 ./tailwindcss -i tailwind/input.css -o habitual/static/css/app.css --minify   # before committing
 ```
 
-Deploy: push to GitHub `main` → Vercel auto-deploys. Run migrations against the Neon `main` branch
-before or with deploys that change the schema.
+Deploy: push to GitHub `main` → Vercel auto-deploys. Run `./scripts/migrate-prod.sh` against the Neon
+`main` branch before or with deploys that change the schema.
 
 ---
 
