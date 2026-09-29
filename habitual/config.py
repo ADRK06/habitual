@@ -35,3 +35,7 @@ class TestConfig(Config):
     SQLALCHEMY_ENGINE_OPTIONS = {}
     WTF_CSRF_ENABLED = False
     SECRET_KEY = "test-secret-key"
+
+
+class TestConfigWithCSRF(TestConfig):
+    WTF_CSRF_ENABLED = True

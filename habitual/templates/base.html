@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en"{% if current_user.is_authenticated %} data-theme="{{ current_user.theme }}"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="view-transition" content="same-origin">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Habitual{% endblock %}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+
+  <script src="https://unpkg.com/htmx.org@2.0.10/dist/htmx.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.4/dist/cdn.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/lucide@1.48.0/dist/umd/lucide.js"></script>
+
+  <script>
+    window.prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    document.addEventListener("htmx:configRequest", (event) => {
+      event.detail.headers["X-CSRFToken"] = document.querySelector('meta[name="csrf-token"]').content;
+    });
+  </script>
+
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen antialiased">
+  <a href="#content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-text focus:border focus:border-border">
+    Skip to content
+  </a>
+
+  <div
+    x-data="{
+      toasts: [],
+      nextId: 1,
+      push(message, type = 'info') {
+        const id = this.nextId++;
+        this.toasts.push({ id, message, type });
+        setTimeout(() => this.remove(id), 4000);
+      },
+      remove(id) {
+        this.toasts = this.toasts.filter((t) => t.id !== id);
+      },
+    }"
+    x-init="
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+      push({{ message | tojson }}, {{ category | tojson }});
+      {% endfor %}
+      window.addEventListener('toast', (e) => push(e.detail.message, e.detail.type || 'info'));
+    "
+    class="fixed top-4 right-4 z-50 flex flex-col gap-2 w-80"
+  >
+    <template x-for="toast in toasts" :key="toast.id">
+      <div
+        x-show="true"
+        x-transition:enter="transition ease-out"
+        x-transition:enter-start="opacity-0 translate-y-2"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="rounded-2xl border border-border bg-surface/90 backdrop-blur px-4 py-3 text-sm shadow-lg flex items-start justify-between gap-3"
+        :class="{
+          'border-accent/50': toast.type === 'success',
+          'border-danger/50': toast.type === 'error',
+        }"
+      >
+        <span x-text="toast.message"></span>
+        <button @click="remove(toast.id)" class="text-text-muted hover:text-text" aria-label="Dismiss">&times;</button>
+      </div>
+    </template>
+  </div>
+
+  <main id="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => lucide.createIcons());
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

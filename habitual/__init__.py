@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -26,6 +26,6 @@ def create_app(config_class=Config):
 
     @app.get("/")
     def hello():
-        return "Habitual is alive 🔥"
+        return render_template("home.html")
 
     return app
