@@ -16,7 +16,22 @@ def _normalize_db_url(url: str) -> str:
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = _normalize_db_url(os.environ.get("DATABASE_URL", ""))
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
         "pool_size": 5,
     }
+
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    # Vercel sets VERCEL=1 for every deployment (prod and preview alike), both served
+    # over https; only plain local dev should skip the Secure flag.
+    SESSION_COOKIE_SECURE = bool(os.environ.get("VERCEL"))
+
+
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = "sqlite://"
+    SQLALCHEMY_ENGINE_OPTIONS = {}
+    WTF_CSRF_ENABLED = False
+    SECRET_KEY = "test-secret-key"
