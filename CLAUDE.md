@@ -222,16 +222,54 @@ password checklist, show/hide password.
 
 ## Design direction
 
-- **Mood**: immersive, animated, professional; premium productivity app, not a toy.
-- **Theme**: dark-first (deep midnight/indigo backgrounds) with a warm ember/amber accent for streaks and fire,
-  plus a violet secondary. Light mode supported via a toggle stored on the user.
-- **Type**: Space Grotesk (headings), Inter (body).
-- **Surfaces**: soft glassy cards, subtle borders, generous spacing, rounded-2xl.
-- **Motion**: purposeful and fast (150–400ms UI, longer only on landing). Staggered card entrances, number
-  count-ups, hover lift on cards, smooth modal and page transitions.
-  **Respect `prefers-reduced-motion`.**
+- **Mood**: gamified but professional - esports/game-UI energy, not a toy. Bold color, confident type,
+  genuine motion - never cutesy or juvenile.
+- **Theme**: dark-only for v1 (no light mode - see Roadmap). Deep void-black background with navy-tinted
+  glassy surfaces and three neon accents used as accents/glows, never as large flat areas.
+
+  | Token | Hex | Role |
+  |---|---|---|
+  | `--color-void` | `#121212` | Page background (`bg`) |
+  | `--color-black` | `#000000` | Deepest layer - gradient endpoints, backdrops (`bg-deep`) |
+  | `--color-navy` | `#000080` | Surfaces and glows **only** - never text (too low contrast). Cards use navy blended into void (`surface`, `border`) |
+  | `--color-yellow` | `#ffff00` | Primary accent - CTAs, focus rings, points, success states, milestone fills (`accent`, `success`) |
+  | `--color-crimson` | `#dc143c` | Streak/flame color and danger/error states (`streak`, `danger`). Large text/graphics only - fails AA at small sizes |
+  | `--color-pink` | `#ff00ff` | Rooms/social accent (`rooms`) |
+
+  All tokens live in `tailwind/input.css`'s `@theme` block as both raw (`--color-yellow`) and semantic
+  (`--color-accent`) names - use the semantic name in templates.
+- **Type**: three-tier system, loaded via Google Fonts, all pinned.
+  - **Orbitron** (`font-display`) - wordmark and big numeric displays (streak counters) only. Don't use it
+    for long copy - it strains at small sizes/long phrases.
+  - **Exo 2** (`font-heading`) - section headings (h1-h4 by default via the base layer).
+  - **Inter** (`font-body`) - everything else.
+- **Logo**: no icon mark yet - the developer is drafting one to slot in later. Until then, use the text
+  wordmark "Habitual" in `font-display` (nav, footer). Favicon is a placeholder flat yellow/void teardrop
+  (`habitual/static/img/favicon.svg`) - swap it when the real mark lands.
+- **Gamified elements, kept honest**: points, milestones (day 7/14/30...), the daily crown, streaks. No
+  fake "levels" or "XP" framing - the app doesn't have a level system, so don't imply one. Progress toward
+  a milestone is shown as a plain countdown ("Day 23 of 30 to next milestone"), not a leveling/XP bar.
+- **Surfaces**: soft glassy cards (navy-tinted surface over void), subtle borders, generous spacing,
+  rounded-2xl.
+- **Motion**:
+  - Purposeful and fast (150-400ms UI, longer only on landing/scroll reveals).
+  - **Scroll-triggered reveals replay every time a section re-enters the viewport, in both scroll
+    directions** (GSAP ScrollTrigger `toggleActions: "play reverse play reverse"`, or `scrub: true` for
+    anything tied directly to scroll position like the landing page's connecting line).
+  - List reordering (e.g. a leaderboard) uses GSAP's **Flip** plugin, not manual position math - it's the
+    only way to keep gaps even regardless of row height or animation progress.
+  - Animate `transform` (scaleX/scaleY/translate), never a layout-affecting property like `height` on a
+    flex child - percentage heights inside flex containers visibly overshoot mid-animation. Use
+    `transform-origin` + `scaleY`/`scaleX` for bars/fills, and clip the container with `overflow-hidden`.
+  - **Never hide content by default in CSS or inline style.** Every animated element must be fully visible
+    in the raw server-rendered HTML with no JS; GSAP only ever animates *from* that visible state
+    (`gsap.from()`/`gsap.fromTo()`), gated behind a `window.gsap` check. This is a hard rule, not a
+    suggestion - verify it by blocking the GSAP CDN script and confirming the page is still fully legible.
+  - **Respect `prefers-reduced-motion`**: skip scroll-driven/looping animation entirely (`gsap.set()` to
+    the final state instead), and don't initialize Lenis smooth-scroll.
 - **Desktop-first** (≥ 1024px) but don't break on smaller widths.
-- Accessible: visible focus states, labels, sufficient contrast, keyboard-usable modals.
+- Accessible: visible focus states, labels, sufficient contrast (crimson text must be large/bold - see
+  palette table), keyboard-usable modals.
 - Use design tokens as CSS variables (in `tailwind/input.css`) so colors are consistent everywhere.
 
 ---
@@ -283,7 +321,7 @@ Deploy: push to GitHub `main` → Vercel auto-deploys. Run `./scripts/migrate-pr
 - [ ] **Phase 2 — Solo habits + dashboard**: habit CRUD with templates and tiny tips, check-in with notes, `points.py` (points, streaks, milestones) with tests, freezes, header stats, delete confirmation, check-in animations
 - [ ] **Phase 3 — Habit analytics page**: ring, heatmap, weekly chart, log, insights (**get the reference image first**)
 - [ ] **Phase 4 — Rooms**: create, join link, room cards, leaderboard with tiebreakers, crown, health meter, room streak, vouches, leave/ownership transfer, room end and results
-- [ ] **Phase 5 — Polish**: badges, confetti, light/dark toggle, empty/loading/error states, full animation pass
+- [ ] **Phase 5 — Polish**: badges, confetti, empty/loading/error states, full animation pass
 - [ ] **Phase 6 — Launch**: security checklist, rate limits, real test with friends, bug fixes, final deploy
 
 **v2 (not now)**: photo proof (Vercel Blob), email/web-push reminders, ML "at-risk day" prediction, mobile.

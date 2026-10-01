@@ -21,10 +21,12 @@ def test_home_renders_base_layout(client):
 def test_landing_page_has_ctas_and_sections(client):
     html = client.get("/").get_data(as_text=True)
 
-    assert html.count("Create account") >= 2
+    assert "Create account" in html
+    assert html.count("Start your streak") >= 2
     assert "Log in" in html
     assert "daily crown" in html.lower()
-    assert "Smart insights" in html
+    assert "Know your patterns" in html
+    assert "level" not in html.lower()
 
 
 def test_authenticated_user_redirected_from_home_to_dashboard(client, db):

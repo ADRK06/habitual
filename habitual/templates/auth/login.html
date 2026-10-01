@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
-  <div data-glow="accent" class="pointer-events-none absolute -top-32 -right-24 h-80 w-80 rounded-full bg-accent/25 blur-3xl"></div>
-  <div data-glow="violet" class="pointer-events-none absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-accent-2/25 blur-3xl"></div>
+  <div data-glow="accent" class="pointer-events-none absolute -top-32 -right-24 h-80 w-80 rounded-full bg-accent/20 blur-3xl"></div>
+  <div data-glow="rooms" class="pointer-events-none absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-rooms/20 blur-3xl"></div>
 
   <div id="auth-card" class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 shadow-2xl shadow-black/20">
     <h1 class="font-heading text-2xl font-semibold text-text mb-6">Log in</h1>
@@ -68,7 +68,7 @@
 
     gsap.fromTo(card, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" });
     gsap.to('[data-glow="accent"]', { x: -30, y: 20, duration: 9, repeat: -1, yoyo: true, ease: "sine.inOut" });
-    gsap.to('[data-glow="violet"]', { x: 25, y: -15, duration: 11, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    gsap.to('[data-glow="rooms"]', { x: 25, y: -15, duration: 11, repeat: -1, yoyo: true, ease: "sine.inOut" });
   });
 </script>
 {% endblock %}
