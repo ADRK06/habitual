@@ -4,6 +4,7 @@ from flask import flash
 
 from habitual import create_app, db
 from habitual.config import TestConfigWithCSRF
+from habitual.models import User
 
 
 def test_home_renders_base_layout(client):
@@ -15,6 +16,28 @@ def test_home_renders_base_layout(client):
     assert "htmx.min.js" in html
     assert "alpinejs" in html
     assert "Habitual" in html
+
+
+def test_landing_page_has_ctas_and_sections(client):
+    html = client.get("/").get_data(as_text=True)
+
+    assert html.count("Create account") >= 2
+    assert "Log in" in html
+    assert "daily crown" in html.lower()
+    assert "Smart insights" in html
+
+
+def test_authenticated_user_redirected_from_home_to_dashboard(client, db):
+    user = User(name="Aadhira", username="redirecttest")
+    user.set_password("Sup3r$ecret")
+    db.session.add(user)
+    db.session.commit()
+
+    client.post("/login", data={"username": "redirecttest", "password": "Sup3r$ecret", "next": ""})
+    response = client.get("/")
+
+    assert response.status_code == 302
+    assert response.location == "/dashboard"
 
 
 def test_flashed_message_with_quotes_does_not_break_page(app, client):

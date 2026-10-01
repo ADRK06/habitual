@@ -31,7 +31,7 @@ def create_app(config_class=Config):
     def home():
         if current_user.is_authenticated:
             return redirect(url_for("dashboard"))
-        return render_template("home.html")
+        return render_template("landing.html")
 
     @app.get("/dashboard")
     @login_required
