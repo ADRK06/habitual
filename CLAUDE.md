@@ -102,7 +102,7 @@ habitual/
 
 | Table | Key fields |
 |---|---|
-| `users` | id, name, username (unique, case-insensitive), password_hash, timezone, theme, created_at |
+| `users` | id, name, username (unique, case-insensitive), password_hash, timezone, theme (unused — reserved, dark-only v1), created_at |
 | `habits` | id, user_id, room_id (nullable), title, emoji, tiny_version (text), created_on (date) |
 | `checkins` | id, habit_id, date, created_at (timestamp), proof_note (nullable) — **UNIQUE(habit_id, date)** |
 | `freezes` | id, user_id, habit_id (nullable until used), purchased_at, used_on (date, nullable) |
@@ -226,23 +226,19 @@ password checklist, show/hide password.
   genuine motion - never cutesy or juvenile.
 - **Slogan**: "Play your habits." - hero tagline, page title, meta description.
 - **Theme**: dark-only for v1 (no light mode - see Roadmap). Deep void-black background with navy-tinted
-  glassy surfaces and neon accents used as accents/glows, never as large flat areas.
+  glassy surfaces and three neon accents used as accents/glows, never as large flat areas.
 
   | Token | Hex | Role |
   |---|---|---|
   | `--color-void` | `#121212` | Page background (`bg`) |
   | `--color-black` | `#000000` | Deepest layer - gradient endpoints, backdrops (`bg-deep`) |
   | `--color-navy` | `#000080` | Surfaces and glows **only** - never text (too low contrast). Cards use navy blended into void (`surface`, `border`) |
-  | `--color-blue` | `#00e5ff` | **Primary accent** - buttons, links, focus rings, the landing page's chain line, wordmark (`accent`). 12.2:1 on void-black, safe for small text. *Provisional*: compared live against a deeper `#1F51FF` (only 3.3:1 - fails AA for normal-sized button/link text) in the landing hero; confirm the final pick and remove that comparison block |
-  | `--color-yellow` | `#ffff00` | Points/currency **only** - milestone fills, point bonus badges (`points`). Not the general accent |
-  | `--color-green` | `#39ff14` | Success - completed check-ins, "done today", positive insights, password-strength top tier (`success`). 13.8:1 on void-black |
+  | `--color-yellow` | `#ffff00` | Primary accent - CTAs, focus rings, points, success states, milestone fills (`accent`, `success`) |
   | `--color-crimson` | `#dc143c` | Streak/flame color and danger/error states (`streak`, `danger`). Large text/graphics only - fails AA at small sizes |
-  | `--color-pink` | `#ff00ff` | Rooms/social accent - leaderboards, crown (`rooms`) |
+  | `--color-pink` | `#ff00ff` | Rooms/social accent (`rooms`) |
 
-  All tokens live in `tailwind/input.css`'s `@theme` block as both raw (`--color-blue`) and semantic
-  (`--color-accent`) names - use the semantic name in templates. `accent` and `points` and `success` are
-  three distinct colors now - don't conflate them (a button is `accent`, a points badge is `points`, a
-  "done"/positive state is `success`).
+  All tokens live in `tailwind/input.css`'s `@theme` block as both raw (`--color-yellow`) and semantic
+  (`--color-accent`) names - use the semantic name in templates.
 - **Type**: three-tier system, loaded via Google Fonts, all pinned.
   - **Orbitron** (`font-display`) - wordmark and big numeric displays (streak counters) only. Don't use it
     for long copy - it strains at small sizes/long phrases.
@@ -322,11 +318,12 @@ Deploy: push to GitHub `main` → Vercel auto-deploys. Run `./scripts/migrate-pr
 ## Roadmap
 
 - [ ] **Phase 0 — Setup**: repo, venv, hello-world Flask, Neon dev/main branches, first Vercel deploy live
-- [ ] **Phase 1 — Accounts + landing**: models for users, signup/login/logout, validation, username check, timezone detection, animated landing page, base layout and design tokens
+- [x] **Phase 1 — Accounts + landing**: models for users, signup/login/logout, validation, username check, timezone detection, animated landing page, base layout and design tokens
 - [ ] **Phase 2 — Solo habits + dashboard**: habit CRUD with templates and tiny tips, check-in with notes, `points.py` (points, streaks, milestones) with tests, freezes, header stats, delete confirmation, check-in animations
 - [ ] **Phase 3 — Habit analytics page**: ring, heatmap, weekly chart, log, insights (**get the reference image first**)
 - [ ] **Phase 4 — Rooms**: create, join link, room cards, leaderboard with tiebreakers, crown, health meter, room streak, vouches, leave/ownership transfer, room end and results
-- [ ] **Phase 5 — Polish**: badges, confetti, empty/loading/error states, full animation pass
+- [ ] **Phase 5 — Polish**: badges, confetti, empty/loading/error states, full animation pass, design and
+      implement the Habitual logo (SVG, nav/footer/favicon)
 - [ ] **Phase 6 — Launch**: security checklist, rate limits, real test with friends, bug fixes, final deploy
 
 **v2 (not now)**: photo proof (Vercel Blob), email/web-push reminders, ML "at-risk day" prediction, mobile.

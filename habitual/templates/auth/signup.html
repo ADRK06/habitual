@@ -24,7 +24,7 @@
         get matches() { return this.confirm.length > 0 && this.confirm === this.password },
         get score() { return [this.hasLength, this.hasUpper, this.hasLower, this.hasDigit, this.hasSpecial].filter(Boolean).length },
         get strengthLabel() { return ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'][this.score] },
-        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-rooms' : 'bg-success' },
+        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-rooms' : 'bg-accent' },
       }"
       x-init="document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone"
       class="space-y-4"
