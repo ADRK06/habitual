@@ -1,5 +1,5 @@
 from flask import Flask, redirect, render_template, url_for
-from flask_login import LoginManager, current_user, login_required
+from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
@@ -24,18 +24,15 @@ def create_app(config_class=Config):
 
     from habitual import models  # noqa: F401 registers models with SQLAlchemy/Migrate
     from habitual.auth import auth as auth_blueprint
+    from habitual.habits import habits as habits_blueprint
 
     app.register_blueprint(auth_blueprint)
+    app.register_blueprint(habits_blueprint)
 
     @app.get("/")
     def home():
         if current_user.is_authenticated:
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("habits.dashboard"))
         return render_template("landing.html")
-
-    @app.get("/dashboard")
-    @login_required
-    def dashboard():
-        return render_template("dashboard.html")
 
     return app

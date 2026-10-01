@@ -1,0 +1,6 @@
+{% include "partials/header_stats.html" %}
+{% if no_habits_left %}
+<div id="habit-grid" hx-swap-oob="true">
+  {% include "partials/empty_state.html" %}
+</div>
+{% endif %}

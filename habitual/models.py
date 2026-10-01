@@ -31,3 +31,63 @@ class User(UserMixin, db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+
+class Habit(db.Model):
+    __tablename__ = "habits"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    title = db.Column(db.String(60), nullable=False)
+    emoji = db.Column(db.String(8), nullable=False)
+    tiny_version = db.Column(db.String(120), nullable=True)
+    created_on = db.Column(db.Date, nullable=False)
+
+    checkins = db.relationship(
+        "Checkin", backref="habit", cascade="all, delete-orphan", passive_deletes=False
+    )
+    freezes = db.relationship(
+        "Freeze", backref="habit", cascade="all, delete-orphan", passive_deletes=False
+    )
+    point_transactions = db.relationship(
+        "PointTransaction", backref="habit", cascade="all, delete-orphan", passive_deletes=False
+    )
+
+
+class Checkin(db.Model):
+    __tablename__ = "checkins"
+    __table_args__ = (db.UniqueConstraint("habit_id", "date", name="uq_checkin_habit_date"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    habit_id = db.Column(db.Integer, db.ForeignKey("habits.id"), nullable=False, index=True)
+    date = db.Column(db.Date, nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(dt_timezone.utc)
+    )
+    proof_note = db.Column(db.String(280), nullable=True)
+
+
+class Freeze(db.Model):
+    __tablename__ = "freezes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    habit_id = db.Column(db.Integer, db.ForeignKey("habits.id"), nullable=True, index=True)
+    purchased_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(dt_timezone.utc)
+    )
+    used_on = db.Column(db.Date, nullable=True)
+
+
+class PointTransaction(db.Model):
+    __tablename__ = "point_transactions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    habit_id = db.Column(db.Integer, db.ForeignKey("habits.id"), nullable=True, index=True)
+    amount = db.Column(db.Integer, nullable=False)
+    reason = db.Column(db.String(20), nullable=False)  # daily | milestone | crown | freeze_purchase
+    date = db.Column(db.Date, nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(dt_timezone.utc)
+    )

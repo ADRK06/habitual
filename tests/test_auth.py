@@ -83,6 +83,23 @@ def test_signup_invalid_timezone_falls_back(client, db):
     assert user.timezone == "Asia/Kolkata"
 
 
+def test_signup_stores_browser_detected_timezone(client, db):
+    client.post("/signup", data=_signup_payload(timezone="America/New_York"))
+    user = User.query.filter_by(username="aadhira").first()
+    assert user.timezone == "America/New_York"
+
+
+def test_signup_page_renders_exactly_one_timezone_field(client):
+    # Regression: form.hidden_tag() auto-renders every HiddenField (including
+    # "timezone" and "next"), which previously duplicated the explicitly
+    # re-rendered, JS-populated timezone input. The browser then submitted
+    # both, and the first (empty, JS never touches it) value always won,
+    # silently discarding the real browser-detected timezone.
+    response = client.get("/signup")
+    assert response.data.count(b'name="timezone"') == 1
+    assert response.data.count(b'name="next"') == 1
+
+
 def test_signup_duplicate_username_rejected(client, db):
     _create_user(db)
     response = client.post("/signup", data=_signup_payload(name="Someone Else"))

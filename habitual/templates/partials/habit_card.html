@@ -1,0 +1,89 @@
+<div
+  id="habit-card-{{ habit.id }}"
+  class="habit-card group relative cursor-pointer rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-accent/30 hover:shadow-xl"
+  data-habit-points="{{ habit_points }}"
+  x-data="{ confirmOpen: false }"
+  @click="window.location = '{{ url_for('habits.habit_detail', habit_id=habit.id) }}'"
+>
+  <button
+    type="button"
+    @click.stop="confirmOpen = true"
+    class="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-danger/15 hover:text-danger"
+    aria-label='Delete {{ habit.title }}'
+  >&times;</button>
+
+  <div class="flex items-center gap-3 pr-8">
+    <span class="text-3xl">{{ habit.emoji }}</span>
+    <h3 class="font-heading text-lg font-semibold text-text">{{ habit.title }}</h3>
+  </div>
+
+  <div class="mt-5 flex items-baseline gap-2">
+    <span class="text-2xl">🔥</span>
+    <span class="font-display text-3xl font-bold text-streak">{{ current_streak }}</span>
+    <span class="text-xs text-text-muted">day streak</span>
+  </div>
+
+  <dl class="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+    <div class="rounded-xl bg-bg/40 py-2">
+      <dt class="text-text-muted">Longest</dt>
+      <dd class="mt-0.5 font-medium text-text">{{ longest_streak }}</dd>
+    </div>
+    <div class="rounded-xl bg-bg/40 py-2">
+      <dt class="text-text-muted">Points</dt>
+      <dd class="mt-0.5 font-medium text-accent">{{ habit_points }}</dd>
+    </div>
+    <div class="rounded-xl bg-bg/40 py-2">
+      <dt class="text-text-muted">Success</dt>
+      <dd class="mt-0.5 font-medium text-text">{{ success_rate }}%</dd>
+    </div>
+  </dl>
+
+  {% if checked_in_today %}
+  <div class="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-2 text-sm font-medium text-accent">
+    <span>Checked in today</span><span>✓</span>
+  </div>
+  {% else %}
+  <button
+    type="button"
+    onclick="event.stopPropagation()"
+    hx-post="{{ url_for('habits.checkin', habit_id=habit.id) }}"
+    hx-target="#habit-card-{{ habit.id }}"
+    hx-swap="outerHTML"
+    class="mt-5 w-full rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+  >
+    Check in
+  </button>
+  {% endif %}
+
+  <div
+    x-show="confirmOpen"
+    x-cloak
+    onclick="event.stopPropagation()"
+    x-transition:enter="transition ease-out duration-150"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-100"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    class="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
+  >
+    <div class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl">
+      <h4 class="font-heading text-lg font-semibold text-text">Delete "{{ habit.title }}"?</h4>
+      <p class="mt-2 text-sm text-text-muted">This removes {{ habit_points }} points from your total. This can't be undone.</p>
+      <div class="mt-5 flex justify-end gap-3">
+        <button type="button" @click="confirmOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+          Cancel
+        </button>
+        <button
+          type="button"
+          hx-delete="{{ url_for('habits.delete_habit', habit_id=habit.id) }}"
+          hx-target="#habit-card-{{ habit.id }}"
+          hx-swap="outerHTML swap:200ms"
+          class="rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

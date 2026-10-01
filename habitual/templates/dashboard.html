@@ -3,15 +3,180 @@
 {% block title %}Dashboard · Habitual{% endblock %}
 
 {% block content %}
-<div class="flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
-  <h1 class="font-heading text-3xl font-semibold text-text">Welcome, {{ current_user.name }}</h1>
-  <p class="text-text-muted">The real dashboard (habits, streaks, points) is built in Phase 2.</p>
+<div x-data="{ createOpen: {{ 'true' if form.errors else 'false' }} }">
+  <header class="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-6 px-6 pt-10 pb-6">
+    <div>
+      <h1 class="font-heading text-2xl font-semibold text-text">{{ current_user.name }}</h1>
+      <p class="text-sm text-text-muted">@{{ current_user.username }}</p>
+    </div>
+    {% include "partials/header_stats.html" %}
+  </header>
 
-  <form method="post" action="{{ url_for('auth.logout') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="rounded-2xl border border-border bg-surface/60 backdrop-blur px-5 py-2 font-medium text-text transition hover:bg-surface">
-      Log out
-    </button>
-  </form>
+  <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 pb-6">
+    <div class="flex flex-wrap gap-3">
+      <button
+        type="button"
+        @click="createOpen = true"
+        class="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+      >
+        + Create habit
+      </button>
+      <button
+        type="button"
+        disabled
+        title="Rooms are coming in Phase 4"
+        class="cursor-not-allowed rounded-2xl border border-rooms/30 bg-rooms/10 px-5 py-2.5 text-sm font-medium text-rooms/60"
+      >
+        + Create room <span class="ml-1 text-xs text-text-muted">(soon)</span>
+      </button>
+    </div>
+
+    <form method="post" action="{{ url_for('auth.logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="rounded-2xl border border-border bg-surface/60 backdrop-blur px-5 py-2 text-sm font-medium text-text transition hover:bg-surface">
+        Log out
+      </button>
+    </form>
+  </div>
+
+  <main class="mx-auto max-w-6xl px-6 pb-20">
+    {% if habit_cards %}
+    <div id="habit-grid" class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {% for card in habit_cards %}
+        {% with habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak, habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today %}
+          {% include "partials/habit_card.html" %}
+        {% endwith %}
+      {% endfor %}
+    </div>
+    {% else %}
+      {% include "partials/empty_state.html" %}
+    {% endif %}
+  </main>
+
+  <div
+    x-show="createOpen"
+    x-cloak
+    @keydown.escape.window="createOpen = false"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+  >
+    <div @click.outside="createOpen = false" class="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl">
+      <h2 class="font-heading text-xl font-semibold text-text">New habit</h2>
+      <p class="mt-1 text-sm text-text-muted">Teacher tip: make it tiny enough you could do it half-asleep. You can always do more.</p>
+
+      <form method="post" action="{{ url_for('habits.create_habit') }}" x-data="{ emoji: '{{ form.emoji.data or '' }}' }" class="mt-5 space-y-4">
+        {{ form.csrf_token }}
+
+        <div>
+          <label class="mb-1 block text-sm text-text-muted">Title</label>
+          {{ form.title(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Read 10 pages', maxlength=60) }}
+          {% for error in form.title.errors %}
+          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm text-text-muted">Emoji</label>
+          <div class="grid grid-cols-8 gap-2">
+            {% for e in emoji_choices %}
+            <button
+              type="button"
+              @click="emoji = '{{ e }}'"
+              :class="emoji === '{{ e }}' ? 'bg-accent/20 border-accent' : 'border-border hover:border-text-muted'"
+              class="flex h-9 items-center justify-center rounded-lg border text-lg transition-colors"
+            >{{ e }}</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="emoji" x-model="emoji">
+          {% for error in form.emoji.errors %}
+          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm text-text-muted">Tiny version <span class="text-text-muted/70">(optional)</span></label>
+          {{ form.tiny_version(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Just open the book', maxlength=120) }}
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="createOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+            Cancel
+          </button>
+          <button type="submit" class="rounded-2xl bg-accent px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90">
+            Create habit
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // requestAnimationFrame (what every GSAP tween ticks on) never fires in a
+  // backgrounded/hidden tab, so a gsap.from() started while hidden would
+  // freeze content at its invisible "from" state indefinitely. Treat a
+  // hidden document the same as prefers-reduced-motion: skip straight to
+  // the final state instead of animating into it.
+  function skipMotion() {
+    return window.prefersReducedMotion || document.hidden;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+    const newId = params.get("new");
+    if (newId) {
+      history.replaceState(null, "", window.location.pathname);
+    }
+
+    if (window.gsap) {
+      const grid = document.getElementById("habit-grid");
+      const cards = grid ? [...grid.children] : [];
+
+      if (skipMotion()) {
+        gsap.set(cards, { opacity: 1, y: 0 });
+      } else if (cards.length) {
+        gsap.from(cards, { opacity: 0, y: 24, duration: 0.5, stagger: 0.08, ease: "power3.out" });
+      }
+
+      const newCard = newId ? document.getElementById(`habit-card-${newId}`) : null;
+      if (newCard) {
+        newCard.classList.add("ring-2", "ring-accent");
+        if (!skipMotion()) {
+          gsap.fromTo(
+            newCard,
+            { scale: 1 },
+            { scale: 1.04, duration: 0.3, ease: "power2.out", delay: 0.6, yoyo: true, repeat: 1 }
+          );
+        }
+        setTimeout(() => newCard.classList.remove("ring-2", "ring-accent"), 2500);
+      }
+    }
+
+    animateCounters();
+  });
+
+  function animateCounters(root) {
+    if (!window.gsap) return;
+    (root || document).querySelectorAll("[data-counter]").forEach((el) => {
+      const target = parseInt(el.dataset.counter, 10) || 0;
+      if (skipMotion()) {
+        el.textContent = target;
+        return;
+      }
+      const obj = { val: 0 };
+      gsap.to(obj, {
+        val: target,
+        duration: 1,
+        ease: "power2.out",
+        onUpdate: () => {
+          el.textContent = Math.round(obj.val);
+        },
+      });
+    });
+  }
+
+  document.body.addEventListener("htmx:afterSwap", (e) => animateCounters(e.detail.target));
+  document.body.addEventListener("htmx:oobAfterSwap", (e) => animateCounters(e.detail.target));
+</script>
 {% endblock %}

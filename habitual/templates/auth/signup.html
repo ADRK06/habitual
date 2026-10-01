@@ -29,7 +29,7 @@
       x-init="document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone"
       class="space-y-4"
     >
-      {{ form.hidden_tag() }}
+      {{ form.csrf_token }}
       {{ form.next }}
       {{ form.timezone(id='timezone') }}
 

@@ -71,7 +71,7 @@ class LoginForm(FlaskForm):
 @auth.route("/signup", methods=["GET", "POST"])
 def signup():
     if current_user.is_authenticated:
-        return redirect(safe_next_path(request.args.get("next")) or url_for("dashboard"))
+        return redirect(safe_next_path(request.args.get("next")) or url_for("habits.dashboard"))
 
     form = SignupForm(next=request.args.get("next", ""))
 
@@ -93,7 +93,7 @@ def signup():
         else:
             login_user(user)
             flash("Welcome to Habitual!", "success")
-            return redirect(safe_next_path(form.next.data) or url_for("dashboard"))
+            return redirect(safe_next_path(form.next.data) or url_for("habits.dashboard"))
 
     return render_template("auth/signup.html", form=form)
 
@@ -101,7 +101,7 @@ def signup():
 @auth.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(safe_next_path(request.args.get("next")) or url_for("dashboard"))
+        return redirect(safe_next_path(request.args.get("next")) or url_for("habits.dashboard"))
 
     form = LoginForm(next=request.args.get("next", ""))
 
@@ -121,7 +121,7 @@ def login():
             user.locked_until = None
             db.session.commit()
             login_user(user)
-            return redirect(safe_next_path(form.next.data) or url_for("dashboard"))
+            return redirect(safe_next_path(form.next.data) or url_for("habits.dashboard"))
         else:
             if user:
                 user.failed_login_attempts += 1

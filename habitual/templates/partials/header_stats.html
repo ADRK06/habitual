@@ -1,0 +1,14 @@
+<div id="header-stats" {% if oob %}hx-swap-oob="true"{% endif %} class="flex flex-wrap items-center gap-4 sm:gap-6">
+  <div class="text-right">
+    <p class="text-xs text-text-muted">Earned points</p>
+    <p class="font-display text-3xl font-bold text-accent" data-counter="{{ earned_points }}">0</p>
+  </div>
+  <div class="text-right">
+    <p class="text-xs text-text-muted">Balance</p>
+    <p class="text-lg font-medium text-text">{{ balance }}</p>
+  </div>
+  <div class="text-right">
+    <p class="text-xs text-text-muted">Freezes</p>
+    <p class="text-lg font-medium text-text">🧊 {{ freezes_held }}/2</p>
+  </div>
+</div>
