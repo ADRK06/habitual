@@ -38,4 +38,9 @@ def create_app(config_class=Config):
     def dashboard():
         return render_template("dashboard.html")
 
+    @app.get("/dev/logos")
+    def dev_logos():
+        # Dev-only logo concept comparison - remove before Phase 6 launch.
+        return render_template("dev_logos.html")
+
     return app
