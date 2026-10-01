@@ -39,9 +39,13 @@
   </dl>
 
   {% if checked_in_today %}
-  <div class="relative mt-5">
+  <div
+    class="relative mt-5"
+    @keydown.escape.window="if (undoOpen) { undoOpen = false; $nextTick(() => $refs.doneToday.focus()); }"
+  >
     <button
       type="button"
+      x-ref="doneToday"
       onclick="event.stopPropagation()"
       @click="undoOpen = !undoOpen"
       class="flex w-full items-center justify-center gap-2 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/15"
@@ -63,7 +67,11 @@
     >
       <p class="text-sm text-text">Undo today's check-in?</p>
       <div class="mt-3 flex justify-end gap-2">
-        <button type="button" @click="undoOpen = false" class="rounded-lg border border-border px-3 py-1.5 text-xs text-text hover:bg-bg/40">
+        <button
+          type="button"
+          @click="undoOpen = false; $nextTick(() => $refs.doneToday.focus())"
+          class="rounded-lg border border-border px-3 py-1.5 text-xs text-text hover:bg-bg/40"
+        >
           Cancel
         </button>
         <button
