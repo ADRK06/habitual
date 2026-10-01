@@ -26,6 +26,20 @@ def milestone_bonus(streak_day: int) -> int:
     return 0
 
 
+def next_milestone(streak_day: int) -> int:
+    """Smallest milestone day >= `streak_day` — the target the milestone
+    progress ring counts up to. Full on the exact milestone day; rolls to
+    the next target the day after (e.g. day 31 -> 60), same restart rule as
+    the bonus itself."""
+    if streak_day <= 7:
+        return 7
+    if streak_day <= 14:
+        return 14
+    if streak_day <= 30:
+        return 30
+    return ((streak_day + 29) // 30) * 30
+
+
 def milestone_label(streak_day: int) -> str | None:
     """User-facing name for the milestone hit on `streak_day`, or None."""
     if streak_day == 7:

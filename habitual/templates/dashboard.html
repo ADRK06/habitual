@@ -41,6 +41,7 @@
 
   <main class="pb-20">
     {% if habit_cards %}
+    {% include "partials/dashboard_overview.html" %}
     <div id="habit-grid" class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
       {% for card in habit_cards %}
         {% with habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak, habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today, can_save_streak=card.can_save_streak, has_freeze_to_use=card.has_freeze_to_use %}
@@ -143,6 +144,97 @@
     return window.prefersReducedMotion || document.hidden;
   }
 
+  // Keeps the card-grid entrance self-healing: whatever interrupts it
+  // (a backgrounded tab, a slow task elsewhere on the page), every card
+  // always ends up fully visible — content must never stay hidden.
+  function animateHabitGrid(newId) {
+    const grid = document.getElementById("habit-grid");
+    const cards = grid ? [...grid.children] : [];
+    if (!window.gsap || !cards.length) return;
+
+    const settle = () => gsap.set(cards, { clearProps: "opacity,transform" });
+
+    if (skipMotion()) {
+      settle();
+    } else {
+      const tween = gsap.from(cards, {
+        opacity: 0, y: 24, duration: 0.5, stagger: 0.08, ease: "power3.out", onComplete: settle,
+      });
+      // Fail-safe #1: force the final state once the entrance should be
+      // long done, no matter what interrupted it.
+      setTimeout(settle, (0.5 + 0.08 * cards.length + 0.3) * 1000);
+      // Fail-safe #2: a backgrounded tab pauses requestAnimationFrame (what
+      // every GSAP tween ticks on), which would otherwise freeze cards
+      // mid-fade indefinitely - snap straight to the end the moment that
+      // happens instead of waiting for the tab to come back.
+      document.addEventListener("visibilitychange", function onHide() {
+        if (document.hidden) {
+          tween.kill();
+          settle();
+          document.removeEventListener("visibilitychange", onHide);
+        }
+      });
+    }
+
+    const newCard = newId ? document.getElementById(`habit-card-${newId}`) : null;
+    if (newCard) {
+      newCard.classList.add("ring-2", "ring-accent");
+      if (!skipMotion()) {
+        gsap.fromTo(
+          newCard,
+          { scale: 1 },
+          { scale: 1.04, duration: 0.3, ease: "power2.out", delay: 0.6, yoyo: true, repeat: 1 }
+        );
+      }
+      setTimeout(() => newCard.classList.remove("ring-2", "ring-accent"), 2500);
+    }
+  }
+
+  // The overview line chart's canvas is a brand-new DOM node every time the
+  // #dashboard-overview OOB swap lands (htmx replaces the whole element), so
+  // any previous Chart.js instance is left pointing at a detached canvas -
+  // destroy it before building a new one, every time, on first load and
+  // after every htmx swap.
+  let overviewChart = null;
+  function initOverviewChart() {
+    const canvas = document.getElementById("overview-chart");
+    if (overviewChart) {
+      overviewChart.destroy();
+      overviewChart = null;
+    }
+    if (!canvas || !window.Chart) return;
+
+    const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    overviewChart = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: canvas.dataset.labels.split("|"),
+        datasets: [{
+          data: canvas.dataset.series.split(",").map(Number),
+          borderColor: token("--color-accent"),
+          backgroundColor: token("--color-accent"),
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.3,
+        }],
+      },
+      options: {
+        // No entrance animation here - this chart redraws on every
+        // check-in/undo, and the card grid's own entrance is already this
+        // page's primary motion; animating the line too just competes with
+        // it for the main thread right when smoothness matters most.
+        animation: false,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: token("--color-text-muted"), maxTicksLimit: 6, maxRotation: 0, autoSkip: true } },
+          y: { min: 0, max: 100, grid: { color: token("--color-border") }, ticks: { color: token("--color-text-muted"), callback: (v) => `${v}%` } },
+        },
+      },
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     const params = new URLSearchParams(window.location.search);
     const newId = params.get("new");
@@ -150,32 +242,20 @@
       history.replaceState(null, "", window.location.pathname);
     }
 
-    if (window.gsap) {
-      const grid = document.getElementById("habit-grid");
-      const cards = grid ? [...grid.children] : [];
+    animateHabitGrid(newId);
 
-      if (skipMotion()) {
-        gsap.set(cards, { opacity: 1, y: 0 });
-      } else if (cards.length) {
-        gsap.from(cards, { opacity: 0, y: 24, duration: 0.5, stagger: 0.08, ease: "power3.out" });
-      }
-
-      const newCard = newId ? document.getElementById(`habit-card-${newId}`) : null;
-      if (newCard) {
-        newCard.classList.add("ring-2", "ring-accent");
-        if (!skipMotion()) {
-          gsap.fromTo(
-            newCard,
-            { scale: 1 },
-            { scale: 1.04, duration: 0.3, ease: "power2.out", delay: 0.6, yoyo: true, repeat: 1 }
-          );
-        }
-        setTimeout(() => newCard.classList.remove("ring-2", "ring-accent"), 2500);
-      }
-    }
+    // Deferred a frame so the browser gets a chance to start painting the
+    // grid's entrance before Chart.js's own (synchronous, non-trivial) init
+    // work runs - keeps that work from stealing the first animated frames.
+    requestAnimationFrame(initOverviewChart);
 
     animateCounters();
   });
+
+  // Every htmx response that touches the dashboard (check-in, undo, freeze,
+  // delete) OOB-swaps a fresh #dashboard-overview, so the chart needs
+  // rebuilding against the new canvas + data each time.
+  document.body.addEventListener("htmx:afterSettle", () => initOverviewChart());
 
   // Each OOB header swap replaces the counter's DOM node wholesale with one
   // that already has the correct final text baked in (server-rendered, so

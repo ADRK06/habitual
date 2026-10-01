@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import date, timedelta
 
 from habitual.habits import EMOJI_CHOICES
@@ -55,6 +56,41 @@ def test_dashboard_shows_habit_card(client, db):
     response = client.get("/dashboard")
     assert b"Morning Run" in response.data
     assert b"No habits yet" not in response.data
+
+
+# -- dashboard overview (Part B) --------------------------------------------
+
+
+def test_dashboard_overview_hidden_with_no_habits(client, db):
+    _login(client, db)
+    response = client.get("/dashboard")
+    assert b"30-day overview" not in response.data
+
+
+def test_dashboard_overview_shown_with_a_habit(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Morning Run")
+    client.post(f"/habits/{habit.id}/checkin")
+    response = client.get("/dashboard")
+    assert b"30-day overview" in response.data
+    assert b"1/1" in response.data  # today's progress tile
+
+
+def test_dashboard_overview_hides_needs_attention_with_one_habit(client, db):
+    user = _login(client, db)
+    _create_habit(db, user)
+    response = client.get("/dashboard")
+    assert b"Needs attention" not in response.data
+
+
+def test_dashboard_overview_shows_needs_attention_tile_with_multiple_habits(client, db):
+    user = _login(client, db)
+    _create_habit(db, user, title="Run")
+    _create_habit(db, user, title="Read")
+    response = client.get("/dashboard")
+    # Both brand new today, so neither qualifies for a specific flag yet.
+    assert b"Needs attention" in response.data
+    assert b"All habits on track" in response.data
 
 
 # -- create habit -------------------------------------------------------------
@@ -117,7 +153,7 @@ def test_create_habit_trims_title(client, db):
     assert habit.title == "Read"
 
 
-# -- habit detail placeholder --------------------------------------------------
+# -- habit detail / analytics page ---------------------------------------------
 
 
 def test_habit_detail_requires_ownership(client, db):
@@ -135,7 +171,75 @@ def test_habit_detail_renders_for_owner(client, db):
     response = client.get(f"/habits/{habit.id}")
     assert response.status_code == 200
     assert b"Morning Run" in response.data
-    assert b"Phase 3" in response.data
+    # Brand new, nothing checked in yet: neutral status, locked insight.
+    assert b"Due today" in response.data
+    assert b"unlock after 14 days" in response.data
+
+
+def test_habit_detail_shows_on_track_after_checkin(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+    client.post(f"/habits/{habit.id}/checkin")
+    response = client.get(f"/habits/{habit.id}")
+    assert b"On track" in response.data
+
+
+def test_habit_detail_month_calendar_defaults_to_current_month(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user)
+    response = client.get(f"/habits/{habit.id}")
+    assert response.status_code == 200
+    assert date.today().strftime("%B").encode() in response.data
+
+
+def test_habit_detail_month_navigation_does_not_go_before_creation(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date.today())
+    too_early = (date.today().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    response = client.get(f"/habits/{habit.id}?month={too_early}")
+    # Clamped back to the habit's own creation month, not a 500 or an empty grid.
+    assert response.status_code == 200
+    assert date.today().strftime("%B").encode() in response.data
+
+
+def test_habit_detail_rejects_malformed_month_param(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user)
+    response = client.get(f"/habits/{habit.id}?month=not-a-month")
+    assert response.status_code == 200
+
+
+def _data_attrs(tag):
+    return {
+        "current_streak": re.search(r'data-current-streak="([^"]*)"', tag).group(1),
+        "checked_in_today": re.search(r'data-checked-in-today="([^"]*)"', tag).group(1),
+        "habit_points": re.search(r'data-habit-points="([^"]*)"', tag).group(1),
+    }
+
+
+def test_dashboard_card_and_detail_page_agree_on_streak_points_and_checkin(client, db):
+    # Both routes compute everything from _habit_view(habit, local_today(user), ...)
+    # — this guards against the dashboard card and the analytics page ever
+    # silently drifting apart (e.g. one of them using a different notion of
+    # "today"). The user has a non-UTC timezone, same as every other test
+    # here, so a route that mistakenly used naive/UTC "today" has a chance
+    # of showing up as a mismatch too.
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date.today() - timedelta(days=10))
+    client.post(f"/habits/{habit.id}/checkin")
+
+    dashboard_html = client.get("/dashboard").get_data(as_text=True)
+    detail_html = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+
+    dashboard_tag = re.search(
+        rf'<div\s[^>]*id="habit-card-{habit.id}"[^>]*>', dashboard_html, re.DOTALL
+    ).group(0)
+    detail_tag = re.search(
+        r'<div\s[^>]*data-current-streak="[^"]*"[^>]*>', detail_html, re.DOTALL
+    ).group(0)
+
+    assert _data_attrs(dashboard_tag) == _data_attrs(detail_tag)
+    assert _data_attrs(dashboard_tag)["checked_in_today"] == "true"
 
 
 # -- check-in ------------------------------------------------------------------
@@ -195,6 +299,18 @@ def test_checkin_response_includes_header_oob_with_correct_totals(client, db):
     assert b'id="header-stats"' in response.data
     assert b'hx-swap-oob="true"' in response.data
     assert b'data-counter="5"' in response.data
+
+
+def test_checkin_response_includes_overview_oob_with_todays_cell_done(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date.today())
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+    html = response.get_data(as_text=True)
+    assert 'id="dashboard-overview"' in html
+    assert 'hx-swap-oob="true"' in html
+    assert ">1/1<" in html  # the "Today" tile, reflecting the check-in just made
+    assert 'aria-label="Done"' in html  # today's cell in the 30-day grid
 
 
 def test_checkin_requires_ownership(client, db):

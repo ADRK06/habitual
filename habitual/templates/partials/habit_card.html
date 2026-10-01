@@ -2,6 +2,8 @@
   id="habit-card-{{ habit.id }}"
   class="habit-card group relative cursor-pointer rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-accent/30 hover:shadow-xl"
   data-habit-points="{{ habit_points }}"
+  data-current-streak="{{ current_streak }}"
+  data-checked-in-today="{{ 'true' if checked_in_today else 'false' }}"
   x-data="{ confirmOpen: false, undoOpen: false, checkinOpen: false }"
   @click="window.location = '{{ url_for('habits.habit_detail', habit_id=habit.id) }}'"
 >
@@ -19,7 +21,7 @@
 
   <div class="mt-5 flex items-baseline gap-2">
     <span class="text-2xl">🔥</span>
-    <span class="font-display text-3xl font-bold text-streak">{{ current_streak }}</span>
+    <span class="font-heading text-3xl font-bold tabular-nums text-streak">{{ current_streak }}</span>
     <span class="text-xs text-text-muted">day streak</span>
   </div>
 

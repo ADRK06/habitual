@@ -29,6 +29,12 @@
   --color-danger: var(--color-crimson);
   --color-rooms: var(--color-pink);
 
+  /* Space-separated RGB components of --color-accent, for the dashboard
+     overview's per-row completion wash (rgb(var(--color-accent-rgb) / a%)) -
+     a dynamically-computed alpha can't be expressed as a static Tailwind
+     utility, since the build only sees literal class names in templates. */
+  --color-accent-rgb: 255 255 0;
+
   /* Orbitron: wordmark + big numeric displays only. Exo 2: section headings.
      Inter: body. See CLAUDE.md Design direction for usage rules. */
   --font-display: "Orbitron", ui-sans-serif, system-ui, sans-serif;

@@ -9,6 +9,7 @@ from habitual.points import (
     longest_streak,
     milestone_bonus,
     milestone_label,
+    next_milestone,
     points_for_date,
     points_for_day,
     streak_day_on,
@@ -61,6 +62,19 @@ def test_milestones_restart_after_a_break():
     # day 14 overall, but only the 7th day of the *current* streak
     assert streak_day_on(completed, frozen, today) == 7
     assert points_for_date(completed, frozen, today) == 15
+
+
+def test_next_milestone_targets():
+    assert next_milestone(0) == 7
+    assert next_milestone(6) == 7
+    assert next_milestone(7) == 7
+    assert next_milestone(13) == 14
+    assert next_milestone(14) == 14
+    assert next_milestone(29) == 30
+    assert next_milestone(30) == 30
+    assert next_milestone(31) == 60
+    assert next_milestone(59) == 60
+    assert next_milestone(60) == 60
 
 
 # --- current streak ------------------------------------------------------

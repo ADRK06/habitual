@@ -1,0 +1,101 @@
+{% from "partials/day_cell.html" import week_circle, heat_cell %}
+
+<div
+  class="rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl"
+  data-current-streak="{{ current_streak }}"
+  data-checked-in-today="{{ 'true' if checked_in_today else 'false' }}"
+  data-habit-points="{{ habit_points }}"
+>
+  <div class="flex items-start justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <span class="text-4xl">{{ habit.emoji }}</span>
+      <h1 class="font-heading text-2xl font-semibold text-text">{{ habit.title }}</h1>
+    </div>
+    <span
+      class="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium
+        {% if status_variant == 'ontrack' %}bg-success/15 text-success
+        {% elif status_variant == 'risk' %}bg-danger/15 text-danger
+        {% else %}bg-border/50 text-text-muted{% endif %}"
+    >
+      {% if status_variant == 'saved' %}🧊{% elif status_variant == 'due' %}📅{% elif status_variant == 'risk' %}⚠️{% else %}✓{% endif %}
+      {{ status_label }}
+    </span>
+  </div>
+
+  <div class="mx-auto mt-6 flex max-w-2xl flex-wrap items-start justify-center gap-10">
+    <div class="flex items-center gap-5">
+      <div class="h-32 w-32 shrink-0">
+        <canvas
+          id="rings-chart"
+          data-week="{{ week_ring[0] }},{{ week_ring[1] }}"
+          data-month="{{ month_ring[0] }},{{ month_ring[1] }}"
+          data-milestone="{{ milestone_ring[0] }},{{ milestone_ring[1] }}"
+          role="img"
+          aria-label="Week {{ week_ring[0] }} of {{ week_ring[1] }} days, month {{ month_ring[0] }} of {{ month_ring[1] }} days, milestone day {{ milestone_ring[0] }} of {{ milestone_ring[1] }}"
+        ></canvas>
+      </div>
+      <dl class="space-y-2 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true"></span>
+          <dt class="text-text-muted">Week</dt>
+          <dd class="font-medium text-text">{{ week_ring[0] }}/{{ week_ring[1] }} days</dd>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="h-2.5 w-2.5 rounded-full bg-text" aria-hidden="true"></span>
+          <dt class="text-text-muted">Month</dt>
+          <dd class="font-medium text-text">{{ month_ring[0] }}/{{ month_ring[1] }} days</dd>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="h-2.5 w-2.5 rounded-full bg-streak" aria-hidden="true"></span>
+          <dt class="text-text-muted">Milestone</dt>
+          <dd class="font-medium text-text">Day {{ milestone_ring[0] }} of {{ milestone_ring[1] }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="grid w-fit grid-cols-2 gap-3">
+      <div class="w-32 rounded-xl bg-bg/40 p-4">
+        <p class="text-xs text-text-muted">🔥 Streak</p>
+        <p class="mt-1 font-heading text-3xl font-bold tabular-nums text-streak">{{ current_streak }}</p>
+        <p class="text-xs text-text-muted">best {{ longest_streak }}</p>
+      </div>
+      <div class="w-32 rounded-xl bg-bg/40 p-4">
+        <p class="text-xs text-text-muted">Habit strength</p>
+        <p class="mt-1 font-heading text-3xl font-bold tabular-nums text-accent">{{ strength }}%</p>
+        <div class="mt-2 h-1.5 w-full origin-left overflow-hidden rounded-full bg-border">
+          <div
+            class="h-full origin-left rounded-full bg-accent"
+            style="transform: scaleX({{ (strength / 100) | round(3) }})"
+            data-strength-bar
+            data-strength-fraction="{{ (strength / 100) | round(3) }}"
+          ></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="my-6 border-border">
+
+  <div class="grid gap-6 sm:grid-cols-2">
+    <div>
+      <p class="mb-2 text-xs text-text-muted">This week</p>
+      <div class="flex gap-2">
+        {% for day in week_days %}{{ week_circle(day.letter, day.state, day.is_today) }}{% endfor %}
+      </div>
+    </div>
+    <div>
+      <p class="mb-2 text-xs text-text-muted">Last 5 weeks</p>
+      <div class="grid grid-cols-7 gap-1.5">
+        {% for week in heatmap_weeks %}{% for state in week %}{{ heat_cell(state) }}{% endfor %}{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-6 rounded-xl bg-bg/40 px-4 py-3 text-sm text-text">
+    {% if insight %}
+      💡 {{ insight }}
+    {% else %}
+      💡 Keep going — insights unlock after 14 days.
+    {% endif %}
+  </div>
+</div>

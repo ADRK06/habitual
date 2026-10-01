@@ -240,9 +240,13 @@ password checklist, show/hide password.
   All tokens live in `tailwind/input.css`'s `@theme` block as both raw (`--color-yellow`) and semantic
   (`--color-accent`) names - use the semantic name in templates.
 - **Type**: three-tier system, loaded via Google Fonts, all pinned.
-  - **Orbitron** (`font-display`) - wordmark and big numeric displays (streak counters) only. Don't use it
-    for long copy - it strains at small sizes/long phrases.
-  - **Exo 2** (`font-heading`) - section headings (h1-h4 by default via the base layer).
+  - **Orbitron** (`font-display`) - wordmark and hero display numbers on the landing page only. Its zero
+    has a slash through it, which reads as a 🚫 "prohibited" icon at small sizes - never use it for a stat
+    that can show "0" (streaks, counters, tiles). Don't use it for long copy either - it strains at small
+    sizes/long phrases.
+  - **Exo 2** (`font-heading`) - section headings (h1-h4 by default via the base layer) **and all stat
+    numbers in tiles/cards** (streak counts, habit strength %, header point totals) - bold with
+    `tabular-nums` so digits don't shift width as they animate.
   - **Inter** (`font-body`) - everything else.
 - **Logo**: no icon mark yet - the developer is drafting one to slot in later. Until then, use the text
   wordmark "Habitual" in `font-display` (nav, footer). Favicon is a placeholder flat yellow/void teardrop
@@ -320,7 +324,7 @@ Deploy: push to GitHub `main` → Vercel auto-deploys. Run `./scripts/migrate-pr
 - [ ] **Phase 0 — Setup**: repo, venv, hello-world Flask, Neon dev/main branches, first Vercel deploy live
 - [x] **Phase 1 — Accounts + landing**: models for users, signup/login/logout, validation, username check, timezone detection, animated landing page, base layout and design tokens
 - [x] **Phase 2 — Solo habits + dashboard**: habit CRUD with templates and tiny tips, check-in with notes, `points.py` (points, streaks, milestones) with tests, freezes, header stats, delete confirmation, check-in animations
-- [ ] **Phase 3 — Habit analytics page**: ring, heatmap, weekly chart, log, insights (**get the reference image first**)
+- [x] **Phase 3 — Habit analytics page**: ring, heatmap, weekly chart, log, insights (**get the reference image first**)
 - [ ] **Phase 4 — Rooms**: create, join link, room cards, leaderboard with tiebreakers, crown, health meter, room streak, vouches, leave/ownership transfer, room end and results
 - [ ] **Phase 5 — Polish**: badges, confetti, empty/loading/error states, full animation pass, design and
       implement the Habitual logo (SVG, nav/footer/favicon)

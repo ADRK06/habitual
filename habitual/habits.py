@@ -1,5 +1,6 @@
+import calendar as calendar_module
 import json
-from datetime import timedelta
+from datetime import date, timedelta
 
 from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -8,9 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from wtforms import HiddenField, StringField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
-from habitual import db, points
+from habitual import analytics, db, points
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
-from habitual.utils.time import local_today
+from habitual.utils.time import local_now, local_today
 
 habits = Blueprint("habits", __name__)
 
@@ -84,21 +85,53 @@ def _header_stats(user):
     }
 
 
-def _dashboard_context(form=None):
-    today = local_today(current_user)
-    header = _header_stats(current_user)
-    habit_rows = (
-        Habit.query.filter_by(user_id=current_user.id)
+def _user_habits(user):
+    return (
+        Habit.query.filter_by(user_id=user.id)
         .order_by(Habit.created_on.desc(), Habit.id.desc())
         .all()
     )
+
+
+def _overview_context(habit_rows, today):
+    """Dashboard overview (Part B): a 30-day grid + line chart across every
+    active habit, plus summary tiles. Built from analytics.py's pure
+    aggregation functions so the math stays testable."""
+    habit_infos = [
+        {
+            "id": h.id,
+            "title": h.title,
+            "emoji": h.emoji,
+            "completed": {c.date for c in h.checkins},
+            "frozen": {f.used_on for f in h.freezes if f.used_on is not None},
+            "created_on": h.created_on,
+        }
+        for h in habit_rows
+    ]
+    grid_rows = analytics.thirty_day_grid(habit_infos, today)
     return {
+        "overview_habits": habit_infos,
+        "overview_rows": grid_rows,
+        "overview_series": analytics.completion_series(grid_rows),
+        "overview_chart_labels": [r["date"].strftime("%b %-d") for r in reversed(grid_rows)],
+        **analytics.overview_summary(habit_infos, today),
+    }
+
+
+def _dashboard_context(form=None):
+    today = local_today(current_user)
+    header = _header_stats(current_user)
+    habit_rows = _user_habits(current_user)
+    context = {
         "habit_cards": [_habit_view(h, today, header["freezes_held"]) for h in habit_rows],
         "form": form or HabitForm(),
         "emoji_choices": EMOJI_CHOICES,
         "habit_templates": HABIT_TEMPLATES,
         **header,
     }
+    if habit_rows:
+        context.update(_overview_context(habit_rows, today))
+    return context
 
 
 @habits.get("/dashboard")
@@ -131,13 +164,116 @@ def create_habit():
     return render_template("dashboard.html", **context), 400
 
 
+WEEKDAY_LETTERS = "MTWTFSS"
+
+
+def _analytics_context(habit, today, now_hour):
+    """Everything habits/detail.html's ring card needs, derived from
+    analytics.py's pure functions."""
+    completed = {c.date for c in habit.checkins}
+    frozen = {f.used_on for f in habit.freezes if f.used_on is not None}
+    yesterday = today - timedelta(days=1)
+    froze_used_yesterday = any(f.used_on == yesterday for f in habit.freezes)
+
+    week_ring = analytics.week_ring(completed, habit.created_on, today)
+    month_ring = analytics.month_ring(completed, habit.created_on, today)
+    streak = points.current_streak(completed, frozen, today)
+    status_label, status_variant = analytics.habit_status(
+        completed, frozen, froze_used_yesterday, habit.created_on, today, now_hour
+    )
+
+    week_start = today - timedelta(days=today.weekday())
+    week_days = [
+        {
+            "letter": WEEKDAY_LETTERS[i],
+            "state": analytics.day_state(week_start + timedelta(days=i), completed, frozen, habit.created_on, today),
+            "is_today": (week_start + timedelta(days=i)) == today,
+        }
+        for i in range(7)
+    ]
+
+    heatmap_start = week_start - timedelta(days=7 * 4)  # 5 weeks total, current week last
+    heatmap_weeks = [
+        [
+            analytics.day_state(heatmap_start + timedelta(days=7 * w + i), completed, frozen, habit.created_on, today)
+            for i in range(7)
+        ]
+        for w in range(5)
+    ]
+
+    return {
+        "week_ring": week_ring,
+        "month_ring": month_ring,
+        "milestone_ring": (streak, points.next_milestone(streak)),
+        "strength": round(analytics.habit_strength(completed, frozen, habit.created_on, today)),
+        "status_label": status_label,
+        "status_variant": status_variant,
+        "week_days": week_days,
+        "heatmap_weeks": heatmap_weeks,
+        "insight": analytics.smart_insight(completed, habit.created_on, today),
+    }
+
+
+def _month_calendar_context(habit, month_start, today):
+    completed = {c.date for c in habit.checkins}
+    frozen = {f.used_on for f in habit.freezes if f.used_on is not None}
+
+    cal = calendar_module.Calendar(firstweekday=0)
+    weeks = [
+        [
+            {
+                "day": d.day,
+                "state": analytics.day_state(d, completed, frozen, habit.created_on, today),
+            }
+            if d.month == month_start.month
+            else None
+            for d in week
+        ]
+        for week in cal.monthdatescalendar(month_start.year, month_start.month)
+    ]
+
+    prev_month = (month_start - timedelta(days=1)).replace(day=1)
+    next_last_day = calendar_module.monthrange(month_start.year, month_start.month)[1]
+    next_month = (month_start.replace(day=next_last_day) + timedelta(days=1)).replace(day=1)
+
+    return {
+        "month_start": month_start,
+        "weeks": weeks,
+        "prev_month": prev_month,
+        "next_month": next_month,
+        "can_go_prev": prev_month >= habit.created_on.replace(day=1),
+        "can_go_next": next_month <= today.replace(day=1),
+    }
+
+
 @habits.get("/habits/<int:habit_id>")
 @login_required
 def habit_detail(habit_id):
     habit = db.get_or_404(Habit, habit_id)
     if habit.user_id != current_user.id:
         abort(404)
-    return render_template("habits/detail.html", habit=habit)
+
+    today = local_today(current_user)
+    now_hour = local_now(current_user).hour
+    freezes_held = Freeze.query.filter_by(user_id=current_user.id, used_on=None).count()
+
+    month_param = request.args.get("month")
+    try:
+        calendar_month = date.fromisoformat(f"{month_param}-01") if month_param else today.replace(day=1)
+    except ValueError:
+        calendar_month = today.replace(day=1)
+    # Never show a month before the habit existed or after the current one.
+    calendar_month = max(habit.created_on.replace(day=1), min(calendar_month, today.replace(day=1)))
+
+    context = {
+        **_habit_view(habit, today, freezes_held),
+        **_analytics_context(habit, today, now_hour),
+        "calendar": _month_calendar_context(habit, calendar_month, today),
+        "recent_checkins": (
+            Checkin.query.filter_by(habit_id=habit.id).order_by(Checkin.date.desc()).limit(10).all()
+        ),
+    }
+    return render_template("habits/detail.html", **context)
 
 
 @habits.post("/habits/<int:habit_id>/checkin")
@@ -185,7 +321,12 @@ def checkin(habit_id):
         points_earned = points.BASE_POINTS + bonus
 
     header = _header_stats(current_user)
-    context = {**_habit_view(habit, today, header["freezes_held"]), **header, "oob": True}
+    context = {
+        **_habit_view(habit, today, header["freezes_held"]),
+        **header,
+        **_overview_context(_user_habits(current_user), today),
+        "oob": True,
+    }
     resp = make_response(render_template("partials/checkin_response.html", **context))
     if points_earned:
         label = points.milestone_label(streak_day)
@@ -223,7 +364,12 @@ def undo_checkin(habit_id):
     db.session.commit()
 
     header = _header_stats(current_user)
-    context = {**_habit_view(habit, today, header["freezes_held"]), **header, "oob": True}
+    context = {
+        **_habit_view(habit, today, header["freezes_held"]),
+        **header,
+        **_overview_context(_user_habits(current_user), today),
+        "oob": True,
+    }
     resp = make_response(render_template("partials/checkin_response.html", **context))
     resp.headers["HX-Trigger"] = json.dumps(
         {"toast": {"message": "Check-in undone.", "type": "info"}}
@@ -316,7 +462,12 @@ def use_freeze(habit_id):
     db.session.commit()
 
     header = _header_stats(current_user)
-    context = {**_habit_view(habit, today, header["freezes_held"]), **header, "oob": True}
+    context = {
+        **_habit_view(habit, today, header["freezes_held"]),
+        **header,
+        **_overview_context(_user_habits(current_user), today),
+        "oob": True,
+    }
     resp = make_response(render_template("partials/checkin_response.html", **context))
     resp.headers["HX-Trigger"] = json.dumps(
         {"toast": {"message": "Streak saved with a freeze 🧊", "type": "info"}}
@@ -335,8 +486,14 @@ def delete_habit(habit_id):
     db.session.delete(habit)
     db.session.commit()
 
-    remaining = Habit.query.filter_by(user_id=current_user.id).count()
-    context = {**_header_stats(current_user), "oob": True, "no_habits_left": remaining == 0}
+    today = local_today(current_user)
+    remaining_rows = _user_habits(current_user)
+    context = {
+        **_header_stats(current_user),
+        **_overview_context(remaining_rows, today),
+        "oob": True,
+        "no_habits_left": len(remaining_rows) == 0,
+    }
     resp = make_response(render_template("partials/delete_response.html", **context))
     resp.headers["HX-Trigger"] = json.dumps(
         {"toast": {"message": f'Deleted "{title}".', "type": "info"}}
