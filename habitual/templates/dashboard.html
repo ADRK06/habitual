@@ -156,18 +156,30 @@
     animateCounters();
   });
 
-  function animateCounters(root) {
-    if (!window.gsap) return;
-    (root || document).querySelectorAll("[data-counter]").forEach((el) => {
+  // Each OOB header swap replaces the counter's DOM node wholesale with one
+  // that already has the correct final text baked in (server-rendered, so
+  // it's always correct even if this script never runs). This cache is the
+  // only way to know what was on screen a moment ago, so the tween can
+  // animate UP to the new value instead of resetting to 0 and recounting.
+  const counterCache = {};
+
+  function animateCounters() {
+    document.querySelectorAll("[data-counter]").forEach((el) => {
+      const key = el.id || "counter";
       const target = parseInt(el.dataset.counter, 10) || 0;
-      if (skipMotion()) {
+      const hasPrev = Object.prototype.hasOwnProperty.call(counterCache, key);
+      const start = hasPrev ? counterCache[key] : 0;
+      counterCache[key] = target;
+
+      if (!window.gsap || skipMotion() || start === target) {
         el.textContent = target;
         return;
       }
-      const obj = { val: 0 };
+
+      const obj = { val: start };
       gsap.to(obj, {
         val: target,
-        duration: 1,
+        duration: hasPrev ? 0.6 : 1,
         ease: "power2.out",
         onUpdate: () => {
           el.textContent = Math.round(obj.val);
@@ -176,7 +188,8 @@
     });
   }
 
-  document.body.addEventListener("htmx:afterSwap", (e) => animateCounters(e.detail.target));
-  document.body.addEventListener("htmx:oobAfterSwap", (e) => animateCounters(e.detail.target));
+  // afterSettle (not afterSwap) fires once everything - including any
+  // out-of-band swaps like the header stats - has landed in the DOM.
+  document.body.addEventListener("htmx:afterSettle", () => animateCounters());
 </script>
 {% endblock %}

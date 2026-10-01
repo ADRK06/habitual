@@ -164,6 +164,39 @@ def checkin(habit_id):
     return resp
 
 
+@habits.delete("/habits/<int:habit_id>/checkin")
+@login_required
+def undo_checkin(habit_id):
+    habit = db.get_or_404(Habit, habit_id)
+    if habit.user_id != current_user.id:
+        abort(404)
+
+    today = local_today(current_user)
+
+    # Only today's checkin is ever targeted here (no date is accepted from the
+    # client), so past days can never be undone through this route.
+    checkin_row = Checkin.query.filter_by(habit_id=habit.id, date=today).first()
+    if checkin_row is None:
+        abort(404)
+
+    # Checkin + every one of today's ledger entries (daily and milestone, but
+    # never a freeze purchase - those carry no habit_id) are removed in one
+    # transaction, so a later re-checkin reprices exactly as if today never
+    # happened. Freeze rows are untouched, so a freeze used for yesterday
+    # stays intact.
+    for txn in PointTransaction.query.filter_by(habit_id=habit.id, date=today):
+        db.session.delete(txn)
+    db.session.delete(checkin_row)
+    db.session.commit()
+
+    context = {**_habit_view(habit, today), **_header_stats(current_user), "oob": True}
+    resp = make_response(render_template("partials/checkin_response.html", **context))
+    resp.headers["HX-Trigger"] = json.dumps(
+        {"toast": {"message": "Check-in undone.", "type": "info"}}
+    )
+    return resp
+
+
 @habits.delete("/habits/<int:habit_id>")
 @login_required
 def delete_habit(habit_id):

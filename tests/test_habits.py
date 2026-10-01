@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from habitual.habits import EMOJI_CHOICES
-from habitual.models import Checkin, Habit, PointTransaction, User
+from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
 
 VALID_PASSWORD = "Sup3r$ecret"
 
@@ -150,7 +150,7 @@ def test_checkin_awards_base_points_and_marks_done(client, db):
 
     amounts = [pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id)]
     assert sum(amounts) == 5
-    assert b"Checked in today" in response.data
+    assert b"Done today" in response.data
 
 
 def test_checkin_awards_milestone_bonus_on_day_seven(client, db):
@@ -186,6 +186,15 @@ def test_double_checkin_same_day_is_safe(client, db):
     assert sum(amounts) == 5  # no duplicate points from the second submit
 
 
+def test_checkin_response_includes_header_oob_with_correct_totals(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date.today())
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+    assert b'id="header-stats" hx-swap-oob="true"' in response.data
+    assert b'data-counter="5"' in response.data
+
+
 def test_checkin_requires_ownership(client, db):
     owner = _create_user(db, username="owner")
     habit = _create_habit(db, owner)
@@ -210,6 +219,18 @@ def test_delete_habit_removes_habit_and_its_points(client, db):
     assert db.session.get(Habit, habit.id) is None
     assert PointTransaction.query.filter_by(habit_id=habit.id).count() == 0
     assert Checkin.query.filter_by(habit_id=habit.id).count() == 0
+
+
+def test_delete_response_includes_header_oob_with_correct_totals(client, db):
+    user = _login(client, db)
+    habit1 = _create_habit(db, user, title="Read")
+    habit2 = _create_habit(db, user, title="Run")
+    client.post(f"/habits/{habit1.id}/checkin")  # +5, will be deleted
+    client.post(f"/habits/{habit2.id}/checkin")  # +5, stays
+
+    response = client.delete(f"/habits/{habit1.id}")
+    assert b'id="header-stats" hx-swap-oob="true"' in response.data
+    assert b'data-counter="5"' in response.data  # only habit2's points remain
 
 
 def test_delete_last_habit_shows_empty_state_via_oob(client, db):
@@ -238,3 +259,104 @@ def test_delete_habit_requires_ownership(client, db):
     response = client.delete(f"/habits/{habit.id}")
     assert response.status_code == 404
     assert db.session.get(Habit, habit.id) is not None
+
+
+# -- undo check-in --------------------------------------------------------
+
+
+def test_undo_checkin_removes_checkin_and_its_points(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date.today())
+    client.post(f"/habits/{habit.id}/checkin")
+
+    response = client.delete(f"/habits/{habit.id}/checkin")
+    assert response.status_code == 200
+    assert Checkin.query.filter_by(habit_id=habit.id).count() == 0
+    assert PointTransaction.query.filter_by(habit_id=habit.id).count() == 0
+    assert b"Check in" in response.data
+    assert b"Done today" not in response.data
+
+
+def test_checkin_undo_then_checkin_again_gives_identical_totals(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date.today())
+
+    client.post(f"/habits/{habit.id}/checkin")
+    first_amounts = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id))
+
+    client.delete(f"/habits/{habit.id}/checkin")
+    client.post(f"/habits/{habit.id}/checkin")
+    second_amounts = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id))
+
+    assert first_amounts == second_amounts == [5]
+    assert Checkin.query.filter_by(habit_id=habit.id).count() == 1
+
+
+def test_undo_on_a_milestone_day_removes_the_bonus_too(client, db):
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, created_on=today - timedelta(days=6))
+
+    for i in range(6):
+        d = today - timedelta(days=6 - i)
+        db.session.add(Checkin(habit_id=habit.id, date=d))
+        db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=d))
+    db.session.commit()
+
+    client.post(f"/habits/{habit.id}/checkin")
+    assert sum(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id, date=today)) == 15
+
+    client.delete(f"/habits/{habit.id}/checkin")
+    assert Checkin.query.filter_by(habit_id=habit.id, date=today).count() == 0
+    assert PointTransaction.query.filter_by(habit_id=habit.id, date=today).count() == 0
+
+
+def test_cannot_undo_a_past_days_checkin(client, db):
+    user = _login(client, db)
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    habit = _create_habit(db, user, created_on=yesterday)
+    db.session.add(Checkin(habit_id=habit.id, date=yesterday))
+    db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=yesterday))
+    db.session.commit()
+
+    # No checkin exists for *today*, so there's nothing this route can touch,
+    # regardless of what happened yesterday.
+    response = client.delete(f"/habits/{habit.id}/checkin")
+    assert response.status_code == 404
+    assert Checkin.query.filter_by(habit_id=habit.id, date=yesterday).count() == 1
+    assert PointTransaction.query.filter_by(habit_id=habit.id, date=yesterday).count() == 1
+
+
+def test_undo_checkin_does_not_break_a_freeze_used_for_yesterday(client, db):
+    user = _login(client, db)
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    habit = _create_habit(db, user, created_on=today - timedelta(days=2))
+
+    older = today - timedelta(days=2)
+    db.session.add(Checkin(habit_id=habit.id, date=older))
+    db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=older))
+    db.session.add(Freeze(user_id=user.id, habit_id=habit.id, used_on=yesterday))
+    db.session.commit()
+
+    client.post(f"/habits/{habit.id}/checkin")
+    client.delete(f"/habits/{habit.id}/checkin")
+
+    freeze = Freeze.query.filter_by(habit_id=habit.id).first()
+    assert freeze is not None
+    assert freeze.used_on == yesterday
+
+
+def test_undo_checkin_requires_ownership(client, db):
+    owner = _create_user(db, username="owner")
+    today = date.today()
+    habit = _create_habit(db, owner, created_on=today)
+    db.session.add(Checkin(habit_id=habit.id, date=today))
+    db.session.add(PointTransaction(user_id=owner.id, habit_id=habit.id, amount=5, reason="daily", date=today))
+    db.session.commit()
+
+    _login(client, db, username="intruder")
+    response = client.delete(f"/habits/{habit.id}/checkin")
+    assert response.status_code == 404
+    assert Checkin.query.filter_by(habit_id=habit.id).count() == 1
