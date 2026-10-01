@@ -3,8 +3,11 @@
 {% block title %}Sign up · Habitual{% endblock %}
 
 {% block content %}
-<div class="flex min-h-screen items-center justify-center px-4 py-12">
-  <div class="w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur p-8">
+<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
+  <div data-glow="accent" class="pointer-events-none absolute -top-32 -left-24 h-80 w-80 rounded-full bg-accent/25 blur-3xl"></div>
+  <div data-glow="violet" class="pointer-events-none absolute -bottom-32 -right-24 h-80 w-80 rounded-full bg-accent-2/25 blur-3xl"></div>
+
+  <div id="auth-card" class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 shadow-2xl shadow-black/20">
     <h1 class="font-heading text-2xl font-semibold text-text mb-6">Create your account</h1>
 
     <form
@@ -19,6 +22,9 @@
         get hasSpecial() { return /[^\w\s]/.test(this.password) },
         get hasLength() { return this.password.length >= 8 },
         get matches() { return this.confirm.length > 0 && this.confirm === this.password },
+        get score() { return [this.hasLength, this.hasUpper, this.hasLower, this.hasDigit, this.hasSpecial].filter(Boolean).length },
+        get strengthLabel() { return ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'][this.score] },
+        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-accent' : 'bg-success' },
       }"
       x-init="document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone"
       class="space-y-4"
@@ -29,15 +35,17 @@
 
       <div>
         <label for="name" class="block text-sm text-text-muted mb-1">Name</label>
-        {{ form.name(id='name', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:ring-2 focus:ring-accent') }}
-        {% for error in form.name.errors %}<p class="text-sm text-danger mt-1">{{ error }}</p>{% endfor %}
+        {{ form.name(id='name', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent') }}
+        {% for error in form.name.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger">{{ error }}</p>
+        {% endfor %}
       </div>
 
       <div>
         <label for="username" class="block text-sm text-text-muted mb-1">Username</label>
         {{ form.username(
           id='username',
-          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:ring-2 focus:ring-accent',
+          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
           autocomplete='off',
           autocapitalize='off',
           **{
@@ -48,7 +56,9 @@
           }
         ) }}
         <div id="username-check" class="mt-1"></div>
-        {% for error in form.username.errors %}<p class="text-sm text-danger mt-1">{{ error }}</p>{% endfor %}
+        {% for error in form.username.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger">{{ error }}</p>
+        {% endfor %}
       </div>
 
       <div>
@@ -56,7 +66,7 @@
         <div class="relative">
           {{ form.password(
             id='password',
-            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 pr-16 text-text focus:outline-none focus:ring-2 focus:ring-accent',
+            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 pr-16 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
             **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'password'}
           ) }}
           <button
@@ -67,28 +77,38 @@
             <span x-text="showPassword ? 'Hide' : 'Show'"></span>
           </button>
         </div>
+
+        <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
+          <div class="h-full rounded-full transition-all duration-300" :class="strengthColor" :style="`width: ${(score / 5) * 100}%`"></div>
+        </div>
+        <p class="mt-1 text-xs text-text-muted" x-text="password.length ? strengthLabel : ''"></p>
+
         <ul class="mt-2 space-y-0.5 text-xs text-text-muted">
-          <li :class="{ 'text-success': hasLength }">8+ characters</li>
-          <li :class="{ 'text-success': hasUpper }">Uppercase letter</li>
-          <li :class="{ 'text-success': hasLower }">Lowercase letter</li>
-          <li :class="{ 'text-success': hasDigit }">Digit</li>
-          <li :class="{ 'text-success': hasSpecial }">Special character</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasLength }">8+ characters</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasUpper }">Uppercase letter</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasLower }">Lowercase letter</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasDigit }">Digit</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasSpecial }">Special character</li>
         </ul>
-        {% for error in form.password.errors %}<p class="text-sm text-danger mt-1">{{ error }}</p>{% endfor %}
+        {% for error in form.password.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger">{{ error }}</p>
+        {% endfor %}
       </div>
 
       <div>
         <label for="confirm_password" class="block text-sm text-text-muted mb-1">Confirm password</label>
         {{ form.confirm_password(
           id='confirm_password',
-          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:ring-2 focus:ring-accent',
+          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
           **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'confirm'}
         ) }}
-        <p class="mt-1 text-xs" :class="matches ? 'text-success' : 'text-text-muted'" x-text="confirm.length ? (matches ? 'Passwords match' : 'Passwords do not match') : ''"></p>
-        {% for error in form.confirm_password.errors %}<p class="text-sm text-danger mt-1">{{ error }}</p>{% endfor %}
+        <p class="mt-1 text-xs transition-colors duration-200" :class="matches ? 'text-success' : 'text-text-muted'" x-text="confirm.length ? (matches ? 'Passwords match' : 'Passwords do not match') : ''"></p>
+        {% for error in form.confirm_password.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger">{{ error }}</p>
+        {% endfor %}
       </div>
 
-      <button type="submit" class="w-full rounded-2xl bg-accent px-4 py-2 font-medium text-bg transition hover:opacity-90">
+      <button type="submit" class="w-full rounded-2xl bg-accent px-4 py-2 font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]">
         Create account
       </button>
     </form>
@@ -99,4 +119,22 @@
     </p>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!window.gsap) return;
+    const card = document.getElementById("auth-card");
+
+    if (window.prefersReducedMotion) {
+      gsap.set(card, { opacity: 1, y: 0 });
+      return;
+    }
+
+    gsap.fromTo(card, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" });
+    gsap.to('[data-glow="accent"]', { x: 30, y: 20, duration: 9, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    gsap.to('[data-glow="violet"]', { x: -25, y: -15, duration: 11, repeat: -1, yoyo: true, ease: "sine.inOut" });
+  });
+</script>
 {% endblock %}

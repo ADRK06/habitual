@@ -3,8 +3,11 @@
 {% block title %}Log in · Habitual{% endblock %}
 
 {% block content %}
-<div class="flex min-h-screen items-center justify-center px-4 py-12">
-  <div class="w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur p-8">
+<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
+  <div data-glow="accent" class="pointer-events-none absolute -top-32 -right-24 h-80 w-80 rounded-full bg-accent/25 blur-3xl"></div>
+  <div data-glow="violet" class="pointer-events-none absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-accent-2/25 blur-3xl"></div>
+
+  <div id="auth-card" class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 shadow-2xl shadow-black/20">
     <h1 class="font-heading text-2xl font-semibold text-text mb-6">Log in</h1>
 
     <form method="post" x-data="{ showPassword: false }" class="space-y-4">
@@ -13,7 +16,7 @@
 
       <div>
         <label for="username" class="block text-sm text-text-muted mb-1">Username</label>
-        {{ form.username(id='username', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:ring-2 focus:ring-accent', autocomplete='username') }}
+        {{ form.username(id='username', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', autocomplete='username') }}
       </div>
 
       <div>
@@ -21,7 +24,7 @@
         <div class="relative">
           {{ form.password(
             id='password',
-            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 pr-16 text-text focus:outline-none focus:ring-2 focus:ring-accent',
+            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 pr-16 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
             autocomplete='current-password',
             **{':type': "showPassword ? 'text' : 'password'"}
           ) }}
@@ -35,9 +38,11 @@
         </div>
       </div>
 
-      {% for error in form.username.errors %}<p class="text-sm text-danger">{{ error }}</p>{% endfor %}
+      {% for error in form.username.errors %}
+      <p class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger">{{ error }}</p>
+      {% endfor %}
 
-      <button type="submit" class="w-full rounded-2xl bg-accent px-4 py-2 font-medium text-bg transition hover:opacity-90">
+      <button type="submit" class="w-full rounded-2xl bg-accent px-4 py-2 font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]">
         Log in
       </button>
     </form>
@@ -48,4 +53,22 @@
     </p>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!window.gsap) return;
+    const card = document.getElementById("auth-card");
+
+    if (window.prefersReducedMotion) {
+      gsap.set(card, { opacity: 1, y: 0 });
+      return;
+    }
+
+    gsap.fromTo(card, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" });
+    gsap.to('[data-glow="accent"]', { x: -30, y: 20, duration: 9, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    gsap.to('[data-glow="violet"]', { x: 25, y: -15, duration: 11, repeat: -1, yoyo: true, ease: "sine.inOut" });
+  });
+</script>
 {% endblock %}

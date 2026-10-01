@@ -21,5 +21,11 @@
   >
     Fire a test toast
   </button>
+
+  <div class="mt-4 flex items-center gap-3">
+    <a href="{{ url_for('auth.login') }}" class="rounded-2xl border border-border bg-surface/60 px-5 py-2 font-medium text-text transition hover:bg-surface">Log in</a>
+    <a href="{{ url_for('auth.signup') }}" class="rounded-2xl bg-accent px-5 py-2 font-medium text-bg transition hover:opacity-90">Sign up</a>
+  </div>
+  <p class="text-xs text-text-muted">Temporary links for testing - the real landing page replaces this in step 1.6.</p>
 </div>
 {% endblock %}
