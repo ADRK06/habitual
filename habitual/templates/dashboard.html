@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+{% extends "app_base.html" %}
 
 {% block title %}Dashboard · Habitual{% endblock %}
 
-{% block content %}
+{% block app_content %}
 <div x-data="{ createOpen: {{ 'true' if form.errors else 'false' }} }">
-  <header class="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-6 px-6 pt-10 pb-6">
+  <header class="flex flex-wrap items-start justify-between gap-6 pt-10 pb-6">
     <div>
       <h1 class="font-heading text-2xl font-semibold text-text">{{ current_user.name }}</h1>
       <p class="text-sm text-text-muted">@{{ current_user.username }}</p>
@@ -12,7 +12,7 @@
     {% include "partials/header_stats.html" %}
   </header>
 
-  <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 pb-6">
+  <div class="flex flex-wrap items-center justify-between gap-4 pb-6">
     <div class="flex flex-wrap gap-3">
       <button
         type="button"
@@ -39,9 +39,9 @@
     </form>
   </div>
 
-  <main class="mx-auto max-w-6xl px-6 pb-20">
+  <main class="pb-20">
     {% if habit_cards %}
-    <div id="habit-grid" class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div id="habit-grid" class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
       {% for card in habit_cards %}
         {% with habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak, habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today, can_save_streak=card.can_save_streak, has_freeze_to_use=card.has_freeze_to_use %}
           {% include "partials/habit_card.html" %}

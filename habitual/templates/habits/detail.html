@@ -1,9 +1,9 @@
-{% extends "base.html" %}
+{% extends "app_base.html" %}
 
 {% block title %}{{ habit.title }} · Habitual{% endblock %}
 
-{% block content %}
-<div class="mx-auto max-w-3xl px-6 py-10">
+{% block app_content %}
+<div class="py-10">
   <a href="{{ url_for('habits.dashboard') }}" class="inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text">
     ← Back to dashboard
   </a>

@@ -192,7 +192,8 @@ def test_checkin_response_includes_header_oob_with_correct_totals(client, db):
     habit = _create_habit(db, user, created_on=date.today())
 
     response = client.post(f"/habits/{habit.id}/checkin")
-    assert b'id="header-stats" hx-swap-oob="true"' in response.data
+    assert b'id="header-stats"' in response.data
+    assert b'hx-swap-oob="true"' in response.data
     assert b'data-counter="5"' in response.data
 
 
@@ -249,7 +250,8 @@ def test_delete_response_includes_header_oob_with_correct_totals(client, db):
     client.post(f"/habits/{habit2.id}/checkin")  # +5, stays
 
     response = client.delete(f"/habits/{habit1.id}")
-    assert b'id="header-stats" hx-swap-oob="true"' in response.data
+    assert b'id="header-stats"' in response.data
+    assert b'hx-swap-oob="true"' in response.data
     assert b'data-counter="5"' in response.data  # only habit2's points remain
 
 
@@ -577,7 +579,8 @@ def test_use_freeze_response_includes_header_oob(client, db):
     _give_freeze(db, user)
 
     response = client.post(f"/habits/{habit.id}/freeze")
-    assert b'id="header-stats" hx-swap-oob="true"' in response.data
+    assert b'id="header-stats"' in response.data
+    assert b'hx-swap-oob="true"' in response.data
     assert b"\xf0\x9f\xa7\x8a 0/2" in response.data  # the one freeze we had just got consumed
 
 
