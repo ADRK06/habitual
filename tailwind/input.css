@@ -15,6 +15,11 @@
   --color-crimson: #dc143c;
   --color-yellow: #ffff00;
   --color-pink: #ff00ff;
+  /* Primary accent - electric cyan, provisional pending the hero comparison
+     (12.2:1 on void-black; the deep-blue alternative #1F51FF is only 3.3:1,
+     which fails AA for normal-sized button/link text). See CLAUDE.md. */
+  --color-blue: #00e5ff;
+  --color-green: #39ff14;
 
   /* Semantic roles (dark-only - see CLAUDE.md Design direction) */
   --color-bg: var(--color-void);
@@ -23,8 +28,9 @@
   --color-border: color-mix(in srgb, var(--color-navy) 32%, var(--color-void));
   --color-text: #f2f2f2;
   --color-text-muted: color-mix(in srgb, #f2f2f2 55%, var(--color-void));
-  --color-accent: var(--color-yellow);
-  --color-success: var(--color-yellow);
+  --color-accent: var(--color-blue);
+  --color-points: var(--color-yellow);
+  --color-success: var(--color-green);
   --color-streak: var(--color-crimson);
   --color-danger: var(--color-crimson);
   --color-rooms: var(--color-pink);

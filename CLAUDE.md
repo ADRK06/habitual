@@ -224,20 +224,25 @@ password checklist, show/hide password.
 
 - **Mood**: gamified but professional - esports/game-UI energy, not a toy. Bold color, confident type,
   genuine motion - never cutesy or juvenile.
+- **Slogan**: "Play your habits." - hero tagline, page title, meta description.
 - **Theme**: dark-only for v1 (no light mode - see Roadmap). Deep void-black background with navy-tinted
-  glassy surfaces and three neon accents used as accents/glows, never as large flat areas.
+  glassy surfaces and neon accents used as accents/glows, never as large flat areas.
 
   | Token | Hex | Role |
   |---|---|---|
   | `--color-void` | `#121212` | Page background (`bg`) |
   | `--color-black` | `#000000` | Deepest layer - gradient endpoints, backdrops (`bg-deep`) |
   | `--color-navy` | `#000080` | Surfaces and glows **only** - never text (too low contrast). Cards use navy blended into void (`surface`, `border`) |
-  | `--color-yellow` | `#ffff00` | Primary accent - CTAs, focus rings, points, success states, milestone fills (`accent`, `success`) |
+  | `--color-blue` | `#00e5ff` | **Primary accent** - buttons, links, focus rings, the landing page's chain line, wordmark (`accent`). 12.2:1 on void-black, safe for small text. *Provisional*: compared live against a deeper `#1F51FF` (only 3.3:1 - fails AA for normal-sized button/link text) in the landing hero; confirm the final pick and remove that comparison block |
+  | `--color-yellow` | `#ffff00` | Points/currency **only** - milestone fills, point bonus badges (`points`). Not the general accent |
+  | `--color-green` | `#39ff14` | Success - completed check-ins, "done today", positive insights, password-strength top tier (`success`). 13.8:1 on void-black |
   | `--color-crimson` | `#dc143c` | Streak/flame color and danger/error states (`streak`, `danger`). Large text/graphics only - fails AA at small sizes |
-  | `--color-pink` | `#ff00ff` | Rooms/social accent (`rooms`) |
+  | `--color-pink` | `#ff00ff` | Rooms/social accent - leaderboards, crown (`rooms`) |
 
-  All tokens live in `tailwind/input.css`'s `@theme` block as both raw (`--color-yellow`) and semantic
-  (`--color-accent`) names - use the semantic name in templates.
+  All tokens live in `tailwind/input.css`'s `@theme` block as both raw (`--color-blue`) and semantic
+  (`--color-accent`) names - use the semantic name in templates. `accent` and `points` and `success` are
+  three distinct colors now - don't conflate them (a button is `accent`, a points badge is `points`, a
+  "done"/positive state is `success`).
 - **Type**: three-tier system, loaded via Google Fonts, all pinned.
   - **Orbitron** (`font-display`) - wordmark and big numeric displays (streak counters) only. Don't use it
     for long copy - it strains at small sizes/long phrases.

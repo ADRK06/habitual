@@ -27,6 +27,8 @@ def test_landing_page_has_ctas_and_sections(client):
     assert "daily crown" in html.lower()
     assert "Know your patterns" in html
     assert "level" not in html.lower()
+    assert "Play your habits." in html
+    assert "aadhira" not in html.lower()
 
 
 def test_authenticated_user_redirected_from_home_to_dashboard(client, db):
