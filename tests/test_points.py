@@ -8,6 +8,7 @@ from habitual.points import (
     freeze_available,
     longest_streak,
     milestone_bonus,
+    milestone_label,
     points_for_date,
     points_for_day,
     streak_day_on,
@@ -41,6 +42,15 @@ def test_milestone_bonus_only_on_exact_days():
     assert milestone_bonus(8) == 0
     assert milestone_bonus(29) == 0
     assert milestone_bonus(31) == 0
+
+
+def test_milestone_label_matches_milestone_days():
+    assert milestone_label(7) == "Week streak bonus!"
+    assert milestone_label(14) == "Two-week streak bonus!"
+    assert milestone_label(30) == "Milestone bonus!"
+    assert milestone_label(60) == "Milestone bonus!"
+    assert milestone_label(1) is None
+    assert milestone_label(8) is None
 
 
 def test_milestones_restart_after_a_break():

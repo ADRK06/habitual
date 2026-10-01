@@ -43,7 +43,7 @@
     {% if habit_cards %}
     <div id="habit-grid" class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {% for card in habit_cards %}
-        {% with habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak, habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today %}
+        {% with habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak, habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today, can_save_streak=card.can_save_streak, has_freeze_to_use=card.has_freeze_to_use %}
           {% include "partials/habit_card.html" %}
         {% endwith %}
       {% endfor %}
@@ -63,12 +63,32 @@
       <h2 class="font-heading text-xl font-semibold text-text">New habit</h2>
       <p class="mt-1 text-sm text-text-muted">Teacher tip: make it tiny enough you could do it half-asleep. You can always do more.</p>
 
-      <form method="post" action="{{ url_for('habits.create_habit') }}" x-data="{ emoji: '{{ form.emoji.data or '' }}' }" class="mt-5 space-y-4">
+      <form
+        method="post"
+        action="{{ url_for('habits.create_habit') }}"
+        x-data="{ emoji: {{ (form.emoji.data or '')|tojson|forceescape }}, title: {{ (form.title.data or '')|tojson|forceescape }}, tinyVersion: {{ (form.tiny_version.data or '')|tojson|forceescape }} }"
+        class="mt-5 space-y-4"
+      >
         {{ form.csrf_token }}
 
         <div>
+          <p class="mb-1.5 text-xs text-text-muted">Quick start</p>
+          <div class="flex flex-wrap gap-2">
+            {% for t in habit_templates %}
+            <button
+              type="button"
+              @click="title = {{ t.title|tojson|forceescape }}; emoji = {{ t.emoji|tojson|forceescape }}; tinyVersion = {{ t.tiny_version|tojson|forceescape }}"
+              class="rounded-full border border-border bg-bg/40 px-3 py-1.5 text-xs text-text transition hover:border-accent/50 hover:bg-accent/10"
+            >
+              {{ t.emoji }} {{ t.title }}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div>
           <label class="mb-1 block text-sm text-text-muted">Title</label>
-          {{ form.title(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Read 10 pages', maxlength=60) }}
+          {{ form.title(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Read 10 pages', maxlength=60, **{'x-model': 'title'}) }}
           {% for error in form.title.errors %}
           <p class="mt-1 text-sm text-danger">{{ error }}</p>
           {% endfor %}
@@ -94,7 +114,8 @@
 
         <div>
           <label class="mb-1 block text-sm text-text-muted">Tiny version <span class="text-text-muted/70">(optional)</span></label>
-          {{ form.tiny_version(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Just open the book', maxlength=120) }}
+          {{ form.tiny_version(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Just open the book', maxlength=120, **{'x-model': 'tinyVersion'}) }}
+          <p class="mt-1 text-xs text-text-muted">Teacher tip: the tiny version should feel almost too easy.</p>
         </div>
 
         <div class="flex justify-end gap-3 pt-2">
@@ -191,5 +212,34 @@
   // afterSettle (not afterSwap) fires once everything - including any
   // out-of-band swaps like the header stats - has landed in the DOM.
   document.body.addEventListener("htmx:afterSettle", () => animateCounters());
+
+  // Fired via HX-Trigger from the checkin route, bubbles up from the
+  // request's originating element same as the "toast" event does.
+  window.addEventListener("checkinCelebration", (e) => {
+    const { habitId, milestone } = e.detail;
+    const card = document.getElementById(`habit-card-${habitId}`);
+    if (!card || skipMotion()) return;
+
+    if (window.gsap) {
+      gsap.fromTo(
+        card,
+        { scale: 1 },
+        { scale: 1.04, duration: 0.25, ease: "power2.out", yoyo: true, repeat: 1 }
+      );
+    }
+
+    if (milestone && window.confetti) {
+      const rect = card.getBoundingClientRect();
+      confetti({
+        particleCount: 90,
+        spread: 75,
+        startVelocity: 35,
+        origin: {
+          x: (rect.left + rect.width / 2) / window.innerWidth,
+          y: (rect.top + rect.height / 2) / window.innerHeight,
+        },
+      });
+    }
+  });
 </script>
 {% endblock %}

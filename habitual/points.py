@@ -26,6 +26,17 @@ def milestone_bonus(streak_day: int) -> int:
     return 0
 
 
+def milestone_label(streak_day: int) -> str | None:
+    """User-facing name for the milestone hit on `streak_day`, or None."""
+    if streak_day == 7:
+        return "Week streak bonus!"
+    if streak_day == 14:
+        return "Two-week streak bonus!"
+    if streak_day >= 30 and streak_day % 30 == 0:
+        return "Milestone bonus!"
+    return None
+
+
 def points_for_day(streak_day: int) -> int:
     """Total points for completing day `streak_day` of a streak."""
     return BASE_POINTS + milestone_bonus(streak_day)
