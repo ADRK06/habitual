@@ -222,6 +222,25 @@ def test_delete_habit_removes_habit_and_its_points(client, db):
     assert Checkin.query.filter_by(habit_id=habit.id).count() == 0
 
 
+def test_delete_habit_removes_a_freeze_used_on_it_but_not_unused_freezes(client, db):
+    user = _login(client, db)
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    habit = _create_habit(db, user, created_on=today - timedelta(days=3))
+    for i in (3, 2):
+        d = today - timedelta(days=i)
+        db.session.add(Checkin(habit_id=habit.id, date=d))
+        db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=d))
+    db.session.add(Freeze(user_id=user.id, habit_id=habit.id, used_on=yesterday))  # used on this habit
+    db.session.add(Freeze(user_id=user.id))  # unused, not tied to any habit
+    db.session.commit()
+
+    client.delete(f"/habits/{habit.id}")
+
+    assert Freeze.query.filter_by(habit_id=habit.id).count() == 0  # the used one went with the habit
+    assert Freeze.query.filter_by(user_id=user.id, used_on=None).count() == 1  # the unused one survives
+
+
 def test_delete_response_includes_header_oob_with_correct_totals(client, db):
     user = _login(client, db)
     habit1 = _create_habit(db, user, title="Read")
@@ -600,6 +619,65 @@ def test_use_freeze_requires_ownership(client, db):
     _login(client, db, username="intruder")
     response = client.post(f"/habits/{habit.id}/freeze")
     assert response.status_code == 404
+
+
+# -- freeze quota invariants under rapid repeated requests -------------------
+#
+# These exercise the sequential "double-click" case: a second request that
+# arrives right after the first one already committed must see the updated
+# state and get rejected. buy_freeze/use_freeze also take a row lock
+# (SELECT ... FOR UPDATE on the user) so two genuinely *concurrent* requests
+# on Postgres serialize instead of both reading stale state - that specific
+# race can't be exercised here since the test suite runs on SQLite, which
+# doesn't support row-level locking and these calls run sequentially anyway.
+
+
+def test_buy_freeze_repeated_clicks_cannot_overspend_balance(client, db):
+    user = _login(client, db)
+    db.session.add(PointTransaction(user_id=user.id, habit_id=None, amount=50, reason="daily", date=date.today()))
+    db.session.commit()
+
+    responses = [client.post("/freezes/buy") for _ in range(3)]
+
+    assert [r.status_code for r in responses] == [200, 400, 400]
+    assert Freeze.query.filter_by(user_id=user.id).count() == 1
+    balance = sum(pt.amount for pt in PointTransaction.query.filter_by(user_id=user.id))
+    assert balance == 0  # never negative
+
+
+def test_buy_freeze_repeated_clicks_cannot_exceed_max_held(client, db):
+    user = _login(client, db)
+    db.session.add(PointTransaction(user_id=user.id, habit_id=None, amount=500, reason="daily", date=date.today()))
+    db.session.add(Freeze(user_id=user.id))  # already holding 1
+    db.session.commit()
+
+    responses = [client.post("/freezes/buy") for _ in range(3)]
+
+    assert [r.status_code for r in responses] == [200, 400, 400]
+    assert Freeze.query.filter_by(user_id=user.id, used_on=None).count() == 2
+
+
+def test_use_freeze_repeated_clicks_consume_only_one_freeze(client, db):
+    user = _login(client, db)
+    today = date.today()
+    habit_a = _create_habit(db, user, title="A", created_on=today - timedelta(days=3))
+    habit_b = _create_habit(db, user, title="B", created_on=today - timedelta(days=3))
+    for habit in (habit_a, habit_b):
+        for i in (3, 2):
+            d = today - timedelta(days=i)
+            db.session.add(Checkin(habit_id=habit.id, date=d))
+            db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=d))
+    db.session.add(Freeze(user_id=user.id))  # only one freeze held
+    db.session.commit()
+
+    response_a = client.post(f"/habits/{habit_a.id}/freeze")
+    response_b = client.post(f"/habits/{habit_b.id}/freeze")
+
+    assert response_a.status_code == 200
+    assert response_b.status_code == 400  # no freeze left for B
+    assert Freeze.query.filter_by(user_id=user.id).count() == 1
+    freeze = Freeze.query.filter_by(user_id=user.id).first()
+    assert freeze.habit_id == habit_a.id  # went to A, not silently stolen by B
 
 
 def test_use_freeze_after_todays_checkin_reprices_today(client, db):

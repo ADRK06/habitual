@@ -9,7 +9,7 @@ from wtforms import HiddenField, StringField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 from habitual import db, points
-from habitual.models import Checkin, Freeze, Habit, PointTransaction
+from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
 from habitual.utils.time import local_today
 
 habits = Blueprint("habits", __name__)
@@ -234,6 +234,13 @@ def undo_checkin(habit_id):
 @habits.post("/freezes/buy")
 @login_required
 def buy_freeze():
+    # Lock this user's row for the rest of the transaction. Without it, two
+    # near-simultaneous buys (a double-click, or two tabs) can both read
+    # "balance is enough" before either commits, letting balance go negative
+    # or freezes_held exceed MAX_UNUSED_FREEZES. The second request blocks
+    # here until the first commits, then re-reads the now-current state.
+    db.session.query(User).filter_by(id=current_user.id).with_for_update().first()
+
     header = _header_stats(current_user)
     if not header["can_buy_freeze"]:
         abort(400)
@@ -258,6 +265,12 @@ def use_freeze(habit_id):
     habit = db.get_or_404(Habit, habit_id)
     if habit.user_id != current_user.id:
         abort(404)
+
+    # Same lock as buy_freeze: serializes this against a concurrent buy or
+    # another "use a freeze" for this user, so the specific Freeze row this
+    # request commits to can't be silently overwritten by a second
+    # near-simultaneous request before this one's changes land.
+    db.session.query(User).filter_by(id=current_user.id).with_for_update().first()
 
     today = local_today(current_user)
     yesterday = today - timedelta(days=1)
