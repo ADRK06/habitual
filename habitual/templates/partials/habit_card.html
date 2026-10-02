@@ -11,12 +11,19 @@
     type="button"
     @click.stop="confirmOpen = true"
     class="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-danger/15 hover:text-danger"
-    aria-label='Delete {{ habit.title }}'
+    aria-label='{{ "Leave" if habit.room_id else "Delete" }} {{ habit.title }}'
   >&times;</button>
 
   <div class="flex items-center gap-3 pr-8">
     <span class="text-3xl">{{ habit.emoji }}</span>
-    <h3 class="font-heading text-lg font-semibold text-text">{{ habit.title }}</h3>
+    <div class="min-w-0">
+      <h3 class="truncate font-heading text-lg font-semibold text-text">{{ habit.title }}</h3>
+      {% if habit.room_id %}
+      <span class="inline-flex items-center gap-1 rounded-full bg-rooms/15 px-2 py-0.5 text-[11px] font-medium text-rooms">
+        Room{% if leader_name %} · {{ "You lead" if leader_is_viewer else (leader_name + " leads 👑") }}{% endif %}
+      </span>
+      {% endif %}
+    </div>
   </div>
 
   <div class="mt-5 flex items-baseline gap-2">
@@ -27,16 +34,16 @@
 
   <dl class="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
     <div class="rounded-xl bg-bg/40 py-2">
-      <dt class="text-text-muted">Longest</dt>
-      <dd class="mt-0.5 font-medium text-text">{{ longest_streak }}</dd>
+      <dt class="text-text-muted">{{ "Days left" if habit.room_id else "Longest" }}</dt>
+      <dd class="mt-0.5 font-medium text-text">{{ days_remaining if habit.room_id else longest_streak }}</dd>
     </div>
     <div class="rounded-xl bg-bg/40 py-2">
       <dt class="text-text-muted">Points</dt>
       <dd class="mt-0.5 font-medium text-accent">{{ habit_points }}</dd>
     </div>
     <div class="rounded-xl bg-bg/40 py-2">
-      <dt class="text-text-muted">Success</dt>
-      <dd class="mt-0.5 font-medium text-text">{{ success_rate }}%</dd>
+      <dt class="text-text-muted">{{ "Health" if habit.room_id else "Success" }}</dt>
+      <dd class="mt-0.5 font-medium text-text">{{ health_pct if habit.room_id else success_rate }}%</dd>
     </div>
   </dl>
 
@@ -175,12 +182,25 @@
     class="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
   >
     <div class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl">
+      {% if habit.room_id %}
+      <h4 class="font-heading text-lg font-semibold text-text">Leave "{{ habit.title }}"?</h4>
+      <p class="mt-2 text-sm text-text-muted">This removes your room habit and its points. This can't be undone.</p>
+      {% else %}
       <h4 class="font-heading text-lg font-semibold text-text">Delete "{{ habit.title }}"?</h4>
       <p class="mt-2 text-sm text-text-muted">This removes {{ habit_points }} points from your total. This can't be undone.</p>
+      {% endif %}
       <div class="mt-5 flex justify-end gap-3">
         <button type="button" @click="confirmOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
           Cancel
         </button>
+        {% if habit.room_id %}
+        <form method="post" action="{{ url_for('rooms.leave_room', room_id=habit.room_id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">
+            Leave
+          </button>
+        </form>
+        {% else %}
         <button
           type="button"
           hx-delete="{{ url_for('habits.delete_habit', habit_id=habit.id) }}"
@@ -190,6 +210,7 @@
         >
           Delete
         </button>
+        {% endif %}
       </div>
     </div>
   </div>

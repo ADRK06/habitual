@@ -118,13 +118,30 @@ def _overview_context(habit_rows, today):
     }
 
 
-def _dashboard_context(form=None):
+def _room_card_context(habit):
+    """Extra Room-badge/leader/health/days-left fields for a dashboard card
+    whose habit belongs to a room - {} for a solo habit."""
+    if habit.room_id is None:
+        return {}
+    from habitual import rooms  # local import avoids a circular import with rooms.py
+    return rooms.room_card_extra(habit.room, current_user)
+
+
+def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code_error=None):
+    from habitual import rooms  # local import avoids a circular import with rooms.py
+    rooms.finalize_due_crowns_for_user(current_user)  # fix #1: crown points land even if nobody opens the room page
+
     today = local_today(current_user)
     header = _header_stats(current_user)
     habit_rows = _user_habits(current_user)
     context = {
-        "habit_cards": [_habit_view(h, today, header["freezes_held"]) for h in habit_rows],
+        "habit_cards": [
+            {**_habit_view(h, today, header["freezes_held"]), **_room_card_context(h)} for h in habit_rows
+        ],
         "form": form or HabitForm(),
+        "room_form": room_form or rooms.RoomForm(),
+        "join_code_form": join_code_form or rooms.JoinByCodeForm(),
+        "join_code_error": join_code_error,
         "emoji_choices": EMOJI_CHOICES,
         "habit_templates": HABIT_TEMPLATES,
         **header,
@@ -265,6 +282,11 @@ def habit_detail(habit_id):
     # Never show a month before the habit existed or after the current one.
     calendar_month = max(habit.created_on.replace(day=1), min(calendar_month, today.replace(day=1)))
 
+    back_url = (
+        url_for("rooms.room_detail", room_id=habit.room_id)
+        if habit.room_id is not None
+        else url_for("habits.dashboard")
+    )
     context = {
         **_habit_view(habit, today, freezes_held),
         **_analytics_context(habit, today, now_hour),
@@ -272,8 +294,43 @@ def habit_detail(habit_id):
         "recent_checkins": (
             Checkin.query.filter_by(habit_id=habit.id).order_by(Checkin.date.desc()).limit(10).all()
         ),
+        "back_url": back_url,
     }
     return render_template("habits/detail.html", **context)
+
+
+def _room_gate_or_404(habit):
+    """For a room habit, blocks the action once the current user's OWN
+    local day has moved past the room's final day - independent of
+    whether teammates in other timezones are still mid-room. Gates
+    check-in, undo, freeze-use and vouching alike."""
+    if habit.room_id is None:
+        return
+    from habitual import rooms  # local import avoids a circular import with rooms.py
+    if rooms.member_ended(habit.room, current_user):
+        abort(400)
+
+
+def _room_live_response(habit, toast=None, celebration=None):
+    """If this check-in/undo/freeze came from the room page itself (its
+    forms flag that with a `room_view` field) and the habit belongs to a
+    room, renders that room's live-update partial instead of the usual
+    dashboard-shaped one. Returns None otherwise - including for a room
+    habit checked in from its dashboard card, which still wants the normal
+    dashboard-shaped response below."""
+    if not request.values.get("room_view") or habit.room_id is None:
+        return None
+    from habitual import rooms  # local import avoids a circular import with rooms.py
+    rooms.finalize_due_crowns(habit.room)
+    resp = make_response(rooms.render_room_live_update(habit.room, current_user))
+    trigger = {}
+    if toast:
+        trigger["toast"] = toast
+    if celebration:
+        trigger["checkinCelebration"] = celebration
+    if trigger:
+        resp.headers["HX-Trigger"] = json.dumps(trigger)
+    return resp
 
 
 @habits.post("/habits/<int:habit_id>/checkin")
@@ -282,6 +339,7 @@ def checkin(habit_id):
     habit = db.get_or_404(Habit, habit_id)
     if habit.user_id != current_user.id:
         abort(404)
+    _room_gate_or_404(habit)
 
     today = local_today(current_user)
     points_earned = 0
@@ -320,21 +378,30 @@ def checkin(habit_id):
         db.session.commit()
         points_earned = points.BASE_POINTS + bonus
 
+    toast, celebration = None, None
+    if points_earned:
+        label = points.milestone_label(streak_day)
+        toast = {
+            "message": f"+{points_earned} · {label}" if label else f"+{points_earned} points!",
+            "type": "success",
+        }
+        celebration = {"habitId": habit.id, "milestone": bool(bonus)}
+
+    room_response = _room_live_response(habit, toast=toast, celebration=celebration)
+    if room_response is not None:
+        return room_response
+
     header = _header_stats(current_user)
     context = {
         **_habit_view(habit, today, header["freezes_held"]),
+        **_room_card_context(habit),
         **header,
         **_overview_context(_user_habits(current_user), today),
         "oob": True,
     }
     resp = make_response(render_template("partials/checkin_response.html", **context))
-    if points_earned:
-        label = points.milestone_label(streak_day)
-        toast_message = f"+{points_earned} · {label}" if label else f"+{points_earned} points!"
-        resp.headers["HX-Trigger"] = json.dumps({
-            "toast": {"message": toast_message, "type": "success"},
-            "checkinCelebration": {"habitId": habit.id, "milestone": bool(bonus)},
-        })
+    if toast:
+        resp.headers["HX-Trigger"] = json.dumps({"toast": toast, "checkinCelebration": celebration})
     return resp
 
 
@@ -344,6 +411,7 @@ def undo_checkin(habit_id):
     habit = db.get_or_404(Habit, habit_id)
     if habit.user_id != current_user.id:
         abort(404)
+    _room_gate_or_404(habit)
 
     today = local_today(current_user)
 
@@ -363,17 +431,21 @@ def undo_checkin(habit_id):
     db.session.delete(checkin_row)
     db.session.commit()
 
+    toast = {"message": "Check-in undone.", "type": "info"}
+    room_response = _room_live_response(habit, toast=toast)
+    if room_response is not None:
+        return room_response
+
     header = _header_stats(current_user)
     context = {
         **_habit_view(habit, today, header["freezes_held"]),
+        **_room_card_context(habit),
         **header,
         **_overview_context(_user_habits(current_user), today),
         "oob": True,
     }
     resp = make_response(render_template("partials/checkin_response.html", **context))
-    resp.headers["HX-Trigger"] = json.dumps(
-        {"toast": {"message": "Check-in undone.", "type": "info"}}
-    )
+    resp.headers["HX-Trigger"] = json.dumps({"toast": toast})
     return resp
 
 
@@ -411,6 +483,7 @@ def use_freeze(habit_id):
     habit = db.get_or_404(Habit, habit_id)
     if habit.user_id != current_user.id:
         abort(404)
+    _room_gate_or_404(habit)
 
     # Same lock as buy_freeze: serializes this against a concurrent buy or
     # another "use a freeze" for this user, so the specific Freeze row this
@@ -461,17 +534,21 @@ def use_freeze(habit_id):
 
     db.session.commit()
 
+    toast = {"message": "Streak saved with a freeze 🧊", "type": "info"}
+    room_response = _room_live_response(habit, toast=toast)
+    if room_response is not None:
+        return room_response
+
     header = _header_stats(current_user)
     context = {
         **_habit_view(habit, today, header["freezes_held"]),
+        **_room_card_context(habit),
         **header,
         **_overview_context(_user_habits(current_user), today),
         "oob": True,
     }
     resp = make_response(render_template("partials/checkin_response.html", **context))
-    resp.headers["HX-Trigger"] = json.dumps(
-        {"toast": {"message": "Streak saved with a freeze 🧊", "type": "info"}}
-    )
+    resp.headers["HX-Trigger"] = json.dumps({"toast": toast})
     return resp
 
 
@@ -481,6 +558,10 @@ def delete_habit(habit_id):
     habit = db.get_or_404(Habit, habit_id)
     if habit.user_id != current_user.id:
         abort(404)
+    if habit.room_id is not None:
+        # A room habit only ever goes away through leave_room(), which also
+        # cleans up the RoomMember row and (if needed) ownership transfer.
+        abort(400)
 
     title = habit.title
     db.session.delete(habit)

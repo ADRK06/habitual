@@ -133,6 +133,72 @@ def can_purchase_freeze(balance: int, unused_freeze_count: int) -> bool:
     return balance >= FREEZE_COST and unused_freeze_count < MAX_UNUSED_FREEZES
 
 
+CROWN_BONUS = 2
+
+
+def has_valid_proof_for_crown(proof_note: str | None) -> bool:
+    """A crown candidate's proof note needs real content - at least 3
+    non-whitespace characters - not just a stray character or empty note."""
+    if not proof_note:
+        return False
+    return len("".join(proof_note.split())) >= 3
+
+
+def crown_winner(candidates):
+    """Picks a date's crown winner from `candidates` - an iterable of
+    `(local_time_of_day, created_at_utc, ...)` tuples, one per eligible
+    check-in for that date (any trailing elements are carried through
+    untouched, e.g. the checkin/user/habit ids the caller needs back).
+    Ranked by local clock time first, so a member in a timezone that's
+    simply "ahead" can't win on that alone, then by the real UTC instant to
+    break a same-local-time tie. Returns the winning tuple, or None if
+    `candidates` is empty."""
+    candidates = list(candidates)
+    if not candidates:
+        return None
+    return min(candidates, key=lambda c: (c[0], c[1]))
+
+
+def room_streak(member_states: list[dict], today_anchor: date) -> int:
+    """Consecutive days (ending at `today_anchor`, or the day before if
+    `today_anchor` isn't fully checked in yet) on which every member who'd
+    already joined by that day completed it on their own local date -
+    `member_states` is `[{"completed": set[date], "joined_on": date}, ...]`.
+    Unlike a solo habit's streak, freezes never bridge a room streak.
+    `today_anchor` should be the earliest "today" among the room's members
+    (the most-behind member's own local date) - a day can't be judged
+    "everyone made it" before everyone has actually had the chance to."""
+
+    def all_checked_in(d):
+        joined = [m for m in member_states if m["joined_on"] <= d]
+        if not joined:
+            return False
+        return all(d in m["completed"] for m in joined)
+
+    end = today_anchor if all_checked_in(today_anchor) else today_anchor - timedelta(days=1)
+    count = 0
+    cursor = end
+    while all_checked_in(cursor):
+        count += 1
+        cursor -= timedelta(days=1)
+    return count
+
+
+def missed_days(completed: set[date], frozen: set[date], start_date: date, today: date) -> int:
+    """Count of days in [start_date, today) that are neither completed nor
+    frozen - used as a leaderboard tiebreaker. `today` itself is excluded
+    entirely (same "not a miss until the day is over" convention as
+    success_rate), not counted as a miss just because it isn't done yet."""
+    missed = 0
+    cursor = start_date
+    end = today - timedelta(days=1)
+    while cursor <= end:
+        if cursor not in completed and cursor not in frozen:
+            missed += 1
+        cursor += timedelta(days=1)
+    return missed
+
+
 def earned_points(amounts: list[int]) -> int:
     """Sum of positive ledger amounts — never decreases except via habit delete."""
     return sum(a for a in amounts if a > 0)

@@ -325,7 +325,7 @@ Deploy: push to GitHub `main` → Vercel auto-deploys. Run `./scripts/migrate-pr
 - [x] **Phase 1 — Accounts + landing**: models for users, signup/login/logout, validation, username check, timezone detection, animated landing page, base layout and design tokens
 - [x] **Phase 2 — Solo habits + dashboard**: habit CRUD with templates and tiny tips, check-in with notes, `points.py` (points, streaks, milestones) with tests, freezes, header stats, delete confirmation, check-in animations
 - [x] **Phase 3 — Habit analytics page**: ring, heatmap, weekly chart, log, insights (**get the reference image first**)
-- [ ] **Phase 4 — Rooms**: create, join link, room cards, leaderboard with tiebreakers, crown, health meter, room streak, vouches, leave/ownership transfer, room end and results
+- [x] **Phase 4 — Rooms**: create, join link + join code, room cards, leaderboard with tiebreakers, crown, health meter, room streak, vouches, leave/ownership transfer, room end and results
 - [ ] **Phase 5 — Polish**: badges, confetti, empty/loading/error states, full animation pass, design and
       implement the Habitual logo (SVG, nav/footer/favicon)
 - [ ] **Phase 6 — Launch**: security checklist, rate limits, real test with friends, bug fixes, final deploy

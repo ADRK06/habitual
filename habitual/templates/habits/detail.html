@@ -4,8 +4,8 @@
 
 {% block app_content %}
 <div class="py-10">
-  <a href="{{ url_for('habits.dashboard') }}" class="inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text">
-    ← Back to dashboard
+  <a href="{{ back_url }}" class="inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text">
+    ← Back{{ " to room" if habit.room_id else " to dashboard" }}
   </a>
 
   <div class="mt-6">
@@ -31,71 +31,15 @@
 </div>
 {% endblock %}
 
+{% block head %}
+<script src="{{ url_for('static', filename='js/rings_chart.js') }}"></script>
+{% endblock %}
+
 {% block scripts %}
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    const hexToRgba = (hex, alpha) => {
-      const clean = hex.replace("#", "");
-      const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
-      const n = parseInt(full, 16);
-      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
-    };
-
-    const canvas = document.getElementById("rings-chart");
-    if (canvas && window.Chart) {
-      const parsePair = (s) => s.split(",").map(Number);
-      const [weekDone, weekTotal] = parsePair(canvas.dataset.week);
-      const [monthDone, monthTotal] = parsePair(canvas.dataset.month);
-      const [msDone, msTotal] = parsePair(canvas.dataset.milestone);
-      const remainder = (done, total) => Math.max(total - done, 0);
-
-      const accent = token("--color-accent");
-      const text = token("--color-text");
-      const streak = token("--color-streak");
-
-      // Each ring gets its own radius/cutout band (with a gap between bands)
-      // and its own faint same-hue track for the unfilled portion, so all
-      // three read as distinct nested rings even at 0% done.
-      new Chart(canvas, {
-        type: "doughnut",
-        data: {
-          datasets: [
-            {
-              data: [weekDone, remainder(weekDone, weekTotal)],
-              backgroundColor: [accent, hexToRgba(accent, 0.16)],
-              borderWidth: 0,
-              radius: "100%",
-              cutout: "78%",
-            },
-            {
-              data: [monthDone, remainder(monthDone, monthTotal)],
-              backgroundColor: [text, hexToRgba(text, 0.16)],
-              borderWidth: 0,
-              radius: "72%",
-              cutout: "50%",
-            },
-            {
-              data: [msDone, remainder(msDone, msTotal)],
-              backgroundColor: [streak, hexToRgba(streak, 0.16)],
-              borderWidth: 0,
-              radius: "44%",
-              cutout: "22%",
-            },
-          ],
-        },
-        options: {
-          animation: window.prefersReducedMotion ? false : { animateRotate: true, duration: 900 },
-          plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        },
-      });
-    }
-
-    const strengthBar = document.querySelector("[data-strength-bar]");
-    if (strengthBar && window.gsap && !window.prefersReducedMotion && !document.hidden) {
-      const target = parseFloat(strengthBar.dataset.strengthFraction);
-      gsap.fromTo(strengthBar, { scaleX: 0 }, { scaleX: target, duration: 0.8, ease: "power2.out" });
-    }
+    initRingsChart();
+    animateStrengthBar();
   });
 </script>
 {% endblock %}

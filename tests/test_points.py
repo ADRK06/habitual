@@ -1,17 +1,21 @@
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 
 from habitual.points import (
     balance,
     can_purchase_freeze,
+    crown_winner,
     current_streak,
     earned_points,
     freeze_available,
+    has_valid_proof_for_crown,
     longest_streak,
     milestone_bonus,
     milestone_label,
+    missed_days,
     next_milestone,
     points_for_date,
     points_for_day,
+    room_streak,
     streak_day_on,
     success_rate,
 )
@@ -225,3 +229,105 @@ def test_checkin_then_freeze_matches_freeze_then_checkin():
     # the freeze bridges day 6, so "today" is really streak day 7 -> milestone
     assert ledger_a[today] == 15
     assert sum(ledger_a.values()) == sum(ledger_b.values())
+
+
+# --- crown eligibility ---------------------------------------------------
+
+
+def test_crown_requires_at_least_3_non_whitespace_chars():
+    assert has_valid_proof_for_crown("gym") is True
+    assert has_valid_proof_for_crown("gy") is False
+    assert has_valid_proof_for_crown("  ") is False
+    assert has_valid_proof_for_crown("") is False
+    assert has_valid_proof_for_crown(None) is False
+
+
+def test_crown_counts_non_whitespace_chars_not_total_length():
+    # "a  b" has 4 chars but only 2 non-whitespace ones - not enough.
+    assert has_valid_proof_for_crown("a  b") is False
+    assert has_valid_proof_for_crown("a b c") is True  # 3 non-whitespace chars
+
+
+# --- crown winner (timezone-fair) -----------------------------------------
+
+
+def test_crown_winner_picks_earliest_local_clock_time():
+    # An IST member checking in at 9am local is NOT "earlier" than an
+    # EST member checking in at 7am local just because IST is ahead of UTC -
+    # the earlier *local* time wins.
+    ist_9am = (time(9, 0), "2026-01-01T03:30:00+00:00", "ist_user", 1, 10)
+    est_7am = (time(7, 0), "2026-01-01T12:00:00+00:00", "est_user", 2, 20)
+    assert crown_winner([ist_9am, est_7am]) == est_7am
+
+
+def test_crown_winner_ties_break_on_real_utc_timestamp():
+    same_local_time_earlier_utc = (time(8, 0), "2026-01-01T03:00:00+00:00", "a", 1, 10)
+    same_local_time_later_utc = (time(8, 0), "2026-01-01T03:05:00+00:00", "b", 2, 20)
+    winner = crown_winner([same_local_time_later_utc, same_local_time_earlier_utc])
+    assert winner == same_local_time_earlier_utc
+
+
+def test_crown_winner_empty_candidates_is_none():
+    assert crown_winner([]) is None
+
+
+# --- room streak (per-member local dates) ----------------------------------
+
+
+def test_room_streak_requires_every_joined_member_on_each_day():
+    members = [
+        {"completed": days(0, 1, 2), "joined_on": D0},
+        {"completed": days(0, 1), "joined_on": D0},  # missed day 2
+    ]
+    today_anchor = D0 + timedelta(days=2)
+    assert room_streak(members, today_anchor) == 2  # days 0,1 only
+
+
+def test_room_streak_ignores_days_before_a_member_joined():
+    members = [
+        {"completed": days(0, 1, 2), "joined_on": D0},
+        {"completed": days(2), "joined_on": D0 + timedelta(days=2)},  # joined late
+    ]
+    today_anchor = D0 + timedelta(days=2)
+    # Day 2 only needs the late joiner (who did complete it) plus the
+    # original member (also completed) - streak isn't held back by days
+    # before the second member even existed.
+    assert room_streak(members, today_anchor) == 3
+
+
+def test_room_streak_freezes_do_not_bridge_a_gap():
+    # Unlike a solo habit's streak, a frozen day still breaks a room streak.
+    members = [{"completed": days(0, 2), "joined_on": D0}]
+    today_anchor = D0 + timedelta(days=2)
+    assert room_streak(members, today_anchor) == 1  # only day 2, day 1 broke it
+
+
+def test_room_streak_grace_period_before_todays_anchor_is_done():
+    members = [
+        {"completed": days(0, 1), "joined_on": D0},
+        {"completed": days(0), "joined_on": D0},  # hasn't done "today" yet
+    ]
+    today_anchor = D0 + timedelta(days=1)
+    assert room_streak(members, today_anchor) == 1  # falls back to yesterday's count
+
+
+# --- missed days (leaderboard tiebreaker) -----------------------------------
+
+
+def test_missed_days_counts_unfrozen_gaps_before_today():
+    completed = days(0, 2)  # day 1 missed
+    today = D0 + timedelta(days=3)
+    assert missed_days(completed, set(), D0, today) == 1
+
+
+def test_missed_days_excludes_today_even_if_not_done_yet():
+    completed = days(0)
+    today = D0 + timedelta(days=1)  # day 1 (today) not completed
+    assert missed_days(completed, set(), D0, today) == 0
+
+
+def test_missed_days_frozen_gap_does_not_count_as_missed():
+    completed = days(0, 2)
+    frozen = days(1)
+    today = D0 + timedelta(days=3)
+    assert missed_days(completed, frozen, D0, today) == 0

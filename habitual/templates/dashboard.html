@@ -3,7 +3,11 @@
 {% block title %}Dashboard · Habitual{% endblock %}
 
 {% block app_content %}
-<div x-data="{ createOpen: {{ 'true' if form.errors else 'false' }} }">
+<div x-data="{
+  createOpen: {{ 'true' if form.errors else 'false' }},
+  createRoomOpen: {{ 'true' if room_form.errors else 'false' }},
+  joinRoomOpen: {{ 'true' if join_code_error else 'false' }},
+}">
   <header class="flex flex-wrap items-start justify-between gap-6 pt-10 pb-6">
     <div>
       <h1 class="font-heading text-2xl font-semibold text-text">{{ current_user.name }}</h1>
@@ -23,11 +27,17 @@
       </button>
       <button
         type="button"
-        disabled
-        title="Rooms are coming in Phase 4"
-        class="cursor-not-allowed rounded-2xl border border-rooms/30 bg-rooms/10 px-5 py-2.5 text-sm font-medium text-rooms/60"
+        @click="createRoomOpen = true"
+        class="rounded-2xl border border-rooms/30 bg-rooms/10 px-5 py-2.5 text-sm font-medium text-rooms transition-transform duration-150 hover:bg-rooms/15 hover:scale-[1.02] active:scale-[0.98]"
       >
-        + Create room <span class="ml-1 text-xs text-text-muted">(soon)</span>
+        + Create room
+      </button>
+      <button
+        type="button"
+        @click="joinRoomOpen = true"
+        class="rounded-2xl border border-border bg-surface/60 px-5 py-2.5 text-sm font-medium text-text transition-transform duration-150 hover:bg-surface hover:scale-[1.02] active:scale-[0.98]"
+      >
+        Join room
       </button>
     </div>
 
@@ -44,7 +54,14 @@
     {% include "partials/dashboard_overview.html" %}
     <div id="habit-grid" class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
       {% for card in habit_cards %}
-        {% with habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak, habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today, can_save_streak=card.can_save_streak, has_freeze_to_use=card.has_freeze_to_use %}
+        {% with
+          habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak,
+          habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today,
+          can_save_streak=card.can_save_streak, has_freeze_to_use=card.has_freeze_to_use,
+          room=card.room, member_count=card.member_count, days_remaining=card.days_remaining,
+          viewer_ended=card.viewer_ended, health_pct=card.health_pct, leader_name=card.leader_name,
+          leader_is_viewer=card.leader_is_viewer, is_creator=card.is_creator
+        %}
           {% include "partials/habit_card.html" %}
         {% endwith %}
       {% endfor %}
@@ -125,6 +142,110 @@
           </button>
           <button type="submit" class="rounded-2xl bg-accent px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90">
             Create habit
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div
+    x-show="createRoomOpen"
+    x-cloak
+    @keydown.escape.window="createRoomOpen = false"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+  >
+    <div @click.outside="createRoomOpen = false" class="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl">
+      <h2 class="font-heading text-xl font-semibold text-text">New room</h2>
+      <p class="mt-1 text-sm text-text-muted">Invite friends to race the same habit together - everyone gets their own streak, points and a daily crown.</p>
+
+      <form
+        method="post"
+        action="{{ url_for('rooms.create_room') }}"
+        x-data="{ emoji: {{ (room_form.emoji.data or '')|tojson|forceescape }}, title: {{ (room_form.title.data or '')|tojson|forceescape }} }"
+        class="mt-5 space-y-4"
+      >
+        {{ room_form.csrf_token }}
+
+        <div>
+          <label class="mb-1 block text-sm text-text-muted">Title</label>
+          {{ room_form.title(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-rooms focus:ring-2 focus:ring-rooms', placeholder='30-Day Pushup Challenge', maxlength=60, **{'x-model': 'title'}) }}
+          {% for error in room_form.title.errors %}
+          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm text-text-muted">Emoji</label>
+          <div class="grid grid-cols-8 gap-2">
+            {% for e in emoji_choices %}
+            <button
+              type="button"
+              @click="emoji = '{{ e }}'"
+              :class="emoji === '{{ e }}' ? 'bg-rooms/20 border-rooms' : 'border-border hover:border-text-muted'"
+              class="flex h-9 items-center justify-center rounded-lg border text-lg transition-colors"
+            >{{ e }}</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="emoji" x-model="emoji">
+          {% for error in room_form.emoji.errors %}
+          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm text-text-muted">Duration</label>
+          {{ room_form.duration_days(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-rooms focus:ring-2 focus:ring-rooms', value=room_form.duration_days.data or 14, type='number', min=7, max=90) }}
+          <p class="mt-1 text-xs text-text-muted">7-90 days. Starts today for everyone who joins - their own final day is their own local timezone's.</p>
+          {% for error in room_form.duration_days.errors %}
+          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="createRoomOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+            Cancel
+          </button>
+          <button type="submit" class="rounded-2xl bg-rooms px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90">
+            Create room
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div
+    x-show="joinRoomOpen"
+    x-cloak
+    @keydown.escape.window="joinRoomOpen = false"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+  >
+    <div @click.outside="joinRoomOpen = false" class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl">
+      <h2 class="font-heading text-xl font-semibold text-text">Join a room</h2>
+      <p class="mt-1 text-sm text-text-muted">Enter the 6-character code a friend shared with you - this just shows you the room, it won't join you automatically.</p>
+
+      {% if join_code_error %}
+      <p class="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{{ join_code_error }}</p>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('rooms.find_by_code') }}" class="mt-4 space-y-4">
+        {{ join_code_form.csrf_token }}
+        <div>
+          {{ join_code_form.code(
+            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-3 text-center font-heading text-2xl font-bold tracking-[0.4em] uppercase text-text focus:outline-none focus:border-rooms focus:ring-2 focus:ring-rooms',
+            maxlength=8, placeholder='K7M4QX', autocomplete='off', autocapitalize='characters', autofocus=true,
+            **{'x-on:input': "$el.value = $el.value.toUpperCase().replace(/[^A-Z0-9-]/g, '')"}
+          ) }}
+          {% for error in join_code_form.code.errors %}
+          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="joinRoomOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+            Cancel
+          </button>
+          <button type="submit" class="rounded-2xl bg-rooms px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90">
+            Find room
           </button>
         </div>
       </form>

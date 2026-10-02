@@ -25,10 +25,12 @@ def create_app(config_class=Config):
     from habitual import models  # noqa: F401 registers models with SQLAlchemy/Migrate
     from habitual.auth import auth as auth_blueprint
     from habitual.habits import habits as habits_blueprint
+    from habitual.rooms import rooms as rooms_blueprint
     from habitual.cli import dev_backdate
 
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(habits_blueprint)
+    app.register_blueprint(rooms_blueprint)
     app.cli.add_command(dev_backdate)
 
     @app.get("/")

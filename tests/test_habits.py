@@ -107,13 +107,15 @@ def test_create_habit_redirects_with_new_param(client, db):
     assert habit.emoji == EMOJI_CHOICES[1]
 
 
-def test_dashboard_renders_exactly_one_emoji_field(client, db):
+def test_dashboard_renders_exactly_one_emoji_field_per_form(client, db):
     # Regression: form.hidden_tag() auto-renders every HiddenField (including
     # our custom "emoji" one), which previously duplicated the Alpine-bound
-    # emoji input and caused the first (empty) one to win on submit.
+    # emoji input and caused the first (empty) one to win on submit. The
+    # dashboard now has two independent forms (habit, room), each with its
+    # own single "emoji" field - two total, never more.
     _login(client, db)
     response = client.get("/dashboard")
-    assert response.data.count(b'name="emoji"') == 1
+    assert response.data.count(b'name="emoji"') == 2
 
 
 def test_create_habit_rejects_blank_title(client, db):

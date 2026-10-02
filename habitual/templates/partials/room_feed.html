@@ -1,0 +1,7 @@
+<ol id="room-feed" {% if oob %}hx-swap-oob="true"{% endif %} class="mt-4 divide-y divide-border">
+  {% if feed %}
+    {% for item in feed %}{% include "partials/room_feed_item.html" %}{% endfor %}
+  {% else %}
+  <li class="py-6 text-center text-sm text-text-muted">No check-ins yet - be the first!</li>
+  {% endif %}
+</ol>

@@ -1,0 +1,156 @@
+{% extends "app_base.html" %}
+
+{% block title %}{{ room.title }} · Habitual{% endblock %}
+
+{% block head %}
+<script src="{{ url_for('static', filename='js/rings_chart.js') }}"></script>
+{% endblock %}
+
+{% block app_content %}
+<div class="py-10" x-data="{ leaveOpen: false, linkCopied: false, codeCopied: false, messageCopied: false }">
+  <a href="{{ url_for('habits.dashboard') }}" class="inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text">
+    ← Back to dashboard
+  </a>
+
+  <header class="mt-6 flex flex-wrap items-start justify-between gap-6">
+    <div class="flex items-center gap-4">
+      <span class="text-4xl">{{ room.emoji }}</span>
+      <div>
+        <h1 class="font-heading text-2xl font-semibold text-text">{{ room.title }}</h1>
+        <p class="text-sm text-text-muted">
+          {{ member_count }}/{{ max_members }} member{{ "s" if member_count != 1 else "" }}
+          {%- if ended %} · room ended
+          {%- elif viewer_ended %} · ended for you
+          {%- else %} · {{ days_remaining }} day{{ "s" if days_remaining != 1 else "" }} left for you{% endif %}
+        </p>
+      </div>
+    </div>
+
+    <button type="button" @click="leaveOpen = true" class="shrink-0 rounded-xl border border-danger/30 px-4 py-2 text-sm font-medium text-danger transition hover:bg-danger/10">
+      Leave room
+    </button>
+  </header>
+
+  {% if not viewer_ended %}
+  <div class="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-rooms/30 bg-rooms/5 p-4">
+    <div>
+      <p class="text-xs text-text-muted">Room code</p>
+      <div class="mt-1 flex items-center gap-2">
+        <span class="font-heading text-2xl font-bold tracking-[0.3em] text-text">{{ room.join_code }}</span>
+        <button
+          type="button"
+          @click="navigator.clipboard.writeText('{{ room.join_code }}'); codeCopied = true; setTimeout(() => codeCopied = false, 2000)"
+          class="rounded-lg border border-border px-2 py-1 text-xs font-medium text-text transition hover:bg-bg/40"
+        >
+          <span x-text="codeCopied ? 'Copied!' : 'Copy'"></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <input
+        id="invite-link" type="text" readonly onclick="this.select()"
+        value="{{ url_for('rooms.join_landing', token=room.invite_token, _external=True) }}"
+        class="w-48 rounded-xl border border-border bg-bg/40 px-3 py-2 text-xs text-text-muted sm:w-64"
+      >
+      <button
+        type="button"
+        @click="navigator.clipboard.writeText(document.getElementById('invite-link').value); linkCopied = true; setTimeout(() => linkCopied = false, 2000)"
+        class="shrink-0 rounded-xl border border-border px-3 py-2 text-xs font-medium text-text transition hover:bg-bg/40"
+      >
+        <span x-text="linkCopied ? 'Copied!' : 'Copy link'"></span>
+      </button>
+    </div>
+
+    <button
+      type="button"
+      @click="navigator.clipboard.writeText({{ invite_message|tojson|forceescape }}); messageCopied = true; setTimeout(() => messageCopied = false, 2000)"
+      class="shrink-0 rounded-xl border border-border px-3 py-2 text-xs font-medium text-text transition hover:bg-bg/40"
+    >
+      <span x-text="messageCopied ? 'Copied!' : 'Copy invite message'"></span>
+    </button>
+
+    {% if is_creator %}
+    <form method="post" action="{{ url_for('rooms.regenerate_invite', room_id=room.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" title="Regenerate invite link and code" class="shrink-0 rounded-xl border border-border px-3 py-2 text-xs text-text-muted transition hover:bg-bg/40">
+        ↻ Regenerate
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="mt-6 grid max-w-md grid-cols-2 gap-3">
+    {% include "partials/room_health.html" %}
+    {% include "partials/room_streak_stat.html" %}
+  </div>
+
+  <div class="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+    <div class="space-y-6">
+      <section class="rounded-2xl border border-border bg-surface/40 p-6">
+        <h2 class="font-heading text-lg font-semibold text-text">Leaderboard</h2>
+        {% include "partials/room_leaderboard.html" %}
+      </section>
+      <section class="rounded-2xl border border-border bg-surface/40 p-6">
+        <h2 class="font-heading text-lg font-semibold text-text">Recent check-ins</h2>
+        {% include "partials/room_feed.html" %}
+      </section>
+    </div>
+
+    <div>
+      <h2 class="mb-3 font-heading text-lg font-semibold text-text">Your progress</h2>
+      {% include "partials/room_my_panel.html" %}
+    </div>
+  </div>
+
+  <div
+    x-show="leaveOpen" x-cloak
+    @keydown.escape.window="leaveOpen = false"
+    x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+  >
+    <div @click.outside="leaveOpen = false" class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl">
+      <h3 class="font-heading text-lg font-semibold text-text">Leave "{{ room.title }}"?</h3>
+      <p class="mt-2 text-sm text-text-muted">This removes your room habit and its points. This can't be undone.</p>
+      <div class="mt-5 flex justify-end gap-3">
+        <button type="button" @click="leaveOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">Cancel</button>
+        <form method="post" action="{{ url_for('rooms.leave_room', room_id=room.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">Leave</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    initRingsChart();
+    animateStrengthBar();
+  });
+  document.body.addEventListener("htmx:afterSettle", () => {
+    initRingsChart();
+    animateStrengthBar();
+  });
+
+  // GSAP Flip, keyed by each row's stable data-flip-id (the member's user
+  // id, not DOM position), so a leaderboard re-render after a check-in
+  // animates the reorder smoothly instead of just popping to the new order.
+  let leaderboardFlipState = null;
+  document.body.addEventListener("htmx:beforeSwap", (e) => {
+    if (e.detail.target && e.detail.target.id === "leaderboard-list" && window.gsap && window.Flip && !window.prefersReducedMotion) {
+      leaderboardFlipState = Flip.getState("#leaderboard-list > [data-flip-id]");
+    }
+  });
+  document.body.addEventListener("htmx:afterSwap", () => {
+    if (leaderboardFlipState) {
+      Flip.from(leaderboardFlipState, { duration: 0.5, ease: "power2.inOut", absolute: true });
+      leaderboardFlipState = null;
+    }
+  });
+</script>
+{% endblock %}

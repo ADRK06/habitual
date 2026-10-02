@@ -1,0 +1,23 @@
+<ol id="leaderboard-list" {% if oob %}hx-swap-oob="true"{% endif %} class="mt-4 divide-y divide-border">
+  {% for entry in leaderboard %}
+  <li
+    data-flip-id="leaderboard-row-{{ entry.user.id }}"
+    class="flex items-center gap-3 py-3{% if entry.is_viewer %} rounded-xl bg-accent/5 px-2{% endif %}"
+  >
+    <span class="w-6 shrink-0 text-center font-heading text-sm font-semibold text-text-muted">
+      {% if loop.index <= 3 %}{{ ["🥇", "🥈", "🥉"][loop.index0] }}{% else %}{{ loop.index }}{% endif %}
+    </span>
+    <div class="min-w-0 flex-1">
+      <p class="truncate text-sm font-medium text-text">
+        {{ entry.user.name }}{% if entry.is_viewer %} <span class="text-text-muted">(you)</span>{% endif %}
+        {% if loop.index == 1 %}<span title="Current leader">👑</span>{% endif %}
+      </p>
+      <p class="text-xs text-text-muted">
+        🔥 {{ entry.current_streak }} · {{ entry.missed_days }} missed
+        {%- if entry.crown_count %} · {{ entry.crown_count }} crown{{ "s" if entry.crown_count != 1 else "" }} 👑{% endif %}
+      </p>
+    </div>
+    <p class="shrink-0 font-heading text-lg font-bold tabular-nums text-accent">{{ entry.points }}</p>
+  </li>
+  {% endfor %}
+</ol>

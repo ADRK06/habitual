@@ -1,0 +1,95 @@
+<div id="my-room-panel">
+  {% include "partials/ring_card.html" %}
+
+  <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+    {% if viewer_ended %}
+    <p class="flex-1 rounded-2xl border border-border bg-bg/40 px-4 py-2.5 text-center text-sm text-text-muted">
+      This room has ended for you.
+    </p>
+    {% else %}
+
+      {% if can_save_streak %}
+      <button
+        type="button"
+        {% if has_freeze_to_use %}
+        hx-post="{{ url_for('habits.use_freeze', habit_id=habit.id) }}"
+        hx-vals='{"room_view": "1"}'
+        hx-target="#my-room-panel"
+        hx-swap="outerHTML"
+        {% else %}
+        disabled title="Buy a freeze in the header (50 balance) to save this streak."
+        {% endif %}
+        class="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-bg/40 px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-bg/40"
+      >
+        <span>Save your streak</span><span>🧊</span>
+      </button>
+      {% endif %}
+
+      {% if checked_in_today %}
+      <div class="relative flex-1" x-data="{ undoOpen: false }" @keydown.escape.window="undoOpen = false">
+        <button
+          type="button"
+          @click="undoOpen = !undoOpen"
+          class="flex w-full items-center justify-center gap-2 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/15"
+        >
+          <span>Done today</span><span>✓</span>
+        </button>
+        <div
+          x-show="undoOpen" x-cloak
+          x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+          x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+          class="absolute inset-x-0 top-full z-30 mt-2 rounded-xl border border-border bg-surface p-4 shadow-xl"
+        >
+          <p class="text-sm text-text">Undo today's check-in?</p>
+          <div class="mt-3 flex justify-end gap-2">
+            <button type="button" @click="undoOpen = false" class="rounded-lg border border-border px-3 py-1.5 text-xs text-text hover:bg-bg/40">Cancel</button>
+            <button
+              type="button"
+              hx-delete="{{ url_for('habits.undo_checkin', habit_id=habit.id) }}"
+              hx-vals='{"room_view": "1"}'
+              hx-target="#my-room-panel"
+              hx-swap="outerHTML"
+              class="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90"
+            >
+              Undo
+            </button>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="relative flex-1" x-data="{ checkinOpen: false }" @keydown.escape.window="checkinOpen = false">
+        <button
+          type="button"
+          @click="checkinOpen = !checkinOpen"
+          class="w-full rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+        >
+          Check in
+        </button>
+        <div
+          x-show="checkinOpen" x-cloak
+          x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+          x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+          class="absolute inset-x-0 top-full z-30 mt-2 rounded-xl border border-border bg-surface p-4 shadow-xl"
+        >
+          <form
+            hx-post="{{ url_for('habits.checkin', habit_id=habit.id) }}"
+            hx-vals='{"room_view": "1"}'
+            hx-target="#my-room-panel"
+            hx-swap="outerHTML"
+          >
+            <label class="mb-1 block text-xs text-text-muted">Add a note - a good one is also your shot at today's crown 👑</label>
+            <textarea
+              name="proof_note" maxlength="280" rows="2" placeholder="What did you do?"
+              class="w-full resize-none rounded-lg border border-border bg-bg/40 px-2 py-1.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+            ></textarea>
+            <div class="mt-3 flex justify-end gap-2">
+              <button type="button" @click="checkinOpen = false" class="rounded-lg border border-border px-3 py-1.5 text-xs text-text hover:bg-bg/40">Cancel</button>
+              <button type="submit" class="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-bg transition hover:opacity-90">Check in</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
