@@ -1,17 +1,28 @@
 {% from "_macros.html" import spinner %}
 <div
   id="habit-card-{{ habit.id }}"
-  class="habit-card group relative cursor-pointer rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-accent/30 hover:shadow-xl"
+  class="habit-card group relative rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-accent/30 hover:shadow-xl"
   data-habit-points="{{ habit_points }}"
   data-current-streak="{{ current_streak }}"
   data-checked-in-today="{{ 'true' if checked_in_today else 'false' }}"
   x-data="{ confirmOpen: false, undoOpen: false, checkinOpen: false }"
-  @click="window.location = '{{ url_for('habits.habit_detail', habit_id=habit.id) }}'"
 >
+  {# Stretched-link pattern: the whole card navigates like a big clickable
+     region, but that needs a real, keyboard-reachable <a> underneath rather
+     than a bare div @click (which no keyboard user could ever activate) -
+     every genuinely interactive control below sits in a higher stacking
+     layer (relative z-10, or more for popovers/modal) so it still gets the
+     click/tap instead of the link beneath it. #}
+  <a
+    href="{{ url_for('habits.habit_detail', habit_id=habit.id) }}"
+    class="absolute inset-0 z-0 rounded-2xl"
+    aria-label="View {{ habit.title }}"
+  ></a>
+
   <button
     type="button"
     @click.stop="confirmOpen = true"
-    class="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-danger/15 hover:text-danger"
+    class="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-danger/20 hover:text-text"
     aria-label='{{ "Leave" if habit.room_id else "Delete" }} {{ habit.title }}'
   >&times;</button>
 
@@ -60,7 +71,7 @@
     {% else %}
     disabled title="Buy a freeze in the header (50 balance) to save this streak."
     {% endif %}
-    class="relative mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-bg/40 px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-bg/40"
+    class="relative z-10 mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-bg/40 px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-bg/40"
   >
     <span class="btn-label flex items-center gap-2"><span>Save your streak</span><span>🧊</span></span>
     {{ spinner() }}
@@ -69,12 +80,11 @@
 
   {% if checked_in_today %}
   <div
-    class="relative mt-5"
-    @keydown.escape.window="if (undoOpen) { undoOpen = false; $nextTick(() => $refs.doneToday.focus()); }"
+    class="relative z-10 mt-5"
+    @keydown.escape.window="undoOpen = false"
   >
     <button
       type="button"
-      x-ref="doneToday"
       onclick="event.stopPropagation()"
       @click="undoOpen = !undoOpen"
       class="flex w-full items-center justify-center gap-2 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/15"
@@ -84,7 +94,10 @@
 
     <div
       x-show="undoOpen"
+      x-trap="undoOpen"
       x-cloak
+      role="dialog"
+      aria-labelledby="undo-heading-{{ habit.id }}"
       onclick="event.stopPropagation()"
       x-transition:enter="transition ease-out duration-150"
       x-transition:enter-start="opacity-0 scale-95"
@@ -94,11 +107,11 @@
       x-transition:leave-end="opacity-0 scale-95"
       class="absolute inset-x-0 top-full z-30 mt-2 rounded-xl border border-border bg-surface p-4 shadow-xl"
     >
-      <p class="text-sm text-text">Undo today's check-in?</p>
+      <p id="undo-heading-{{ habit.id }}" class="text-sm text-text">Undo today's check-in?</p>
       <div class="mt-3 flex justify-end gap-2">
         <button
           type="button"
-          @click="undoOpen = false; $nextTick(() => $refs.doneToday.focus())"
+          @click="undoOpen = false"
           class="rounded-lg border border-border px-3 py-1.5 text-xs text-text hover:bg-bg/40"
         >
           Cancel
@@ -119,12 +132,11 @@
   </div>
   {% else %}
   <div
-    class="relative mt-5"
-    @keydown.escape.window="if (checkinOpen) { checkinOpen = false; $nextTick(() => $refs.checkinButton.focus()); }"
+    class="relative z-10 mt-5"
+    @keydown.escape.window="checkinOpen = false"
   >
     <button
       type="button"
-      x-ref="checkinButton"
       onclick="event.stopPropagation()"
       @click="checkinOpen = !checkinOpen"
       class="w-full rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
@@ -134,7 +146,10 @@
 
     <div
       x-show="checkinOpen"
+      x-trap="checkinOpen"
       x-cloak
+      role="dialog"
+      aria-label="Check in"
       onclick="event.stopPropagation()"
       x-transition:enter="transition ease-out duration-150"
       x-transition:enter-start="opacity-0 scale-95"
@@ -150,8 +165,9 @@
         hx-swap="outerHTML"
         hx-disabled-elt="find button[type='submit']"
       >
-        <label class="mb-1 block text-xs text-text-muted">Add a note? (optional)</label>
+        <label for="proof-note-{{ habit.id }}" class="mb-1 block text-xs text-text-muted">Add a note? (optional)</label>
         <textarea
+          id="proof-note-{{ habit.id }}"
           name="proof_note"
           maxlength="280"
           rows="2"
@@ -161,7 +177,7 @@
         <div class="mt-3 flex justify-end gap-2">
           <button
             type="button"
-            @click="checkinOpen = false; $nextTick(() => $refs.checkinButton.focus())"
+            @click="checkinOpen = false"
             class="rounded-lg border border-border px-3 py-1.5 text-xs text-text hover:bg-bg/40"
           >
             Cancel
@@ -178,8 +194,10 @@
 
   <div
     x-show="confirmOpen"
+    x-trap="confirmOpen"
     x-cloak
     onclick="event.stopPropagation()"
+    @keydown.escape.window="confirmOpen = false"
     x-transition:enter="transition ease-out duration-150"
     x-transition:enter-start="opacity-0"
     x-transition:enter-end="opacity-100"
@@ -188,12 +206,17 @@
     x-transition:leave-end="opacity-0"
     class="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
   >
-    <div class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-heading-{{ habit.id }}"
+      class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl"
+    >
       {% if habit.room_id %}
-      <h4 class="font-heading text-lg font-semibold text-text">Leave "{{ habit.title }}"?</h4>
+      <h4 id="confirm-heading-{{ habit.id }}" class="font-heading text-lg font-semibold text-text">Leave "{{ habit.title }}"?</h4>
       <p class="mt-2 text-sm text-text-muted">This removes your room habit and its points. This can't be undone.</p>
       {% else %}
-      <h4 class="font-heading text-lg font-semibold text-text">Delete "{{ habit.title }}"?</h4>
+      <h4 id="confirm-heading-{{ habit.id }}" class="font-heading text-lg font-semibold text-text">Delete "{{ habit.title }}"?</h4>
       <p class="mt-2 text-sm text-text-muted">This removes {{ habit_points }} points from your total. This can't be undone.</p>
       {% endif %}
       <div class="mt-5 flex justify-end gap-3">

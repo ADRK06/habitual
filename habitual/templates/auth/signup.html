@@ -38,7 +38,7 @@
         <label for="name" class="block text-sm text-text-muted mb-1">Name</label>
         {{ form.name(id='name', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent') }}
         {% for error in form.name.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger">{{ error }}</p>
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
       </div>
 
@@ -62,7 +62,7 @@
           <span id="username-checking" class="htmx-indicator-text text-xs text-text-muted">Checking…</span>
         </div>
         {% for error in form.username.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger">{{ error }}</p>
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
       </div>
 
@@ -96,7 +96,7 @@
           <li class="transition-colors duration-200" :class="{ 'text-success': hasSpecial }">Special character</li>
         </ul>
         {% for error in form.password.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger">{{ error }}</p>
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
       </div>
 
@@ -109,7 +109,7 @@
         ) }}
         <p class="mt-1 text-xs transition-colors duration-200" :class="matches ? 'text-success' : 'text-text-muted'" x-text="confirm.length ? (matches ? 'Passwords match' : 'Passwords do not match') : ''"></p>
         {% for error in form.confirm_password.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger">{{ error }}</p>
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
       </div>
 

@@ -1,1 +1,8 @@
-<p class="text-sm {{ 'text-success' if available else 'text-danger' }}">{{ message }}</p>
+{# Crimson text fails WCAG AA at this size (see CLAUDE.md's palette note),
+   so the available/unavailable cue is carried by the emoji (exempt from
+   text-contrast rules, and already readable as color) - the message itself
+   stays in the high-contrast body color regardless of state. #}
+<p class="flex items-center gap-1.5 text-sm text-text">
+  <span aria-hidden="true">{{ '✅' if available else '❌' }}</span>
+  {{ message }}
+</p>

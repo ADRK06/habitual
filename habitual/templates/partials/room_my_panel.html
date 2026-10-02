@@ -38,12 +38,13 @@
           <span>Done today</span><span>✓</span>
         </button>
         <div
-          x-show="undoOpen" x-cloak
+          x-show="undoOpen" x-trap="undoOpen" x-cloak
+          role="dialog" aria-labelledby="room-undo-heading-{{ habit.id }}"
           x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
           x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
           class="absolute inset-x-0 top-full z-30 mt-2 rounded-xl border border-border bg-surface p-4 shadow-xl"
         >
-          <p class="text-sm text-text">Undo today's check-in?</p>
+          <p id="room-undo-heading-{{ habit.id }}" class="text-sm text-text">Undo today's check-in?</p>
           <div class="mt-3 flex justify-end gap-2">
             <button type="button" @click="undoOpen = false" class="rounded-lg border border-border px-3 py-1.5 text-xs text-text hover:bg-bg/40">Cancel</button>
             <button
@@ -71,7 +72,8 @@
           Check in
         </button>
         <div
-          x-show="checkinOpen" x-cloak
+          x-show="checkinOpen" x-trap="checkinOpen" x-cloak
+          role="dialog" aria-label="Check in"
           x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
           x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
           class="absolute inset-x-0 top-full z-30 mt-2 rounded-xl border border-border bg-surface p-4 shadow-xl"
@@ -83,8 +85,9 @@
             hx-swap="outerHTML"
             hx-disabled-elt="find button[type='submit']"
           >
-            <label class="mb-1 block text-xs text-text-muted">Add a note - a good one is also your shot at today's crown 👑</label>
+            <label for="room-proof-note-{{ habit.id }}" class="mb-1 block text-xs text-text-muted">Add a note - a good one is also your shot at today's crown 👑</label>
             <textarea
+              id="room-proof-note-{{ habit.id }}"
               name="proof_note" maxlength="280" rows="2" placeholder="What did you do?"
               class="w-full resize-none rounded-lg border border-border bg-bg/40 px-2 py-1.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             ></textarea>

@@ -26,12 +26,12 @@
         Go to room
       </a>
     {% elif is_full %}
-      <p class="mt-6 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
-        This room is full ({{ member_count }}/{{ max_members }}).
+      <p class="mt-6 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-text">
+        ⚠️ This room is full ({{ member_count }}/{{ max_members }}).
       </p>
     {% elif ended_for_viewer %}
-      <p class="mt-6 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
-        This room has already ended for you.
+      <p class="mt-6 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-text">
+        ⚠️ This room has already ended for you.
       </p>
     {% elif can_join %}
       <form method="post" action="{{ url_for('rooms.join_room', token=room.invite_token) }}" class="mt-6">

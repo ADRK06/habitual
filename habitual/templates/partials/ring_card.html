@@ -14,7 +14,7 @@
     <span
       class="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium
         {% if status_variant == 'ontrack' %}bg-success/15 text-success
-        {% elif status_variant == 'risk' %}bg-danger/15 text-danger
+        {% elif status_variant == 'risk' %}bg-danger/20 text-text
         {% else %}bg-border/50 text-text-muted{% endif %}"
     >
       {% if status_variant == 'saved' %}🧊{% elif status_variant == 'due' %}📅{% elif status_variant == 'risk' %}⚠️{% else %}✓{% endif %}

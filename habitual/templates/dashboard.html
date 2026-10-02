@@ -77,12 +77,19 @@
 
   <div
     x-show="createOpen"
+    x-trap="createOpen"
     x-cloak
     @keydown.escape.window="createOpen = false"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
   >
-    <div @click.outside="createOpen = false" class="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl">
-      <h2 class="font-heading text-xl font-semibold text-text">New habit</h2>
+    <div
+      @click.outside="createOpen = false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-habit-heading"
+      class="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl"
+    >
+      <h2 id="create-habit-heading" class="font-heading text-xl font-semibold text-text">New habit</h2>
       <p class="mt-1 text-sm text-text-muted">Teacher tip: make it tiny enough you could do it half-asleep. You can always do more.</p>
 
       <form
@@ -112,7 +119,7 @@
           <label class="mb-1 block text-sm text-text-muted">Title</label>
           {{ form.title(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Read 10 pages', maxlength=60, **{'x-model': 'title'}) }}
           {% for error in form.title.errors %}
-          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
           {% endfor %}
         </div>
 
@@ -130,7 +137,7 @@
           </div>
           <input type="hidden" name="emoji" x-model="emoji">
           {% for error in form.emoji.errors %}
-          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
           {% endfor %}
         </div>
 
@@ -155,12 +162,19 @@
 
   <div
     x-show="createRoomOpen"
+    x-trap="createRoomOpen"
     x-cloak
     @keydown.escape.window="createRoomOpen = false"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
   >
-    <div @click.outside="createRoomOpen = false" class="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl">
-      <h2 class="font-heading text-xl font-semibold text-text">New room</h2>
+    <div
+      @click.outside="createRoomOpen = false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-room-heading"
+      class="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl"
+    >
+      <h2 id="create-room-heading" class="font-heading text-xl font-semibold text-text">New room</h2>
       <p class="mt-1 text-sm text-text-muted">Invite friends to race the same habit together - everyone gets their own streak, points and a daily crown.</p>
 
       <form
@@ -175,7 +189,7 @@
           <label class="mb-1 block text-sm text-text-muted">Title</label>
           {{ room_form.title(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-rooms focus:ring-2 focus:ring-rooms', placeholder='30-Day Pushup Challenge', maxlength=60, **{'x-model': 'title'}) }}
           {% for error in room_form.title.errors %}
-          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
           {% endfor %}
         </div>
 
@@ -193,7 +207,7 @@
           </div>
           <input type="hidden" name="emoji" x-model="emoji">
           {% for error in room_form.emoji.errors %}
-          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
           {% endfor %}
         </div>
 
@@ -202,7 +216,7 @@
           {{ room_form.duration_days(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-rooms focus:ring-2 focus:ring-rooms', value=room_form.duration_days.data or 14, type='number', min=7, max=90) }}
           <p class="mt-1 text-xs text-text-muted">7-90 days. Starts today for everyone who joins - their own final day is their own local timezone's.</p>
           {% for error in room_form.duration_days.errors %}
-          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
           {% endfor %}
         </div>
 
@@ -221,16 +235,23 @@
 
   <div
     x-show="joinRoomOpen"
+    x-trap="joinRoomOpen"
     x-cloak
     @keydown.escape.window="joinRoomOpen = false"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
   >
-    <div @click.outside="joinRoomOpen = false" class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl">
-      <h2 class="font-heading text-xl font-semibold text-text">Join a room</h2>
+    <div
+      @click.outside="joinRoomOpen = false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="join-room-heading"
+      class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl"
+    >
+      <h2 id="join-room-heading" class="font-heading text-xl font-semibold text-text">Join a room</h2>
       <p class="mt-1 text-sm text-text-muted">Enter the 6-character code a friend shared with you - this just shows you the room, it won't join you automatically.</p>
 
       {% if join_code_error %}
-      <p class="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{{ join_code_error }}</p>
+      <p class="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-text">⚠️ {{ join_code_error }}</p>
       {% endif %}
 
       <form method="post" action="{{ url_for('rooms.find_by_code') }}" class="mt-4 space-y-4">
@@ -242,7 +263,7 @@
             **{'x-on:input': "$el.value = $el.value.toUpperCase().replace(/[^A-Z0-9-]/g, '')"}
           ) }}
           {% for error in join_code_form.code.errors %}
-          <p class="mt-1 text-sm text-danger">{{ error }}</p>
+          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
           {% endfor %}
         </div>
 
