@@ -17,6 +17,7 @@
     {% include "partials/header_stats.html" %}
   </header>
 
+  {% include "partials/day_status.html" %}
   {% include "partials/badges_row.html" %}
 
   <div class="flex flex-wrap items-center justify-between gap-4 pb-6">
@@ -399,6 +400,7 @@
     requestAnimationFrame(initOverviewChart);
 
     animateCounters();
+    initDayStatus();
   });
 
   // Every htmx response that touches the dashboard (check-in, undo, freeze,
@@ -441,6 +443,53 @@
   // afterSettle (not afterSwap) fires once everything - including any
   // out-of-band swaps like the header stats - has landed in the DOM.
   document.body.addEventListener("htmx:afterSettle", () => animateCounters());
+
+  // Header countdown to the user's own local midnight. The target instant
+  // (data-midnight-ms) and the habits-remaining count are always computed
+  // server-side - this just ticks the display against them and re-reads
+  // both fresh after every OOB swap (check-in/undo/freeze/delete), since
+  // each one replaces #day-status wholesale with current values.
+  let dayStatusTimer = null;
+
+  function renderDayStatus(el, textEl, targetMs, habitsRemaining) {
+    const secondsLeft = Math.max(0, Math.round((targetMs - Date.now()) / 1000));
+    if (secondsLeft <= 0) {
+      clearInterval(dayStatusTimer);
+      window.location.reload(); // a new local day has started - everything needs recomputing
+      return;
+    }
+    if (habitsRemaining <= 0) {
+      textEl.className = "flex items-center gap-1.5 rounded-full border border-success/30 bg-success/15 px-3 py-1 text-sm font-medium text-success";
+      textEl.textContent = "All done today 🎉";
+      return;
+    }
+    const hours = Math.floor(secondsLeft / 3600);
+    const minutes = Math.floor((secondsLeft % 3600) / 60);
+    const urgent = secondsLeft <= 3 * 3600;
+    textEl.className = "flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm "
+      + (urgent ? "animate-pulse border-danger/40 bg-danger/15" : "border-border bg-surface/60");
+    textEl.innerHTML = `<span class="font-heading font-bold tabular-nums ${urgent ? "text-streak" : "text-text"}">${hours}h ${minutes}m</span>`
+      + `<span class="text-text-muted">left today · ${habitsRemaining} habit${habitsRemaining !== 1 ? "s" : ""} left</span>`;
+  }
+
+  function initDayStatus() {
+    if (dayStatusTimer) {
+      clearInterval(dayStatusTimer);
+      dayStatusTimer = null;
+    }
+    const el = document.getElementById("day-status");
+    const textEl = document.getElementById("day-status-text");
+    if (!el || !textEl || !el.dataset.midnightMs) return;
+
+    const targetMs = parseInt(el.dataset.midnightMs, 10);
+    const habitsRemaining = parseInt(el.dataset.habitsRemaining, 10);
+    renderDayStatus(el, textEl, targetMs, habitsRemaining);
+    if (habitsRemaining > 0) {
+      dayStatusTimer = setInterval(() => renderDayStatus(el, textEl, targetMs, habitsRemaining), 20000);
+    }
+  }
+
+  document.body.addEventListener("htmx:afterSettle", () => initDayStatus());
 
   // Fired via HX-Trigger from the checkin route, bubbles up from the
   // request's originating element same as the "toast" event does.

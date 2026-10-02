@@ -58,6 +58,46 @@ def test_dashboard_shows_habit_card(client, db):
     assert b"No habits yet" not in response.data
 
 
+# -- header countdown --------------------------------------------------------
+
+
+def test_day_status_hidden_with_no_habits(client, db):
+    _login(client, db)
+    response = client.get("/dashboard")
+    assert b'id="day-status"' not in response.data
+
+
+def test_day_status_shows_habits_remaining(client, db):
+    user = _login(client, db)
+    _create_habit(db, user, title="Morning Run")
+    _create_habit(db, user, title="Read")
+    response = client.get("/dashboard").get_data(as_text=True)
+    assert 'id="day-status"' in response
+    assert "2 habits left" in response
+    assert 'data-habits-remaining="2"' in response
+
+
+def test_day_status_shows_all_done_when_fully_checked_in(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Morning Run")
+    client.post(f"/habits/{habit.id}/checkin")
+    response = client.get("/dashboard").get_data(as_text=True)
+    assert "All done today 🎉" in response
+    assert 'data-habits-remaining="0"' in response
+
+
+def test_day_status_carries_a_future_midnight_timestamp(client, db):
+    import time as time_module
+
+    user = _login(client, db)
+    _create_habit(db, user, title="Morning Run")
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    match = re.search(r'data-midnight-ms="(\d+)"', response)
+    assert match is not None
+    assert int(match.group(1)) > time_module.time() * 1000
+
+
 # -- dashboard overview (Part B) --------------------------------------------
 
 

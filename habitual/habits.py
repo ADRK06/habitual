@@ -11,7 +11,7 @@ from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 from habitual import analytics, badges, db, points
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
-from habitual.utils.time import local_now, local_today
+from habitual.utils.time import local_now, local_today, midnight_epoch_ms
 
 habits = Blueprint("habits", __name__)
 
@@ -119,6 +119,26 @@ def _overview_context(habit_rows, today):
     }
 
 
+def _day_status_context(user, habits_remaining):
+    """Header countdown fields: time left until the user's own local
+    midnight (computed here from the server, never guessed from the
+    browser's clock/timezone - the client just ticks a fixed target) plus
+    the urgency flag for the last-3-hours treatment. `habits_remaining` of
+    None (nothing to track yet) propagates through so the template can skip
+    the widget entirely."""
+    if habits_remaining is None:
+        return {"habits_remaining": None}
+    midnight_ms = midnight_epoch_ms(user)
+    seconds_left = max(0.0, midnight_ms / 1000 - local_now(user).timestamp())
+    return {
+        "habits_remaining": habits_remaining,
+        "midnight_epoch_ms": midnight_ms,
+        "hours_left": int(seconds_left // 3600),
+        "minutes_left": int((seconds_left % 3600) // 60),
+        "is_urgent": habits_remaining > 0 and seconds_left <= 3 * 3600,
+    }
+
+
 def _room_card_context(habit):
     """Extra Room-badge/leader/health/days-left fields for a dashboard card
     whose habit belongs to a room - {} for a solo habit."""
@@ -153,6 +173,7 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
     }
     if habit_rows:
         context.update(_overview_context(habit_rows, today))
+    context.update(_day_status_context(current_user, context.get("habits_remaining")))
     return context
 
 
@@ -407,6 +428,7 @@ def checkin(habit_id):
         **_overview_context(_user_habits(current_user), today),
         "oob": True,
     }
+    context.update(_day_status_context(current_user, context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
     if toast:
         trigger = {"toast": toast, "checkinCelebration": celebration}
@@ -455,6 +477,7 @@ def undo_checkin(habit_id):
         **_overview_context(_user_habits(current_user), today),
         "oob": True,
     }
+    context.update(_day_status_context(current_user, context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
     resp.headers["HX-Trigger"] = json.dumps({"toast": toast})
     return resp
@@ -559,6 +582,7 @@ def use_freeze(habit_id):
         **_overview_context(_user_habits(current_user), today),
         "oob": True,
     }
+    context.update(_day_status_context(current_user, context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
     trigger = {"toast": toast}
     if newly_badges:
@@ -590,6 +614,7 @@ def delete_habit(habit_id):
         "oob": True,
         "no_habits_left": len(remaining_rows) == 0,
     }
+    context.update(_day_status_context(current_user, context["habits_remaining"]))
     resp = make_response(render_template("partials/delete_response.html", **context))
     resp.headers["HX-Trigger"] = json.dumps(
         {"toast": {"message": f'Deleted "{title}".', "type": "info"}}

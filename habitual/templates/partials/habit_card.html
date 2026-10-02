@@ -14,9 +14,9 @@
      layer (relative z-10, or more for popovers/modal) so it still gets the
      click/tap instead of the link beneath it. #}
   <a
-    href="{{ url_for('habits.habit_detail', habit_id=habit.id) }}"
+    href="{{ url_for('rooms.room_detail', room_id=habit.room_id) if habit.room_id else url_for('habits.habit_detail', habit_id=habit.id) }}"
     class="absolute inset-0 z-0 rounded-2xl"
-    aria-label="View {{ habit.title }}"
+    aria-label="{{ 'Open room ' + habit.title if habit.room_id else 'View ' + habit.title }}"
   ></a>
 
   <button

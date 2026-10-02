@@ -1,6 +1,19 @@
 {% from "_macros.html" import spinner %}
 <div id="my-room-panel">
-  {% include "partials/ring_card.html" %}
+  {# ring_card.html has no interactive content of its own (no buttons/links),
+     so the whole thing can be a single stretched link to the viewer's own
+     habit stats page - pointer-events-none lets every click fall through to
+     the <a> beneath instead of needing per-element z-layering. #}
+  <div class="group relative rounded-2xl transition-shadow hover:shadow-xl">
+    <a
+      href="{{ url_for('habits.habit_detail', habit_id=habit.id) }}"
+      class="absolute inset-0 z-10 rounded-2xl"
+      aria-label="View my {{ habit.title }} stats"
+    ></a>
+    <div class="pointer-events-none">
+      {% include "partials/ring_card.html" %}
+    </div>
+  </div>
 
   <div class="mt-4 flex flex-col gap-3 sm:flex-row">
     {% if viewer_ended %}

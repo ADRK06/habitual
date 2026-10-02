@@ -133,26 +133,31 @@ def _avg_checkin_time_seconds(user, checkins):
     return sum(seconds) / len(seconds)
 
 
-def rank_members(room, members):
+def rank_members(room, members, as_of=None):
     """Leaderboard order: room habit points desc, fewest missed days,
-    earliest average check-in time. Used both for the room page leaderboard
-    and to pick the new owner when the creator leaves."""
+    earliest average check-in time. Used for the room page leaderboard, to
+    pick the new owner when the creator leaves, and (with `as_of`) to
+    reconstruct a past day's standings for the rank-movement indicator -
+    every date-based calculation is restricted to `as_of` (inclusive)
+    instead of each member's own live "today", with no other change in
+    behavior (the default, `as_of=None`, is unchanged)."""
     entries = []
     for member in members:
         user = member.user
         habit = _member_habit(room, user)
-        today = local_today(user)
-        completed = {c.date for c in habit.checkins}
-        frozen = {f.used_on for f in habit.freezes if f.used_on is not None}
-        amounts = [pt.amount for pt in habit.point_transactions]
+        reference_date = as_of if as_of is not None else local_today(user)
+        completed = {c.date for c in habit.checkins if c.date <= reference_date}
+        frozen = {f.used_on for f in habit.freezes if f.used_on is not None and f.used_on <= reference_date}
+        amounts = [pt.amount for pt in habit.point_transactions if pt.date <= reference_date]
+        checkins_as_of = [c for c in habit.checkins if c.date <= reference_date]
         entries.append({
             "member": member,
             "user": user,
             "habit": habit,
             "points": points.earned_points(amounts),
-            "current_streak": points.current_streak(completed, frozen, today),
-            "missed_days": points.missed_days(completed, frozen, habit.created_on, today),
-            "avg_checkin_seconds": _avg_checkin_time_seconds(user, habit.checkins),
+            "current_streak": points.current_streak(completed, frozen, reference_date),
+            "missed_days": points.missed_days(completed, frozen, habit.created_on, reference_date),
+            "avg_checkin_seconds": _avg_checkin_time_seconds(user, checkins_as_of),
         })
     entries.sort(key=lambda e: (-e["points"], e["missed_days"], e["avg_checkin_seconds"]))
     return entries
@@ -309,6 +314,61 @@ def _crown_counts(room):
     return counts
 
 
+def _room_today_anchor(members):
+    """The most-behind member's own local date - the same "room's today"
+    reference point used throughout (finalize_due_crowns, room_streak_value):
+    a day can't be judged decided, or "today", any earlier than that."""
+    return min(local_today(m.user) for m in members)
+
+
+def _todays_crown_user_id(room, members):
+    """Who currently holds (or has already finalized) today's crown - the
+    leaderboard's crown badge, distinct from "leader" (highest all-time
+    points): whoever's first to check in with proof today, re-raced live
+    the same way the feed's provisional badge is."""
+    if not members:
+        return None
+    today_anchor = _room_today_anchor(members)
+    decided = RoomCrown.query.filter_by(room_id=room.id, date=today_anchor).first()
+    if decided is not None:
+        return decided.user_id
+    winner = points.crown_winner(_crown_candidates(room, members, today_anchor))
+    return winner[2] if winner else None
+
+
+def _rank_movement(room, members, ranked_today):
+    """{user_id: spots moved up (positive)/down (negative) since yesterday,
+    or None for a member who hadn't joined yet then} - reconstructed by
+    re-ranking as of yesterday (same today_anchor reference as the crown)
+    rather than stored anywhere, since nothing else needs a past ranking."""
+    if not members:
+        return {}
+    yesterday_anchor = _room_today_anchor(members) - timedelta(days=1)
+    ranked_yesterday = rank_members(room, members, as_of=yesterday_anchor)
+    yesterday_rank_by_user = {e["user"].id: i + 1 for i, e in enumerate(ranked_yesterday)}
+
+    member_by_user_id = {m.user_id: m for m in members}
+    movement = {}
+    for i, entry in enumerate(ranked_today):
+        user_id = entry["user"].id
+        if member_by_user_id[user_id].joined_on > yesterday_anchor:
+            movement[user_id] = None
+        else:
+            movement[user_id] = yesterday_rank_by_user.get(user_id, len(members) + 1) - (i + 1)
+    return movement
+
+
+FLAME_SIZE_CLASSES = ["text-xs", "text-sm", "text-base", "text-lg", "text-xl", "text-2xl"]
+
+
+def _flame_size_class(streak):
+    """A streak flame that visibly grows with the streak - None (no flame)
+    at 0, one size class bigger every 7 days, capped at the biggest size."""
+    if streak <= 0:
+        return None
+    return FLAME_SIZE_CLASSES[min(streak // 7, len(FLAME_SIZE_CLASSES) - 1)]
+
+
 def _crown_badges_for_checkins(room, members, checkins):
     """Maps checkin.id -> "final" | "provisional" for every date represented
     in `checkins`. A date with a RoomCrown row is decided for good; one
@@ -381,16 +441,36 @@ def _feed_context(room, members, viewer, limit=20):
 
 
 def _leaderboard_context(room, members, viewer):
+    """One entry per member, in rank order, with everything the podium +
+    list view needs: today's crown holder (distinct from the points
+    leader), rank movement since yesterday, a gap to whoever's directly
+    above, a 0-100 bar relative to the leader, and a streak-scaled flame
+    size - all computed here so the template stays pure presentation."""
     ranked = rank_members(room, members)
     crown_count_by_user = _crown_counts(room)
-    return [
-        {
+    todays_crown_user_id = _todays_crown_user_id(room, members)
+    movement_by_user = _rank_movement(room, members, ranked)
+    leader_points = ranked[0]["points"] if ranked else 0
+
+    entries = []
+    for i, entry in enumerate(ranked):
+        rank = i + 1
+        above = ranked[i - 1] if i > 0 else None
+        second = ranked[1] if rank == 1 and len(ranked) > 1 else None
+        entries.append({
             **entry,
+            "rank": rank,
             "crown_count": crown_count_by_user.get(entry["user"].id, 0),
             "is_viewer": entry["user"].id == viewer.id,
-        }
-        for entry in ranked
-    ]
+            "has_todays_crown": entry["user"].id == todays_crown_user_id,
+            "movement": movement_by_user.get(entry["user"].id),
+            "initial": (entry["user"].name[:1] or "?").upper(),
+            "bar_pct": round(entry["points"] / leader_points * 100) if leader_points > 0 else 0,
+            "gap_to_above": (above["points"] - entry["points"]) if above else None,
+            "lead_margin": (entry["points"] - second["points"]) if second else None,
+            "flame_size": _flame_size_class(entry["current_streak"]),
+        })
+    return entries
 
 
 def _invite_message(room):

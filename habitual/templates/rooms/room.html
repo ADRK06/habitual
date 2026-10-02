@@ -139,6 +139,11 @@
 
 {% block scripts %}
 <script>
+  // Required once before any Flip.getState()/.from() call - without it Flip
+  // can still be invoked but throws deep inside its own internals (it never
+  // got wired up against this page's gsap-core instance).
+  if (window.gsap && window.Flip) gsap.registerPlugin(Flip);
+
   document.addEventListener("DOMContentLoaded", () => {
     initRingsChart();
     animateStrengthBar();
@@ -149,18 +154,49 @@
   });
 
   // GSAP Flip, keyed by each row's stable data-flip-id (the member's user
-  // id, not DOM position), so a leaderboard re-render after a check-in
-  // animates the reorder smoothly instead of just popping to the new order.
+  // id, not DOM position - covers both the podium cards and the rank-4+
+  // list rows, since a member can cross that boundary), so a leaderboard
+  // re-render after a check-in animates the reorder smoothly instead of
+  // just popping to the new order. Also tracks the viewer's own position
+  // across the swap, for the overtake celebration below.
   let leaderboardFlipState = null;
-  document.body.addEventListener("htmx:beforeSwap", (e) => {
-    if (e.detail.target && e.detail.target.id === "leaderboard-list" && window.gsap && window.Flip && !window.prefersReducedMotion) {
-      leaderboardFlipState = Flip.getState("#leaderboard-list > [data-flip-id]");
+  let viewerRankBeforeSwap = null;
+
+  function leaderboardOrder() {
+    return [...document.querySelectorAll("#leaderboard-list [data-flip-id]")];
+  }
+  function viewerRankIn(rows) {
+    const index = rows.findIndex((row) => row.dataset.isViewer === "true");
+    return index === -1 ? null : index;
+  }
+
+  // htmx fires separate events for out-of-band targets (htmx:oobBeforeSwap /
+  // htmx:oobAfterSwap) rather than the plain htmx:beforeSwap/afterSwap pair,
+  // which only ever fire for the main (non-OOB) response target - #leaderboard-list
+  // is always OOB here (room_live_update.html wraps it with oob=True), so it's
+  // these events, not the plain ones, that actually see it.
+  document.body.addEventListener("htmx:oobBeforeSwap", (e) => {
+    if (!(e.detail.target && e.detail.target.id === "leaderboard-list")) return;
+    viewerRankBeforeSwap = viewerRankIn(leaderboardOrder());
+    if (window.gsap && window.Flip && !window.prefersReducedMotion) {
+      leaderboardFlipState = Flip.getState("#leaderboard-list [data-flip-id]");
     }
   });
-  document.body.addEventListener("htmx:afterSwap", () => {
+  document.body.addEventListener("htmx:oobAfterSwap", (e) => {
+    if (!(e.detail.target && e.detail.target.id === "leaderboard-list")) return;
     if (leaderboardFlipState) {
       Flip.from(leaderboardFlipState, { duration: 0.5, ease: "power2.inOut", absolute: true });
       leaderboardFlipState = null;
+    }
+    if (viewerRankBeforeSwap !== null) {
+      const viewerRankAfterSwap = viewerRankIn(leaderboardOrder());
+      if (
+        viewerRankAfterSwap !== null && viewerRankAfterSwap < viewerRankBeforeSwap &&
+        window.confetti && !window.prefersReducedMotion
+      ) {
+        confetti({ particleCount: 120, spread: 100, startVelocity: 40, origin: { y: 0.5 } });
+      }
+      viewerRankBeforeSwap = null;
     }
   });
 

@@ -271,6 +271,9 @@ def overview_summary(habit_infos: list[dict], today: date) -> dict:
     return {
         "today_done": today_done,
         "today_total": len(habit_infos),
+        # None (not 0) when there's nothing to track at all, so the header
+        # countdown can tell "no habits yet" apart from "all done today".
+        "habits_remaining": (len(habit_infos) - today_done) if habit_infos else None,
         "month_success": month_success,
         "best_streak": best_streak,
         "needs_attention": needs_attention,

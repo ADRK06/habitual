@@ -237,6 +237,25 @@ def test_overview_summary_today_progress():
     assert (summary["today_done"], summary["today_total"]) == (1, 2)
 
 
+def test_overview_summary_habits_remaining_counts_undone_habits():
+    habit_a = habit_info(1, {D0}, set(), D0)
+    habit_b = habit_info(2, set(), set(), D0)
+    habit_c = habit_info(3, set(), set(), D0)
+    summary = overview_summary([habit_a, habit_b, habit_c], D0)
+    assert summary["habits_remaining"] == 2
+
+
+def test_overview_summary_habits_remaining_zero_when_all_done():
+    habit_a = habit_info(1, {D0}, set(), D0)
+    summary = overview_summary([habit_a], D0)
+    assert summary["habits_remaining"] == 0
+
+
+def test_overview_summary_habits_remaining_none_with_no_habits():
+    summary = overview_summary([], D0)
+    assert summary["habits_remaining"] is None
+
+
 def test_overview_summary_month_success_aggregates_across_habits():
     today = date(2026, 1, 10)
     habit_a = habit_info(1, {date(2026, 1, d) for d in range(1, 11)}, set(), date(2025, 12, 1))  # 10/10

@@ -1,0 +1,36 @@
+{# Header countdown - habits_remaining is None when there's nothing to
+   track (no habits at all). On a full page load that just skips the widget
+   entirely; on an OOB response (e.g. just deleted the last habit) the
+   wrapper still has to render - empty - so the swap can clear a countdown
+   that's already on the page, since htmx only touches elements a response
+   actually contains.
+
+   The server-rendered text below is the no-JS-safe initial state;
+   dashboard.html's initDayStatus() takes over from data-midnight-ms /
+   data-habits-remaining to keep it ticking live and to refresh at
+   midnight. #}
+{% if oob or habits_remaining is not none %}
+<div
+  id="day-status"
+  {% if oob %}hx-swap-oob="true"{% endif %}
+  {% if habits_remaining is not none %}
+  data-midnight-ms="{{ midnight_epoch_ms }}"
+  data-habits-remaining="{{ habits_remaining }}"
+  {% endif %}
+  class="flex w-full flex-wrap items-center gap-2 {{ 'pb-6' if habits_remaining is not none else '' }}"
+>
+  {% if habits_remaining == 0 %}
+  <span id="day-status-text" class="flex items-center gap-1.5 rounded-full border border-success/30 bg-success/15 px-3 py-1 text-sm font-medium text-success">
+    All done today 🎉
+  </span>
+  {% elif habits_remaining is not none %}
+  <span
+    id="day-status-text"
+    class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm {{ 'animate-pulse border-danger/40 bg-danger/15' if is_urgent else 'border-border bg-surface/60' }}"
+  >
+    <span class="font-heading font-bold tabular-nums {{ 'text-streak' if is_urgent else 'text-text' }}">{{ hours_left }}h {{ minutes_left }}m</span>
+    <span class="text-text-muted">left today · {{ habits_remaining }} habit{{ "s" if habits_remaining != 1 else "" }} left</span>
+  </span>
+  {% endif %}
+</div>
+{% endif %}

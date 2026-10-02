@@ -1,23 +1,101 @@
-<ol id="leaderboard-list" {% if oob %}hx-swap-oob="true"{% endif %} class="mt-4 divide-y divide-border">
-  {% for entry in leaderboard %}
-  <li
-    data-flip-id="leaderboard-row-{{ entry.user.id }}"
-    class="flex items-center gap-3 py-3{% if entry.is_viewer %} rounded-xl bg-accent/5 px-2{% endif %}"
-  >
-    <span class="w-6 shrink-0 text-center font-heading text-sm font-semibold text-text-muted">
-      {% if loop.index <= 3 %}{{ ["🥇", "🥈", "🥉"][loop.index0] }}{% else %}{{ loop.index }}{% endif %}
-    </span>
-    <div class="min-w-0 flex-1">
-      <p class="truncate text-sm font-medium text-text">
-        {{ entry.user.name }}{% if entry.is_viewer %} <span class="text-text-muted">(you)</span>{% endif %}
-        {% if loop.index == 1 %}<span title="Current leader">👑</span>{% endif %}
-      </p>
-      <p class="text-xs text-text-muted">
-        🔥 {{ entry.current_streak }} · {{ entry.missed_days }} missed
-        {%- if entry.crown_count %} · {{ entry.crown_count }} crown{{ "s" if entry.crown_count != 1 else "" }} 👑{% endif %}
-      </p>
+<div id="leaderboard-list" {% if oob %}hx-swap-oob="true"{% endif %} class="mt-4">
+  {% if leaderboard %}
+  {# Podium: DOM order stays rank order (1st, 2nd, 3rd) for sane reading/tab
+     order and stable data-flip-id matching - the "2nd-1st-3rd" stair-step
+     look comes purely from flex `order`, not from reordering the markup. #}
+  <div class="flex items-end justify-center gap-3 pb-3">
+    {% for entry in leaderboard[:3] %}
+    <div
+      data-flip-id="leaderboard-row-{{ entry.user.id }}"
+      data-is-viewer="{{ 'true' if entry.is_viewer else 'false' }}"
+      class="relative flex w-24 flex-col items-center {{ 'order-2' if entry.rank == 1 else ('order-1' if entry.rank == 2 else 'order-3') }}"
+    >
+      {% if entry.is_viewer %}
+      <a
+        href="{{ url_for('habits.habit_detail', habit_id=entry.habit.id) }}"
+        class="absolute inset-0 z-10 rounded-2xl"
+        aria-label="View my stats"
+      ></a>
+      {% endif %}
+      <div class="pointer-events-none flex flex-col items-center">
+        <div class="relative">
+          <div
+            class="flex items-center justify-center rounded-full font-heading font-bold text-bg ring-4
+              {{ 'h-20 w-20 text-2xl bg-rooms shadow-xl shadow-rooms/50' if entry.rank == 1 else 'h-14 w-14 text-lg bg-rooms/80' }}
+              {{ 'ring-accent' if entry.is_viewer else 'ring-rooms/40' }}"
+          >
+            {{ entry.initial }}
+          </div>
+          {% if entry.has_todays_crown %}
+          <span class="absolute -top-4 left-1/2 -translate-x-1/2 text-2xl" title="Holding today's crown" aria-label="Holding today's crown">👑</span>
+          {% endif %}
+        </div>
+        <p class="mt-2 max-w-24 truncate text-center text-sm font-medium text-text">
+          {{ entry.user.name }}{% if entry.is_viewer %} <span class="text-text-muted">(you)</span>{% endif %}
+        </p>
+        {% if entry.flame_size %}
+        <span class="{{ entry.flame_size }}" aria-label="{{ entry.current_streak }}-day streak">🔥{{ entry.current_streak }}</span>
+        {% endif %}
+        <p class="font-heading text-xl font-bold tabular-nums text-rooms">{{ entry.points }}</p>
+        <p class="text-xs {{ 'text-accent' if entry.movement and entry.movement > 0 else 'text-text-muted' }}">
+          {% if entry.movement is none %}–{% elif entry.movement > 0 %}▲{{ entry.movement }}{% elif entry.movement < 0 %}▼{{ -entry.movement }}{% else %}–{% endif %}
+        </p>
+        <div
+          class="mt-1 flex w-16 items-end justify-center rounded-t-lg
+            {{ 'h-14 bg-rooms' if entry.rank == 1 else ('h-9 bg-rooms/50' if entry.rank == 2 else 'h-6 bg-rooms/30') }}"
+        >
+          <span class="w-full pb-1 text-center font-heading text-lg font-bold text-bg">{{ entry.rank }}</span>
+        </div>
+      </div>
     </div>
-    <p class="shrink-0 font-heading text-lg font-bold tabular-nums text-accent">{{ entry.points }}</p>
-  </li>
-  {% endfor %}
-</ol>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <ol class="divide-y divide-border" start="4">
+    {% for entry in leaderboard[3:] %}
+    <li
+      data-flip-id="leaderboard-row-{{ entry.user.id }}"
+      data-is-viewer="{{ 'true' if entry.is_viewer else 'false' }}"
+      class="relative flex items-center gap-3 py-3{% if entry.is_viewer %} rounded-xl bg-rooms/5 px-2{% endif %}"
+    >
+      {% if entry.is_viewer %}
+      <a
+        href="{{ url_for('habits.habit_detail', habit_id=entry.habit.id) }}"
+        class="absolute inset-0 z-10 rounded-xl"
+        aria-label="View my stats"
+      ></a>
+      {% endif %}
+      <div class="pointer-events-none flex flex-1 items-center gap-3">
+        <span class="w-5 shrink-0 text-center text-sm font-semibold text-text-muted">{{ entry.rank }}</span>
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rooms/70 font-heading text-sm font-bold text-bg ring-2
+            {{ 'ring-accent' if entry.is_viewer else 'ring-rooms/40' }}"
+        >
+          {{ entry.initial }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium text-text">
+            {{ entry.user.name }}{% if entry.is_viewer %} <span class="text-text-muted">(you)</span>{% endif %}
+            {% if entry.has_todays_crown %}<span title="Holding today's crown">👑</span>{% endif %}
+            {% if entry.flame_size %}<span class="{{ entry.flame_size }}">🔥{{ entry.current_streak }}</span>{% endif %}
+          </p>
+          <p class="text-xs text-text-muted">
+            {%- if entry.gap_to_above is not none %}{{ entry.gap_to_above }} pts behind #{{ entry.rank - 1 }}{% endif %}
+            {%- if entry.crown_count %} · {{ entry.crown_count }} crown{{ "s" if entry.crown_count != 1 else "" }}{% endif %}
+          </p>
+          <div class="mt-1 h-1.5 w-full max-w-40 overflow-hidden rounded-full bg-border">
+            <div class="h-full rounded-full bg-rooms" style="width: {{ entry.bar_pct }}%"></div>
+          </div>
+        </div>
+        <div class="shrink-0 text-right">
+          <p class="font-heading text-lg font-bold tabular-nums text-rooms">{{ entry.points }}</p>
+          <p class="text-xs {{ 'text-accent' if entry.movement and entry.movement > 0 else 'text-text-muted' }}">
+            {% if entry.movement is none %}–{% elif entry.movement > 0 %}▲{{ entry.movement }}{% elif entry.movement < 0 %}▼{{ -entry.movement }}{% else %}–{% endif %}
+          </p>
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+</div>

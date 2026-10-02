@@ -485,7 +485,9 @@ def test_room_leaderboard_orders_by_points_desc(client, db):
     db.session.commit()
 
     response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
-    assert response.index("Leader") < response.index("Trailing")
+    # "Leader" is also a substring of the "Leaderboard" heading above it - skip past it.
+    after_heading = response.index("Leaderboard") + len("Leaderboard")
+    assert response.index("Leader", after_heading) < response.index("Trailing", after_heading)
 
 
 def test_room_leaderboard_rows_have_stable_flip_ids(client, db):
@@ -494,6 +496,106 @@ def test_room_leaderboard_rows_have_stable_flip_ids(client, db):
 
     response = client.get(f"/rooms/{room.id}")
     assert f'data-flip-id="leaderboard-row-{user.id}"'.encode() in response.data
+
+
+def test_room_leaderboard_shows_podium_for_top_three(client, db):
+    leader = _login(client, db, username="leader")
+    room = _create_room(db, leader)
+    for name in ("second", "third"):
+        _join_room_direct(db, room, _create_user(db, username=name))
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+    assert "Leader" in response
+    assert "Second" in response
+    assert "Third" in response
+    # The podium's literal rank-step numbers, one per top-3 card.
+    assert response.count('font-heading text-lg font-bold text-bg">1<') == 1
+    assert response.count('font-heading text-lg font-bold text-bg">2<') == 1
+    assert response.count('font-heading text-lg font-bold text-bg">3<') == 1
+
+
+def test_room_leaderboard_crown_marks_todays_holder_not_the_points_leader(client, db):
+    leader = _login(client, db, username="leader", timezone="UTC")
+    room = _create_room(db, leader)
+    challenger = _create_user(db, username="challenger", timezone="UTC")
+    _join_room_direct(db, room, challenger)
+
+    leader_habit = Habit.query.filter_by(room_id=room.id, user_id=leader.id).first()
+    challenger_habit = Habit.query.filter_by(room_id=room.id, user_id=challenger.id).first()
+    today = date.today()
+    # Leader has way more points (all-time) but hasn't checked in today -
+    # challenger is the only one racing for today's crown.
+    db.session.add(PointTransaction(user_id=leader.id, habit_id=leader_habit.id, amount=200, reason="daily", date=today - timedelta(days=1)))
+    db.session.add(Checkin(habit_id=challenger_habit.id, date=today, proof_note="did the thing"))
+    db.session.commit()
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+    # "Leader" is also a substring of the "Leaderboard" heading above it - skip past it.
+    after_heading = response.index("Leaderboard") + len("Leaderboard")
+    leader_idx = response.index("Leader", after_heading)
+    challenger_idx = response.index("Challenger", after_heading)
+    leader_block = response[leader_idx - 400 : leader_idx + 100]
+    challenger_block = response[challenger_idx - 400 : challenger_idx + 100]
+    assert "👑" not in leader_block
+    assert "👑" in challenger_block
+
+
+def test_room_leaderboard_shows_gap_behind_the_rank_above(client, db):
+    leader = _login(client, db, username="leader")
+    room = _create_room(db, leader)
+    for name in ("second", "third", "fourth"):
+        _join_room_direct(db, room, _create_user(db, username=name))
+
+    habits = {u.username: Habit.query.filter_by(room_id=room.id, user_id=u.id).first() for u in User.query.all()}
+    today = date.today()
+    amounts = {"leader": 100, "second": 70, "third": 50, "fourth": 20}
+    for username, amount in amounts.items():
+        db.session.add(PointTransaction(user_id=habits[username].user_id, habit_id=habits[username].id, amount=amount, reason="daily", date=today))
+    db.session.commit()
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+    assert "30 pts behind #3" in response  # fourth (20) vs third (50)
+
+
+def test_room_leaderboard_shows_rank_movement_since_yesterday(client, db):
+    leader = _login(client, db, username="leader", timezone="UTC")
+    room = _create_room(db, leader, start_date=date.today() - timedelta(days=5))
+    challenger = _create_user(db, username="challenger", timezone="UTC")
+    _join_room_direct(db, room, challenger, joined_on=date.today() - timedelta(days=5))
+
+    leader_habit = Habit.query.filter_by(room_id=room.id, user_id=leader.id).first()
+    challenger_habit = Habit.query.filter_by(room_id=room.id, user_id=challenger.id).first()
+    yesterday = date.today() - timedelta(days=1)
+    today = date.today()
+    # Yesterday: leader (50) ahead of challenger (0). Today: a fresh 60 for
+    # the challenger vaults them into 1st, dropping the leader to 2nd.
+    db.session.add(PointTransaction(user_id=leader.id, habit_id=leader_habit.id, amount=50, reason="daily", date=yesterday))
+    db.session.add(PointTransaction(user_id=challenger.id, habit_id=challenger_habit.id, amount=60, reason="daily", date=today))
+    db.session.commit()
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+    # "Leader" is also a substring of the "Leaderboard" heading - skip past it.
+    after_heading = response.index("Leaderboard") + len("Leaderboard")
+    leader_idx = response.index("Leader", after_heading)
+    challenger_idx = response.index("Challenger", after_heading)
+    leader_block = response[leader_idx - 50 : leader_idx + 600]
+    challenger_block = response[challenger_idx - 50 : challenger_idx + 600]
+    assert "▼1" in leader_block
+    assert "▲1" in challenger_block
+
+
+def test_room_leaderboard_own_row_links_to_my_stats_others_dont(client, db):
+    viewer = _login(client, db, username="viewer")
+    room = _create_room(db, viewer)
+    other = _create_user(db, username="other")
+    _join_room_direct(db, room, other)
+
+    viewer_habit = Habit.query.filter_by(room_id=room.id, user_id=viewer.id).first()
+    other_habit = Habit.query.filter_by(room_id=room.id, user_id=other.id).first()
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+    assert f'href="/habits/{viewer_habit.id}"' in response
+    assert f'href="/habits/{other_habit.id}"' not in response
 
 
 def test_room_feed_shows_provisional_crown_badge(client, db):
@@ -545,6 +647,16 @@ def test_dashboard_shows_room_badge_and_leader(client, db):
     assert b"You lead" in response.data
 
 
+def test_dashboard_room_card_links_to_the_room_not_the_habit_stats_page(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, title="Run Club")
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+
+    response = client.get("/dashboard").get_data(as_text=True)
+    assert f'href="/rooms/{room.id}"' in response
+    assert f'href="/habits/{habit.id}"' not in response
+
+
 def test_dashboard_room_card_has_leave_button_not_delete(client, db):
     user = _login(client, db)
     room = _create_room(db, user, title="Run Club")
@@ -562,6 +674,15 @@ def test_delete_habit_route_rejects_a_room_habit(client, db):
     response = client.delete(f"/habits/{habit.id}")
     assert response.status_code == 400
     assert db.session.get(Habit, habit.id) is not None
+
+
+def test_room_page_my_panel_links_to_my_own_habit_stats(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user)
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+    assert f'href="/habits/{habit.id}"' in response
 
 
 def test_habit_detail_back_link_points_to_room_for_a_room_habit(client, db):
