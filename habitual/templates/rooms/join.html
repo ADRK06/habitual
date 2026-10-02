@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import spinner %}
 
 {% block title %}Join {{ room.title }} · Habitual{% endblock %}
 
@@ -35,8 +36,9 @@
     {% elif can_join %}
       <form method="post" action="{{ url_for('rooms.join_room', token=room.invite_token) }}" class="mt-6">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="w-full rounded-2xl bg-rooms px-4 py-2 font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]">
-          Join room
+        <button type="submit" class="relative w-full rounded-2xl bg-rooms px-4 py-2 font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100">
+          <span class="btn-label">Join room</span>
+          {{ spinner() }}
         </button>
       </form>
     {% else %}

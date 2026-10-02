@@ -1,0 +1,29 @@
+<div
+  id="badges-row"
+  {% if oob %}hx-swap-oob="true"{% endif %}
+  class="flex w-full flex-wrap items-center gap-3 pb-6"
+>
+  <span class="text-xs text-text-muted">Badges</span>
+  {% for b in badge_rows %}
+  <div class="group relative">
+    <button
+      type="button"
+      tabindex="0"
+      aria-label="{{ b.label }}{{ ' - earned' if b.earned else ' (locked) - ' + b.hint }}"
+      class="flex h-10 w-10 items-center justify-center rounded-full border text-lg transition-transform duration-150 hover:scale-110
+        {{ 'border-accent/40 bg-accent/15' if b.earned else 'border-border bg-bg/40 grayscale opacity-40' }}"
+    >
+      {{ b.emoji }}
+    </button>
+    <div
+      role="tooltip"
+      class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-44 -translate-x-1/2 rounded-xl border border-border bg-surface px-3 py-2 text-center shadow-xl opacity-0 transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+    >
+      <p class="font-heading text-xs font-semibold text-text">{{ b.label }}</p>
+      <p class="mt-0.5 text-[11px] text-text-muted">
+        {{ "Earned " + b.earned_on.strftime("%b %-d, %Y") if b.earned else b.hint }}
+      </p>
+    </div>
+  </div>
+  {% endfor %}
+</div>

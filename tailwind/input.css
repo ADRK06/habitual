@@ -73,6 +73,39 @@
   }
 }
 
+@layer components {
+  /* Loading state for a button mid-request: htmx adds `.htmx-request` to the
+     element that triggered the request (not just `disabled`, which a button
+     can also carry permanently for an unrelated reason, e.g. "no freeze
+     held") - a plain (non-htmx) form's submit button gets the same
+     `.is-submitting` marker from base.html's global submit handler, since it
+     has no htmx-request class to key off of. Two children (.btn-label,
+     .btn-spinner) swap with no layout shift - the label stays in flow (just
+     hidden) while the spinner is absolutely positioned over it. */
+  .btn-spinner {
+    display: none;
+  }
+  .htmx-request .btn-label,
+  .is-submitting .btn-label {
+    visibility: hidden;
+  }
+  .htmx-request .btn-spinner,
+  .is-submitting .btn-spinner {
+    display: flex;
+  }
+
+  /* Inline "Checking..." text next to a field doing a live htmx-get lookup
+     (e.g. signup's username availability check) - targeted directly via
+     hx-indicator rather than nested inside the requesting element, since
+     that element here is an <input>, not a button with room for a child. */
+  .htmx-indicator-text {
+    display: none;
+  }
+  .htmx-request.htmx-indicator-text {
+    display: inline;
+  }
+}
+
 /* Respect prefers-reduced-motion everywhere, including transitions GSAP/Alpine add via classes */
 @media (prefers-reduced-motion: reduce) {
   *,

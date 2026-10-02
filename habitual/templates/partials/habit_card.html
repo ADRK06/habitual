@@ -1,3 +1,4 @@
+{% from "_macros.html" import spinner %}
 <div
   id="habit-card-{{ habit.id }}"
   class="habit-card group relative cursor-pointer rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-accent/30 hover:shadow-xl"
@@ -55,12 +56,14 @@
     hx-post="{{ url_for('habits.use_freeze', habit_id=habit.id) }}"
     hx-target="#habit-card-{{ habit.id }}"
     hx-swap="outerHTML"
+    hx-disabled-elt="this"
     {% else %}
     disabled title="Buy a freeze in the header (50 balance) to save this streak."
     {% endif %}
-    class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-bg/40 px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-bg/40"
+    class="relative mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-bg/40 px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-bg/40"
   >
-    <span>Save your streak</span><span>🧊</span>
+    <span class="btn-label flex items-center gap-2"><span>Save your streak</span><span>🧊</span></span>
+    {{ spinner() }}
   </button>
   {% endif %}
 
@@ -105,9 +108,11 @@
           hx-delete="{{ url_for('habits.undo_checkin', habit_id=habit.id) }}"
           hx-target="#habit-card-{{ habit.id }}"
           hx-swap="outerHTML"
-          class="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90"
+          hx-disabled-elt="this"
+          class="relative rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Undo
+          <span class="btn-label">Undo</span>
+          {{ spinner(size='3') }}
         </button>
       </div>
     </div>
@@ -143,6 +148,7 @@
         hx-post="{{ url_for('habits.checkin', habit_id=habit.id) }}"
         hx-target="#habit-card-{{ habit.id }}"
         hx-swap="outerHTML"
+        hx-disabled-elt="find button[type='submit']"
       >
         <label class="mb-1 block text-xs text-text-muted">Add a note? (optional)</label>
         <textarea
@@ -160,8 +166,9 @@
           >
             Cancel
           </button>
-          <button type="submit" class="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-bg transition hover:opacity-90">
-            Check in
+          <button type="submit" class="relative rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+            <span class="btn-label">Check in</span>
+            {{ spinner(size='3') }}
           </button>
         </div>
       </form>
@@ -196,8 +203,9 @@
         {% if habit.room_id %}
         <form method="post" action="{{ url_for('rooms.leave_room', room_id=habit.room_id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">
-            Leave
+          <button type="submit" class="relative rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+            <span class="btn-label">Leave</span>
+            {{ spinner() }}
           </button>
         </form>
         {% else %}
@@ -206,9 +214,11 @@
           hx-delete="{{ url_for('habits.delete_habit', habit_id=habit.id) }}"
           hx-target="#habit-card-{{ habit.id }}"
           hx-swap="outerHTML swap:200ms"
-          class="rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          hx-disabled-elt="this"
+          class="relative rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Delete
+          <span class="btn-label">Delete</span>
+          {{ spinner() }}
         </button>
         {% endif %}
       </div>

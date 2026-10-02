@@ -1,4 +1,5 @@
 {% extends "app_base.html" %}
+{% from "_macros.html" import spinner %}
 
 {% block title %}Dashboard · Habitual{% endblock %}
 
@@ -15,6 +16,8 @@
     </div>
     {% include "partials/header_stats.html" %}
   </header>
+
+  {% include "partials/badges_row.html" %}
 
   <div class="flex flex-wrap items-center justify-between gap-4 pb-6">
     <div class="flex flex-wrap gap-3">
@@ -43,8 +46,9 @@
 
     <form method="post" action="{{ url_for('auth.logout') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="rounded-2xl border border-border bg-surface/60 backdrop-blur px-5 py-2 text-sm font-medium text-text transition hover:bg-surface">
-        Log out
+      <button type="submit" class="relative rounded-2xl border border-border bg-surface/60 backdrop-blur px-5 py-2 text-sm font-medium text-text transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60">
+        <span class="btn-label">Log out</span>
+        {{ spinner() }}
       </button>
     </form>
   </div>
@@ -140,8 +144,9 @@
           <button type="button" @click="createOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
             Cancel
           </button>
-          <button type="submit" class="rounded-2xl bg-accent px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90">
-            Create habit
+          <button type="submit" class="relative rounded-2xl bg-accent px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+            <span class="btn-label">Create habit</span>
+            {{ spinner() }}
           </button>
         </div>
       </form>
@@ -205,8 +210,9 @@
           <button type="button" @click="createRoomOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
             Cancel
           </button>
-          <button type="submit" class="rounded-2xl bg-rooms px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90">
-            Create room
+          <button type="submit" class="relative rounded-2xl bg-rooms px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+            <span class="btn-label">Create room</span>
+            {{ spinner() }}
           </button>
         </div>
       </form>
@@ -244,8 +250,9 @@
           <button type="button" @click="joinRoomOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
             Cancel
           </button>
-          <button type="submit" class="rounded-2xl bg-rooms px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90">
-            Find room
+          <button type="submit" class="relative rounded-2xl bg-rooms px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+            <span class="btn-label">Find room</span>
+            {{ spinner() }}
           </button>
         </div>
       </form>

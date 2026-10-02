@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from wtforms import HiddenField, StringField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
-from habitual import analytics, db, points
+from habitual import analytics, badges, db, points
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
 from habitual.utils.time import local_now, local_today
 
@@ -82,6 +82,7 @@ def _header_stats(user):
         "freezes_held": freezes_held,
         "can_buy_freeze": can_buy_freeze,
         "freeze_buy_disabled_reason": freeze_buy_disabled_reason,
+        "badge_rows": badges.badge_rows_for(user),
     }
 
 
@@ -130,6 +131,9 @@ def _room_card_context(habit):
 def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code_error=None):
     from habitual import rooms  # local import avoids a circular import with rooms.py
     rooms.finalize_due_crowns_for_user(current_user)  # fix #1: crown points land even if nobody opens the room page
+    # Evaluated before _header_stats below, so its badge_rows (and the header
+    # stats it re-renders) already reflect anything newly awarded this load.
+    newly_awarded_badges = badges.check_and_award(current_user)
 
     today = local_today(current_user)
     header = _header_stats(current_user)
@@ -144,6 +148,7 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
         "join_code_error": join_code_error,
         "emoji_choices": EMOJI_CHOICES,
         "habit_templates": HABIT_TEMPLATES,
+        "newly_awarded_badges": newly_awarded_badges,
         **header,
     }
     if habit_rows:
@@ -311,7 +316,7 @@ def _room_gate_or_404(habit):
         abort(400)
 
 
-def _room_live_response(habit, toast=None, celebration=None):
+def _room_live_response(habit, toast=None, celebration=None, badges_earned=None):
     """If this check-in/undo/freeze came from the room page itself (its
     forms flag that with a `room_view` field) and the habit belongs to a
     room, renders that room's live-update partial instead of the usual
@@ -328,6 +333,8 @@ def _room_live_response(habit, toast=None, celebration=None):
         trigger["toast"] = toast
     if celebration:
         trigger["checkinCelebration"] = celebration
+    if badges_earned:
+        trigger["badgesEarned"] = badges_earned
     if trigger:
         resp.headers["HX-Trigger"] = json.dumps(trigger)
     return resp
@@ -378,7 +385,7 @@ def checkin(habit_id):
         db.session.commit()
         points_earned = points.BASE_POINTS + bonus
 
-    toast, celebration = None, None
+    toast, celebration, newly_badges = None, None, []
     if points_earned:
         label = points.milestone_label(streak_day)
         toast = {
@@ -386,8 +393,9 @@ def checkin(habit_id):
             "type": "success",
         }
         celebration = {"habitId": habit.id, "milestone": bool(bonus)}
+        newly_badges = badges.check_and_award(current_user)
 
-    room_response = _room_live_response(habit, toast=toast, celebration=celebration)
+    room_response = _room_live_response(habit, toast=toast, celebration=celebration, badges_earned=newly_badges)
     if room_response is not None:
         return room_response
 
@@ -401,7 +409,10 @@ def checkin(habit_id):
     }
     resp = make_response(render_template("partials/checkin_response.html", **context))
     if toast:
-        resp.headers["HX-Trigger"] = json.dumps({"toast": toast, "checkinCelebration": celebration})
+        trigger = {"toast": toast, "checkinCelebration": celebration}
+        if newly_badges:
+            trigger["badgesEarned"] = newly_badges
+        resp.headers["HX-Trigger"] = json.dumps(trigger)
     return resp
 
 
@@ -535,7 +546,8 @@ def use_freeze(habit_id):
     db.session.commit()
 
     toast = {"message": "Streak saved with a freeze 🧊", "type": "info"}
-    room_response = _room_live_response(habit, toast=toast)
+    newly_badges = badges.check_and_award(current_user)
+    room_response = _room_live_response(habit, toast=toast, badges_earned=newly_badges)
     if room_response is not None:
         return room_response
 
@@ -548,7 +560,10 @@ def use_freeze(habit_id):
         "oob": True,
     }
     resp = make_response(render_template("partials/checkin_response.html", **context))
-    resp.headers["HX-Trigger"] = json.dumps({"toast": toast})
+    trigger = {"toast": toast}
+    if newly_badges:
+        trigger["badgesEarned"] = newly_badges
+    resp.headers["HX-Trigger"] = json.dumps(trigger)
     return resp
 
 

@@ -27,11 +27,14 @@ def create_app(config_class=Config):
     from habitual.habits import habits as habits_blueprint
     from habitual.rooms import rooms as rooms_blueprint
     from habitual.cli import dev_backdate
+    from habitual.errors import not_found, server_error
 
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(habits_blueprint)
     app.register_blueprint(rooms_blueprint)
     app.cli.add_command(dev_backdate)
+    app.register_error_handler(404, not_found)
+    app.register_error_handler(500, server_error)
 
     @app.get("/")
     def home():

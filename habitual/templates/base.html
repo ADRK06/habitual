@@ -30,6 +30,23 @@
     document.addEventListener("htmx:configRequest", (event) => {
       event.detail.headers["X-CSRFToken"] = document.querySelector('meta[name="csrf-token"]').content;
     });
+
+    // Plain (non-htmx) forms don't get htmx's hx-disabled-elt for free -
+    // disable their submit button on submit so a slow request (or an
+    // impatient double-click/double-Enter) can't fire it twice. Native
+    // required-field validation blocks the submit event entirely when it
+    // fails, so this never leaves a button stuck disabled on a blocked
+    // submit. No re-enable needed either: a plain form submit always either
+    // navigates away or reloads the page.
+    document.addEventListener("submit", (event) => {
+      const form = event.target;
+      if (form.matches("[hx-post],[hx-get],[hx-put],[hx-patch],[hx-delete]")) return;
+      const button = form.querySelector('button[type="submit"]');
+      if (button) {
+        button.disabled = true;
+        button.classList.add("is-submitting");
+      }
+    });
   </script>
 
   {% block head %}{% endblock %}
@@ -40,6 +57,7 @@
   </a>
 
   <script type="application/json" id="flashed-messages">{{ get_flashed_messages(with_categories=true) | tojson }}</script>
+  <script type="application/json" id="newly-badges">{{ (newly_awarded_badges or [])|tojson }}</script>
 
   <div
     x-data="{
@@ -77,6 +95,55 @@
       >
         <span x-text="toast.message"></span>
         <button @click="remove(toast.id)" class="text-text-muted hover:text-text" aria-label="Dismiss">&times;</button>
+      </div>
+    </template>
+  </div>
+
+  <div
+    x-data="{
+      queue: [],
+      current: null,
+      showNext() {
+        if (this.current || !this.queue.length) return;
+        this.current = this.queue.shift();
+        if (window.confetti && !window.prefersReducedMotion) {
+          confetti({ particleCount: 140, spread: 90, startVelocity: 45, origin: { y: 0.4 } });
+        }
+      },
+      dismiss() {
+        this.current = null;
+        this.$nextTick(() => this.showNext());
+      },
+    }"
+    x-init="
+      window.addEventListener('badgesEarned', (e) => { queue.push(...e.detail); showNext(); });
+      const initialBadges = JSON.parse(document.getElementById('newly-badges').textContent || '[]');
+      if (initialBadges.length) { queue.push(...initialBadges); showNext(); }
+    "
+    x-show="current"
+    x-cloak
+    @keydown.escape.window="if (current) dismiss()"
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+  >
+    <template x-if="current">
+      <div
+        @click.outside="dismiss()"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        class="w-full max-w-sm rounded-2xl border border-accent/40 bg-surface p-8 text-center shadow-2xl"
+      >
+        <p class="font-heading text-xs font-semibold uppercase tracking-wider text-accent">Badge unlocked</p>
+        <div class="mx-auto mt-4 flex h-20 w-20 items-center justify-center rounded-full bg-accent/15 text-4xl" x-text="current.emoji"></div>
+        <h3 class="mt-4 font-heading text-xl font-semibold text-text" x-text="current.label"></h3>
+        <p class="mt-1 text-sm text-text-muted" x-text="current.hint"></p>
+        <button
+          type="button"
+          @click="dismiss()"
+          class="mt-6 w-full rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-bg transition hover:opacity-90"
+        >
+          Nice!
+        </button>
       </div>
     </template>
   </div>

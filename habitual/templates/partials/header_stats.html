@@ -1,3 +1,4 @@
+{% from "_macros.html" import spinner %}
 <div
   id="header-stats"
   {% if oob %}hx-swap-oob="true"{% endif %}
@@ -13,13 +14,18 @@
     <p class="text-lg font-medium text-text">🧊 {{ freezes_held }}/2</p>
     <button
       type="button"
+      {% if can_buy_freeze %}
       hx-post="{{ url_for('habits.buy_freeze') }}"
       hx-target="#header-stats"
       hx-swap="outerHTML"
-      {% if not can_buy_freeze %}disabled title="{{ freeze_buy_disabled_reason }}"{% endif %}
-      class="rounded-lg border border-border px-2 py-1 text-xs font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+      hx-disabled-elt="this"
+      {% else %}
+      disabled title="{{ freeze_buy_disabled_reason }}"
+      {% endif %}
+      class="relative rounded-lg border border-border px-2 py-1 text-xs font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
     >
-      Buy
+      <span class="btn-label">Buy</span>
+      {{ spinner(size='3') }}
     </button>
   </div>
 </div>

@@ -17,6 +17,7 @@ from habitual.points import (
     points_for_day,
     room_streak,
     streak_day_on,
+    streak_length_through,
     success_rate,
 )
 
@@ -124,6 +125,29 @@ def test_longest_streak_counts_frozen_bridge():
     frozen = days(3)
     today = D0 + timedelta(days=5)
     assert longest_streak(completed, frozen, D0, today) == 5
+
+
+# --- streak_length_through (freeze_saver badge) -----------------------
+
+
+def test_streak_length_through_counts_whole_bridged_chain():
+    # days 0,1,2 completed, day 3 frozen, days 4,5,6 completed -> chain of 6
+    completed = days(0, 1, 2, 4, 5, 6)
+    frozen = days(3)
+    assert streak_length_through(completed, frozen, D0 + timedelta(days=3)) == 6
+
+
+def test_streak_length_through_zero_for_unrelated_date():
+    completed = days(0, 1, 2)
+    assert streak_length_through(completed, set(), D0 + timedelta(days=10)) == 0
+
+
+def test_streak_length_through_stops_at_a_real_gap():
+    # frozen day 3 bridges to day 4, but day 5 is a genuine miss - the chain
+    # (and the count) stops there, not at the end of `completed`.
+    completed = days(0, 1, 2, 4, 6)
+    frozen = days(3)
+    assert streak_length_through(completed, frozen, D0 + timedelta(days=3)) == 4
 
 
 # --- success rate ------------------------------------------------------

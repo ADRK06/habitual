@@ -153,6 +153,16 @@ class Vouch(db.Model):
     user = db.relationship("User")
 
 
+class Badge(db.Model):
+    __tablename__ = "badges"
+    __table_args__ = (db.UniqueConstraint("user_id", "type", name="uq_badge_user_type"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    type = db.Column(db.String(30), nullable=False)
+    earned_on = db.Column(db.Date, nullable=False)
+
+
 class RoomCrown(db.Model):
     """One row per date a room's crown has been finalized - the permanent
     record backing the leaderboard's crown count and point history, created

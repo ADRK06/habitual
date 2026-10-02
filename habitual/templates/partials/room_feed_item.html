@@ -23,6 +23,7 @@
       hx-vals='{"emoji": "{{ emoji }}"}'
       hx-target="#feed-item-{{ item.checkin.id }}"
       hx-swap="outerHTML"
+      hx-disabled-elt="this"
       {% else %}
       disabled
       {% endif %}

@@ -24,7 +24,10 @@
         {% endfor %}
       </ul>
       {% else %}
-      <p class="mt-4 text-sm text-text-muted">No check-ins yet.</p>
+      <div class="mt-4 flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-bg/20 px-6 py-10 text-center">
+        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-xl">📋</div>
+        <p class="mt-3 text-sm text-text-muted">No check-ins yet - your log fills in as you go.</p>
+      </div>
       {% endif %}
     </div>
   </div>

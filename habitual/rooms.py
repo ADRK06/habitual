@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from wtforms import HiddenField, IntegerField, StringField
 from wtforms.validators import DataRequired, NumberRange
 
-from habitual import db, points
+from habitual import badges, db, points
 from habitual.auth import _aware_utc
 from habitual.habits import _analytics_context, _dashboard_context, _habit_view, _validate_emoji, _validate_title
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, Room, RoomCrown, RoomMember, User, Vouch
@@ -282,6 +282,13 @@ def finalize_due_crowns(room, members=None):
                     db.session.commit()
                 except IntegrityError:
                     db.session.rollback()
+                else:
+                    # Lands on whichever page load happened to finalize this
+                    # date, not necessarily the winner's own - that's fine,
+                    # the badge shows up next time they load a page.
+                    winner_user = db.session.get(User, winner_user_id)
+                    if winner_user is not None:
+                        badges.check_and_award(winner_user)
         cursor += timedelta(days=1)
 
 
@@ -508,6 +515,10 @@ def room_detail(room_id):
     # Re-read members' habits fresh - finalize_due_crowns may have just
     # added crown PointTransactions that the leaderboard needs to reflect.
     viewer_habit = _member_habit(room, current_user)
+    # Catches room_champion (this room may have just become fully ended) and
+    # crown_collector for the viewer specifically, not just whoever happened
+    # to trigger finalize_due_crowns above.
+    newly_awarded_badges = badges.check_and_award(current_user)
 
     return render_template(
         "rooms/room.html",
@@ -523,6 +534,7 @@ def room_detail(room_id):
         streak_value=room_streak_value(room, members),
         feed=_feed_context(room, members, current_user),
         invite_message=_invite_message(room),
+        newly_awarded_badges=newly_awarded_badges,
         **_personal_stats(viewer_habit, current_user),
     )
 

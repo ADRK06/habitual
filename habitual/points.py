@@ -106,6 +106,19 @@ def longest_streak(completed: set[date], frozen: set[date], start_date: date, to
     return best
 
 
+def streak_length_through(completed: set[date], frozen: set[date], target: date) -> int:
+    """Length (completed-day count) of the consecutive completed/frozen chain
+    that `target` belongs to - used for the "freeze_saver" badge (used a
+    freeze that later carried a streak to day 7). 0 if `target` is neither
+    completed nor frozen."""
+    if target not in completed and target not in frozen:
+        return 0
+    end = target
+    while (end + timedelta(days=1)) in completed or (end + timedelta(days=1)) in frozen:
+        end += timedelta(days=1)
+    return _streak_ending_at(completed, frozen, end)
+
+
 def success_rate(completed: set[date], start_date: date, today: date) -> float:
     """Percent of elapsed days completed. Today only counts toward the
     denominator once it's actually completed, so an unfinished "today"

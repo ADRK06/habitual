@@ -1,0 +1,15 @@
+{# Shared spinner for a button mid-htmx-request or mid-submit - see the
+   .btn-label/.btn-spinner rules in tailwind/input.css for how the swap
+   actually triggers. Wrap the button's existing content in
+   `<span class="btn-label">...</span>` alongside a call to this macro, and
+   give the button `hx-disabled-elt="this"` (htmx buttons) so it can't be
+   double-submitted while busy - plain forms get this for free from
+   base.html's global submit handler. #}
+{% macro spinner(size='4') %}
+<span class="btn-spinner pointer-events-none absolute inset-0 items-center justify-center" aria-hidden="true">
+  <svg class="h-{{ size }} w-{{ size }} animate-spin" viewBox="0 0 24 24" fill="none">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+  </svg>
+</span>
+{% endmacro %}

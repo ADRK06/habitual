@@ -1,4 +1,5 @@
 {% extends "app_base.html" %}
+{% from "_macros.html" import spinner %}
 
 {% block title %}{{ room.title }} · Habitual{% endblock %}
 
@@ -73,8 +74,9 @@
     {% if is_creator %}
     <form method="post" action="{{ url_for('rooms.regenerate_invite', room_id=room.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" title="Regenerate invite link and code" class="shrink-0 rounded-xl border border-border px-3 py-2 text-xs text-text-muted transition hover:bg-bg/40">
-        ↻ Regenerate
+      <button type="submit" title="Regenerate invite link and code" class="relative shrink-0 rounded-xl border border-border px-3 py-2 text-xs text-text-muted transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
+        <span class="btn-label">↻ Regenerate</span>
+        {{ spinner(size='3') }}
       </button>
     </form>
     {% endif %}
@@ -118,7 +120,10 @@
         <button type="button" @click="leaveOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">Cancel</button>
         <form method="post" action="{{ url_for('rooms.leave_room', room_id=room.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">Leave</button>
+          <button type="submit" class="relative rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+            <span class="btn-label">Leave</span>
+            {{ spinner() }}
+          </button>
         </form>
       </div>
     </div>
