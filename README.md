@@ -10,6 +10,14 @@
 
 ---
 
+<!--
+  Screenshots section: commented out until the real image files exist in
+  docs/screenshots/ (landing.png, dashboard.png, habit-analytics.png,
+  room-leaderboard.png), so GitHub doesn't render broken-image icons.
+  Add the captures, then delete the HTML comment markers wrapping this
+  section (the one that opens right above "## Screenshots" and the one
+  that closes just after the "---" below it) to turn it back on.
+
 ## Screenshots
 
 > Placeholders — drop the real captures into `docs/screenshots/` using these exact filenames
@@ -33,6 +41,7 @@
   check-in feed
 
 ---
+-->
 
 ## What it is
 
@@ -293,5 +302,5 @@ and frequency behavior — see [`tests/`](tests/).
 
 ## Author
 
-**[Your Name]**
-[LinkedIn](https://linkedin.com/in/your-handle) · [GitHub](https://github.com/your-handle)
+**Aadhira K**
+[LinkedIn](https://www.linkedin.com/in/aadhira-kamal-341340372/) · [GitHub](https://github.com/ADRK06)
