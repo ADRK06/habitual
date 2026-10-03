@@ -326,8 +326,10 @@ Deploy: push to GitHub `main` → Vercel auto-deploys. Run `./scripts/migrate-pr
 - [x] **Phase 2 — Solo habits + dashboard**: habit CRUD with templates and tiny tips, check-in with notes, `points.py` (points, streaks, milestones) with tests, freezes, header stats, delete confirmation, check-in animations
 - [x] **Phase 3 — Habit analytics page**: ring, heatmap, weekly chart, log, insights (**get the reference image first**)
 - [x] **Phase 4 — Rooms**: create, join link + join code, room cards, leaderboard with tiebreakers, crown, health meter, room streak, vouches, leave/ownership transfer, room end and results
-- [ ] **Phase 5 — Polish**: badges, confetti, empty/loading/error states, full animation pass, design and
-      implement the Habitual logo (SVG, nav/footer/favicon)
+- [x] **Phase 5 — Polish**: badges, confetti, empty/loading/error states, full animation pass
 - [ ] **Phase 6 — Launch**: security checklist, rate limits, real test with friends, bug fixes, final deploy
 
-**v2 (not now)**: photo proof (Vercel Blob), email/web-push reminders, ML "at-risk day" prediction, mobile.
+**v2 (not now)**: photo proof (Vercel Blob), email/web-push reminders, ML "at-risk day" prediction, mobile,
+design and implement the Habitual logo (SVG, nav/footer/favicon) - reference image at
+`docs/reference/logo-reference.png`, keep its stacked-capsules + checkmark concept, simplified to our
+palette and fonts (see "Logo" under Design direction).
