@@ -6,6 +6,7 @@ from flask import Blueprint, abort, flash, make_response, redirect, render_templ
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from wtforms import HiddenField, StringField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
@@ -238,8 +239,17 @@ def _header_stats(user):
 
 
 def _user_habits(user):
+    # Eager-load the three relationships every dashboard card/overview stat
+    # reads (checkins, freezes, point_transactions) in one query apiece
+    # instead of 3 lazy queries per habit - the N+1 that used to scale with
+    # habit count on every dashboard load and checkin/undo/freeze response.
     return (
         Habit.query.filter_by(user_id=user.id)
+        .options(
+            selectinload(Habit.checkins),
+            selectinload(Habit.freezes),
+            selectinload(Habit.point_transactions),
+        )
         .order_by(Habit.created_on.desc(), Habit.id.desc())
         .all()
     )

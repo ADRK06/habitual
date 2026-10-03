@@ -11,6 +11,7 @@ needs and persists any newly-earned badges.
 """
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from habitual import db, points
 from habitual.models import Badge, Habit, Room, RoomCrown, RoomMember
@@ -96,7 +97,11 @@ def check_and_award(user) -> list[dict]:
     catalog entries for badges newly earned by this call, for a celebration
     modal - empty if nothing changed."""
     today = local_today(user)
-    habit_rows = Habit.query.filter_by(user_id=user.id).all()
+    habit_rows = (
+        Habit.query.filter_by(user_id=user.id)
+        .options(selectinload(Habit.checkins), selectinload(Habit.freezes))
+        .all()
+    )
 
     has_any_checkin = False
     best_streak_ever = 0

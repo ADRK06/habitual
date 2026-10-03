@@ -7,6 +7,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from wtforms import HiddenField, IntegerField, StringField
 from wtforms.validators import DataRequired, NumberRange, Optional
 
@@ -101,11 +102,44 @@ def _room_or_404(room_id):
 
 
 def _room_members(room):
-    return RoomMember.query.filter_by(room_id=room.id).all()
+    # Eager-load .user - every call site reads it (rank_members, the feed,
+    # crown candidates...), and without this each access lazy-loads its own
+    # User row, one query per member.
+    return (
+        RoomMember.query.filter_by(room_id=room.id)
+        .options(selectinload(RoomMember.user))
+        .all()
+    )
 
 
-def _member_habit(room, user):
+def _member_habit(room, user, habits_by_user=None):
+    if habits_by_user is not None:
+        return habits_by_user.get(user.id)
     return Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+
+
+def _room_member_habits(room, members):
+    """One query for every member's room habit, with checkins/freezes/
+    point_transactions eagerly loaded - {user_id: Habit}. Used to replace
+    the old pattern of calling _member_habit() (one query) per member, per
+    call site (leaderboard, feed, health, streak, crown candidates...),
+    each of which then lazy-loaded 3 more relationship queries on first
+    access - an N+1 that used to scale with member count on every room
+    page load and dashboard room-card render. Callers that already have
+    this dict should pass it through rather than recomputing it."""
+    if not members:
+        return {}
+    user_ids = [m.user_id for m in members]
+    habit_rows = (
+        Habit.query.filter(Habit.room_id == room.id, Habit.user_id.in_(user_ids))
+        .options(
+            selectinload(Habit.checkins),
+            selectinload(Habit.freezes),
+            selectinload(Habit.point_transactions),
+        )
+        .all()
+    )
+    return {h.user_id: h for h in habit_rows}
 
 
 def room_is_full(room, members=None):
@@ -148,18 +182,21 @@ def _avg_checkin_time_seconds(user, checkins):
     return sum(seconds) / len(seconds)
 
 
-def rank_members(room, members, as_of=None):
+def rank_members(room, members, as_of=None, habits_by_user=None):
     """Leaderboard order: room habit points desc, fewest missed days,
     earliest average check-in time. Used for the room page leaderboard, to
     pick the new owner when the creator leaves, and (with `as_of`) to
     reconstruct a past day's standings for the rank-movement indicator -
     every date-based calculation is restricted to `as_of` (inclusive)
     instead of each member's own live "today", with no other change in
-    behavior (the default, `as_of=None`, is unchanged)."""
+    behavior (the default, `as_of=None`, is unchanged). `habits_by_user`
+    lets a caller that already batch-fetched member habits (_room_member_
+    habits) pass them in instead of this re-fetching them."""
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     entries = []
     for member in members:
         user = member.user
-        habit = _member_habit(room, user)
+        habit = _member_habit(room, user, habits_by_user)
         reference_date = as_of if as_of is not None else local_today(user)
         completed = {c.date for c in habit.checkins if c.date <= reference_date}
         frozen = {f.used_on for f in habit.freezes if f.used_on is not None and f.used_on <= reference_date}
@@ -194,25 +231,27 @@ def rank_members(room, members, as_of=None):
     return entries
 
 
-def _member_completed_dates(room, user):
-    habit = _member_habit(room, user)
+def _member_completed_dates(room, user, habits_by_user=None):
+    habit = _member_habit(room, user, habits_by_user)
     return {c.date for c in habit.checkins} if habit else set()
 
 
-def room_health_pct(room, members):
+def room_health_pct(room, members, habits_by_user=None):
     """% of members checked in on their OWN local today - not a single
     shared "today", per member."""
     if not members:
         return 0
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     checked_in_today = sum(
-        1 for m in members if local_today(m.user) in _member_completed_dates(room, m.user)
+        1 for m in members if local_today(m.user) in _member_completed_dates(room, m.user, habits_by_user)
     )
     return round(checked_in_today / len(members) * 100)
 
 
-def room_streak_value(room, members):
+def room_streak_value(room, members, habits_by_user=None):
     if not members:
         return 0
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     # The most-behind member's own "today" - see points.room_streak's
     # docstring for why a day can't be judged "everyone made it" any
     # earlier than that.
@@ -220,7 +259,7 @@ def room_streak_value(room, members):
 
     if room.frequency_type == "weekly":
         member_states = [
-            {"completed": _member_completed_dates(room, m.user), "joined_on": m.joined_on}
+            {"completed": _member_completed_dates(room, m.user, habits_by_user), "joined_on": m.joined_on}
             for m in members
         ]
         return points.weekly_room_streak(member_states, room.frequency_target or 1, today_anchor)
@@ -231,7 +270,7 @@ def room_streak_value(room, members):
     # set uniformly (empty for Daily, a true no-op).
     not_scheduled = frequency.not_scheduled_dates(room.frequency_type, room.frequency_days, room.start_date, today_anchor)
     member_states = [
-        {"completed": _member_completed_dates(room, m.user) | not_scheduled, "joined_on": m.joined_on}
+        {"completed": _member_completed_dates(room, m.user, habits_by_user) | not_scheduled, "joined_on": m.joined_on}
         for m in members
     ]
     return points.room_streak(member_states, today_anchor)
@@ -245,14 +284,15 @@ def room_card_extra(room, viewer):
     """Dashboard room-card fields - per-viewer (days remaining, ended) and
     room-wide (health, leader)."""
     members = _room_members(room)
-    ranked = rank_members(room, members)
+    habits_by_user = _room_member_habits(room, members)
+    ranked = rank_members(room, members, habits_by_user=habits_by_user)
     leader = ranked[0] if ranked else None
     return {
         "room": room,
         "member_count": len(members),
         "days_remaining": max((final_day(room) - local_today(viewer)).days, 0),
         "viewer_ended": member_ended(room, viewer),
-        "health_pct": room_health_pct(room, members),
+        "health_pct": room_health_pct(room, members, habits_by_user),
         "leader_name": leader["user"].name if leader else None,
         "leader_is_viewer": bool(leader and leader["user"].id == viewer.id),
         "is_creator": room.creator_id == viewer.id,
@@ -292,16 +332,22 @@ def _date_closed(room, members, date_d):
     return all(local_today(m.user) > date_d for m in joined)
 
 
-def _crown_candidates(room, members, date_d):
+def _crown_candidates(room, members, date_d, habits_by_user=None):
     """Eligible (local_time, created_at_utc, user_id, checkin_id, habit_id)
     tuples for `date_d` - only members who'd joined by then, only check-ins
-    with a valid proof note."""
+    with a valid proof note. Reads from `habits_by_user`'s preloaded
+    checkins when given, instead of issuing a Checkin query per member per
+    date (finalize_due_crowns' pending-dates loop can call this many times
+    in one request)."""
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     candidates = []
     for member in members:
         if member.joined_on > date_d:
             continue
-        habit = _member_habit(room, member.user)
-        checkin = Checkin.query.filter_by(habit_id=habit.id, date=date_d).first()
+        habit = habits_by_user.get(member.user_id)
+        if habit is None:
+            continue
+        checkin = next((c for c in habit.checkins if c.date == date_d), None)
         if checkin is None or not points.has_valid_proof_for_crown(checkin.proof_note):
             continue
         local_time = _aware_utc(checkin.created_at).astimezone(ZoneInfo(member.user.timezone)).time()
@@ -320,6 +366,10 @@ def finalize_due_crowns(room, members=None):
         return
 
     already = {rc.date for rc in RoomCrown.query.filter_by(room_id=room.id)}
+    # Fetched once for the whole pending-dates loop below - safe to reuse
+    # across iterations since none of them touch Checkin rows, only
+    # RoomCrown/PointTransaction.
+    habits_by_user = _room_member_habits(room, members)
     # A date can only be closed once every member who could have earned it
     # has moved past it - so nothing newer than the most-behind member's
     # own "yesterday" is even worth checking yet.
@@ -328,7 +378,7 @@ def finalize_due_crowns(room, members=None):
     cursor = room.start_date
     while cursor <= horizon:
         if cursor not in already and _date_closed(room, members, cursor):
-            winner = points.crown_winner(_crown_candidates(room, members, cursor))
+            winner = points.crown_winner(_crown_candidates(room, members, cursor, habits_by_user))
             if winner is not None:
                 _, _, winner_user_id, winner_checkin_id, winner_habit_id = winner
                 db.session.add(RoomCrown(
@@ -376,7 +426,7 @@ def _room_today_anchor(members):
     return min(local_today(m.user) for m in members)
 
 
-def _todays_crown_user_id(room, members):
+def _todays_crown_user_id(room, members, habits_by_user=None):
     """Who currently holds (or has already finalized) today's crown - the
     leaderboard's crown badge, distinct from "leader" (highest all-time
     points): whoever's first to check in with proof today, re-raced live
@@ -389,11 +439,11 @@ def _todays_crown_user_id(room, members):
     decided = RoomCrown.query.filter_by(room_id=room.id, date=today_anchor).first()
     if decided is not None:
         return decided.user_id
-    winner = points.crown_winner(_crown_candidates(room, members, today_anchor))
+    winner = points.crown_winner(_crown_candidates(room, members, today_anchor, habits_by_user))
     return winner[2] if winner else None
 
 
-def _rank_movement(room, members, ranked_today):
+def _rank_movement(room, members, ranked_today, habits_by_user=None):
     """{user_id: spots moved up (positive)/down (negative) since yesterday,
     or None for a member who hadn't joined yet then} - reconstructed by
     re-ranking as of yesterday (same today_anchor reference as the crown)
@@ -401,7 +451,7 @@ def _rank_movement(room, members, ranked_today):
     if not members:
         return {}
     yesterday_anchor = _room_today_anchor(members) - timedelta(days=1)
-    ranked_yesterday = rank_members(room, members, as_of=yesterday_anchor)
+    ranked_yesterday = rank_members(room, members, as_of=yesterday_anchor, habits_by_user=habits_by_user)
     yesterday_rank_by_user = {e["user"].id: i + 1 for i, e in enumerate(ranked_yesterday)}
 
     member_by_user_id = {m.user_id: m for m in members}
@@ -431,7 +481,7 @@ def _flame_size_class(streak, unit="day"):
     return FLAME_SIZE_CLASSES[min(streak // step, len(FLAME_SIZE_CLASSES) - 1)]
 
 
-def _crown_badges_for_checkins(room, members, checkins):
+def _crown_badges_for_checkins(room, members, checkins, habits_by_user=None):
     """Maps checkin.id -> "final" | "provisional" for every date represented
     in `checkins`. A date with a RoomCrown row is decided for good; one
     without is re-raced fresh from current state on every call, so the
@@ -439,6 +489,7 @@ def _crown_badges_for_checkins(room, members, checkins):
     closes."""
     if not checkins:
         return {}
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     dates = {c.date for c in checkins}
     finalized_checkin_by_date = {
         rc.date: rc.checkin_id
@@ -452,21 +503,22 @@ def _crown_badges_for_checkins(room, members, checkins):
             if winner_checkin_id is not None:
                 badges[winner_checkin_id] = "final"
             continue
-        winner = points.crown_winner(_crown_candidates(room, members, d))
+        winner = points.crown_winner(_crown_candidates(room, members, d, habits_by_user))
         if winner is not None:
             badges[winner[3]] = "provisional"
     return badges
 
 
-def _feed_context(room, members, viewer, limit=20):
+def _feed_context(room, members, viewer, limit=20, habits_by_user=None):
     """Recent check-ins across every member's room habit, newest first,
     each annotated with its crown badge and vouch state. There's no single
     shared "today" to scope this to (every member's today is their own
     local date), so it's simply the most recent activity in the room."""
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     habit_by_id = {}
     user_by_habit_id = {}
     for m in members:
-        habit = _member_habit(room, m.user)
+        habit = _member_habit(room, m.user, habits_by_user)
         if habit is not None:
             habit_by_id[habit.id] = habit
             user_by_habit_id[habit.id] = m.user
@@ -476,11 +528,12 @@ def _feed_context(room, members, viewer, limit=20):
 
     checkins = (
         Checkin.query.filter(Checkin.habit_id.in_(habit_by_id.keys()))
+        .options(selectinload(Checkin.vouches))
         .order_by(Checkin.created_at.desc())
         .limit(limit)
         .all()
     )
-    badges = _crown_badges_for_checkins(room, members, checkins)
+    badges = _crown_badges_for_checkins(room, members, checkins, habits_by_user)
 
     items = []
     for c in checkins:
@@ -502,16 +555,17 @@ def _feed_context(room, members, viewer, limit=20):
     return items
 
 
-def _leaderboard_context(room, members, viewer):
+def _leaderboard_context(room, members, viewer, habits_by_user=None):
     """One entry per member, in rank order, with everything the podium +
     list view needs: today's crown holder (distinct from the points
     leader), rank movement since yesterday, a gap to whoever's directly
     above, a 0-100 bar relative to the leader, and a streak-scaled flame
     size - all computed here so the template stays pure presentation."""
-    ranked = rank_members(room, members)
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
+    ranked = rank_members(room, members, habits_by_user=habits_by_user)
     crown_count_by_user = _crown_counts(room)
-    todays_crown_user_id = _todays_crown_user_id(room, members)
-    movement_by_user = _rank_movement(room, members, ranked)
+    todays_crown_user_id = _todays_crown_user_id(room, members, habits_by_user)
+    movement_by_user = _rank_movement(room, members, ranked, habits_by_user)
     leader_points = ranked[0]["points"] if ranked else 0
 
     entries = []
@@ -547,16 +601,17 @@ def render_room_live_update(room, viewer):
     request came from there) - personal panel, leaderboard, health, streak
     and feed, all re-derived from current state."""
     members = _room_members(room)
-    viewer_habit = _member_habit(room, viewer)
+    habits_by_user = _room_member_habits(room, members)
+    viewer_habit = _member_habit(room, viewer, habits_by_user)
     return render_template(
         "partials/room_live_update.html",
         room=room,
-        leaderboard=_leaderboard_context(room, members, viewer),
-        health_pct=room_health_pct(room, members),
-        streak_value=room_streak_value(room, members),
+        leaderboard=_leaderboard_context(room, members, viewer, habits_by_user),
+        health_pct=room_health_pct(room, members, habits_by_user),
+        streak_value=room_streak_value(room, members, habits_by_user),
         room_streak_unit=room_streak_unit(room),
         room_frequency_label=_frequency_label(room),
-        feed=_feed_context(room, members, viewer),
+        feed=_feed_context(room, members, viewer, habits_by_user=habits_by_user),
         **_personal_stats(viewer_habit, viewer),
     )
 
@@ -664,9 +719,13 @@ def room_detail(room_id):
         abort(404)
 
     finalize_due_crowns(room, members)
-    # Re-read members' habits fresh - finalize_due_crowns may have just
-    # added crown PointTransactions that the leaderboard needs to reflect.
-    viewer_habit = _member_habit(room, current_user)
+    # Fetched once, after finalize_due_crowns (which may have just added
+    # crown PointTransactions the leaderboard needs to reflect) and reused
+    # by every section below instead of each re-querying member habits -
+    # the fix for the room page's N+1 (previously ~4-5 queries per member
+    # per section).
+    habits_by_user = _room_member_habits(room, members)
+    viewer_habit = _member_habit(room, current_user, habits_by_user)
     # Catches room_champion (this room may have just become fully ended) and
     # crown_collector for the viewer specifically, not just whoever happened
     # to trigger finalize_due_crowns above.
@@ -681,12 +740,12 @@ def room_detail(room_id):
         viewer_ended=member_ended(room, current_user),
         ended=room_fully_ended(room, members),
         days_remaining=max((final_day(room) - local_today(current_user)).days, 0),
-        leaderboard=_leaderboard_context(room, members, current_user),
-        health_pct=room_health_pct(room, members),
-        streak_value=room_streak_value(room, members),
+        leaderboard=_leaderboard_context(room, members, current_user, habits_by_user),
+        health_pct=room_health_pct(room, members, habits_by_user),
+        streak_value=room_streak_value(room, members, habits_by_user),
         room_streak_unit=room_streak_unit(room),
         room_frequency_label=_frequency_label(room),
-        feed=_feed_context(room, members, current_user),
+        feed=_feed_context(room, members, current_user, habits_by_user=habits_by_user),
         invite_message=_invite_message(room),
         newly_awarded_badges=newly_awarded_badges,
         **_personal_stats(viewer_habit, current_user),
