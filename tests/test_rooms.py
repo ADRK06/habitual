@@ -802,11 +802,13 @@ def test_dashboard_room_card_has_leave_button_not_delete(client, db):
     # The card's own top-right trigger must never show the bare delete
     # glyph for a room habit - only the confirm modal's content (asserted
     # above) isn't enough, since that passes even if the trigger itself
-    # still renders "x".
+    # still renders "x". It's the same small icon-button trigger as a solo
+    # habit's delete button, just with a "leave" icon and tooltip instead.
     card_start = response.index(f'id="habit-card-{habit.id}"')
     card_html = response[card_start:card_start + 2000]
     assert ">&times;</button>" not in card_html
-    assert ">Leave room</button>" in card_html
+    assert 'title="Leave room"' in card_html
+    assert 'aria-label="Leave Run Club"' in card_html
 
 
 def test_delete_habit_route_rejects_a_room_habit(client, db):

@@ -133,6 +133,39 @@ def _frequency_label(habit):
     return "Daily"
 
 
+def _shorten_days_label(days_label):
+    """Compacts a Specific-Days label for the dashboard card's one-line
+    badge row - a run of 3+ consecutive weekdays (in the Mon..Sun order
+    _frequency_label always produces) collapses to "First-Last", e.g.
+    "Fri Sat Sun" -> "Fri-Sun". Runs of 1-2 days are left as-is: there's
+    nothing to gain by collapsing "Fri Sat" to anything shorter."""
+    indices = [WEEKDAY_ABBREVIATIONS.index(label) for label in days_label.split()]
+    runs = []
+    for i in indices:
+        if runs and i == runs[-1][-1] + 1:
+            runs[-1].append(i)
+        else:
+            runs.append([i])
+    pieces = []
+    for run in runs:
+        if len(run) >= 3:
+            pieces.append(f"{WEEKDAY_ABBREVIATIONS[run[0]]}–{WEEKDAY_ABBREVIATIONS[run[-1]]}")
+        else:
+            pieces.extend(WEEKDAY_ABBREVIATIONS[i] for i in run)
+    return " ".join(pieces)
+
+
+def _frequency_badge_label(habit):
+    """The dashboard card badge's version of _frequency_label - same text
+    for Daily/Weekly, a collapsed-run version for Specific Days so the
+    badges row never needs to wrap. Every other consumer of
+    _frequency_label (the habit detail page, room page, join page, where
+    there's room for the full day list) is untouched."""
+    if habit.frequency_type == "days":
+        return _shorten_days_label(_frequency_label(habit))
+    return _frequency_label(habit)
+
+
 def _habit_view(habit, today, freezes_held):
     """Pricing/stats for one habit card, derived from points.py's pure
     functions. For Daily/Specific-Days, non-scheduled dates bridge the
@@ -178,6 +211,7 @@ def _habit_view(habit, today, freezes_held):
         "has_freeze_to_use": freezes_held > 0,
         "is_due_today": is_due_today,
         "frequency_label": _frequency_label(habit),
+        "frequency_badge_label": _frequency_badge_label(habit),
         "streak_unit": streak_unit,
     }
 
