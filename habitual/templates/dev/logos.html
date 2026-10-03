@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Logo variations (dev) · Habitual{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl px-6 py-12">
+  <h1 class="font-heading text-2xl font-bold text-text">Logo variations</h1>
+  <p class="mt-1 text-sm text-text-muted">
+    Dev-only preview, not linked anywhere. Three capsule-stack concepts, each shown large, at nav
+    size (~28px), and at favicon size (32px / 16px) on the real dark background.
+  </p>
+
+  {% for v in variations %}
+  <section class="mt-12 rounded-2xl border border-border bg-surface/40 p-8">
+    <div class="flex items-baseline justify-between">
+      <h2 class="font-heading text-lg font-semibold text-text">{{ v.letter }} — {{ v.name }}</h2>
+      <span class="text-xs text-text-muted">{{ v.file }}</span>
+    </div>
+    <p class="mt-1 text-sm text-text-muted">{{ v.description }}</p>
+
+    <!-- Large: icon alone + full lockup in both fonts -->
+    <div class="mt-6 flex flex-wrap items-center gap-10">
+      <img src="{{ url_for('static', filename='img/' + v.file) }}" alt="{{ v.name }} icon" class="h-40 w-40 shrink-0">
+
+      <div class="flex flex-col gap-5">
+        <div class="flex items-center gap-3">
+          <img src="{{ url_for('static', filename='img/' + v.file) }}" alt="" class="h-12 w-12">
+          <span class="font-heading text-4xl font-bold text-text">habitual</span>
+          <span class="text-xs text-text-muted">Exo 2 bold</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <img src="{{ url_for('static', filename='img/' + v.file) }}" alt="" class="h-12 w-12">
+          <span class="font-display text-4xl font-bold tracking-wide text-text">habitual</span>
+          <span class="text-xs text-text-muted">Orbitron</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav size mockup -->
+    <p class="mt-8 text-xs font-medium uppercase tracking-wide text-text-muted">Nav size (~28px)</p>
+    <div class="mt-2 flex flex-col gap-2 overflow-hidden rounded-xl border border-border">
+      <div class="flex items-center gap-2 bg-bg px-4 py-3">
+        <img src="{{ url_for('static', filename='img/' + v.file) }}" alt="" class="h-7 w-7">
+        <span class="font-heading text-base font-bold text-text">habitual</span>
+      </div>
+      <div class="flex items-center gap-2 bg-bg px-4 py-3">
+        <img src="{{ url_for('static', filename='img/' + v.file) }}" alt="" class="h-7 w-7">
+        <span class="font-display text-base font-bold tracking-wide text-text">habitual</span>
+      </div>
+    </div>
+
+    <!-- Favicon size -->
+    <p class="mt-8 text-xs font-medium uppercase tracking-wide text-text-muted">Favicon size</p>
+    <div class="mt-2 flex items-center gap-8">
+      <div class="flex items-center gap-2">
+        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-black/40 p-1">
+          <img src="{{ url_for('static', filename='img/' + v.file) }}" alt="" class="h-6 w-6">
+        </div>
+        <span class="text-xs text-text-muted">32px</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex h-6 w-6 items-center justify-center rounded border border-border bg-black/40 p-0.5">
+          <img src="{{ url_for('static', filename='img/' + v.file) }}" alt="" class="h-4 w-4">
+        </div>
+        <span class="text-xs text-text-muted">16px</span>
+      </div>
+      <!-- Actual pixel-size rendering, no scaling tricks, for a true read. -->
+      <div class="flex items-center gap-2 rounded-lg border border-border bg-[#2a2a2a] px-3 py-1.5">
+        <img src="{{ url_for('static', filename='img/' + v.file) }}" alt="" style="width:16px;height:16px;">
+        <span class="text-[11px] text-text-muted">habitual — tab mockup</span>
+      </div>
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

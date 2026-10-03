@@ -42,4 +42,24 @@ def create_app(config_class=Config):
             return redirect(url_for("habits.dashboard"))
         return render_template("landing.html")
 
+    # Dev-only logo preview - not linked anywhere, remove once a variation
+    # is picked (see CLAUDE.md's Logo roadmap note).
+    @app.get("/dev/logos")
+    def dev_logos():
+        variations = [
+            {
+                "letter": "A", "name": "Framed", "file": "logo-icon-a.svg",
+                "description": "Navy-framed capsules (navy outer pill, yellow inset) with a crimson check - closest to the reference's two-tone capsules, flattened.",
+            },
+            {
+                "letter": "B", "name": "Tile badge", "file": "logo-icon-b.svg",
+                "description": "Navy rounded-square tile with solid yellow capsules and a crimson check - app-icon shaped, built for favicon contrast.",
+            },
+            {
+                "letter": "C", "name": "Bold flat", "file": "logo-icon-c.svg",
+                "description": "Solid yellow capsules, no frame, crimson check - the simplest shapes, for the best legibility at 16px.",
+            },
+        ]
+        return render_template("dev/logos.html", variations=variations)
+
     return app
