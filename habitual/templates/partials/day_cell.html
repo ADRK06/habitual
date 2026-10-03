@@ -1,7 +1,10 @@
 {# Shared day_state -> visual mapping. Keep these two macros as the only
-   place that styles done/frozen/missed/before_created/future, so the 7-day
-   row, the 5-week heatmap, and the dashboard's future 30-day grid all read
-   as the same visual language. #}
+   place that styles done/frozen/not_scheduled/missed/before_created/future,
+   so the 7-day row, the 5-week heatmap, the month calendar, and the
+   dashboard's 30-day grid all read as the same visual language.
+   "not_scheduled" (a Specific-Days habit's rest day) is deliberately styled
+   distinct from "missed" - a dashed, muted outline that reads as "wasn't
+   asked for", not "failed". #}
 
 {% macro week_circle(letter, state, is_today=False) %}
   {% set ring = ' ring-2 ring-accent ring-offset-2 ring-offset-bg' if is_today else '' %}
@@ -10,6 +13,8 @@
     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-sm font-semibold text-bg{{ ring }}" aria-label="Done{{ today_suffix }}">{{ letter }}</div>
   {% elif state == 'frozen' %}
     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-accent/25 text-sm{{ ring }}" aria-label="Streak frozen{{ today_suffix }}">🧊</div>
+  {% elif state == 'not_scheduled' %}
+    <div class="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-text-muted/25 text-sm font-medium text-text-muted/40{{ ring }}" aria-label="Not scheduled{{ today_suffix }}">{{ letter }}</div>
   {% elif state == 'missed' %}
     <div class="flex h-9 w-9 items-center justify-center rounded-full border border-border text-sm font-medium text-text-muted{{ ring }}" aria-label="Missed{{ today_suffix }}">{{ letter }}</div>
   {% elif state == 'future' %}
@@ -26,6 +31,8 @@
     <div class="flex h-4 w-4 items-center justify-center rounded-[4px] bg-accent/30" aria-label="Streak frozen">
       <span class="h-1.5 w-1.5 rounded-full bg-text"></span>
     </div>
+  {% elif state == 'not_scheduled' %}
+    <div class="h-4 w-4 rounded-[4px] border border-dashed border-text-muted/20" aria-label="Not scheduled"></div>
   {% elif state == 'missed' %}
     <div class="h-4 w-4 rounded-[4px] border border-border" aria-label="Missed"></div>
   {% elif state == 'future' %}

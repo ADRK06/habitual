@@ -1,9 +1,14 @@
 import json
 import re
+import secrets
 from datetime import date, timedelta
 
+from habitual import frequency
+from habitual.frequency import WEEKDAY_BIT
 from habitual.habits import EMOJI_CHOICES
-from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
+from habitual.models import Checkin, Freeze, Habit, PointTransaction, Room, RoomMember, User
+from habitual.points import week_start
+from habitual.rooms import generate_join_code
 
 VALID_PASSWORD = "Sup3r$ecret"
 
@@ -22,12 +27,18 @@ def _login(client, db, username="aadhira"):
     return user
 
 
-def _create_habit(db, user, title="Read", emoji="📚", created_on=None):
+def _create_habit(
+    db, user, title="Read", emoji="📚", created_on=None, frequency_type="daily", frequency_days=None,
+    frequency_target=None,
+):
     habit = Habit(
         user_id=user.id,
         title=title,
         emoji=emoji,
         created_on=created_on or date.today(),
+        frequency_type=frequency_type,
+        frequency_days=frequency_days,
+        frequency_target=frequency_target,
     )
     db.session.add(habit)
     db.session.commit()
@@ -116,6 +127,42 @@ def test_dashboard_overview_shown_with_a_habit(client, db):
     assert b"1/1" in response.data  # today's progress tile
 
 
+def test_dashboard_overview_chart_starts_at_habit_creation_not_30_days_back(client, db):
+    # A habit created 3 days ago shouldn't make the completion chart show
+    # 27 days of a flat 0% before it existed - the chart starts at
+    # whichever is later, the earliest habit's creation or 30 days ago.
+    user = _login(client, db)
+    _create_habit(db, user, created_on=date.today() - timedelta(days=3))
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    match = re.search(r'data-labels="([^"]*)"', response)
+    assert match is not None
+    labels = match.group(1).split("|")
+    assert len(labels) == 4  # today + the 3 days the habit has existed
+
+
+def test_dashboard_overview_chart_spans_full_30_days_for_an_old_habit(client, db):
+    user = _login(client, db)
+    _create_habit(db, user, created_on=date.today() - timedelta(days=90))
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    match = re.search(r'data-labels="([^"]*)"', response)
+    assert match is not None
+    assert len(match.group(1).split("|")) == 30
+
+
+def test_dashboard_overview_chart_values_never_exceed_0_to_100(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date.today())
+    client.post(f"/habits/{habit.id}/checkin")
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    match = re.search(r'data-series="([^"]*)"', response)
+    assert match is not None
+    values = [float(v) for v in match.group(1).split(",")]
+    assert all(0 <= v <= 100 for v in values)
+
+
 def test_dashboard_overview_hides_needs_attention_with_one_habit(client, db):
     user = _login(client, db)
     _create_habit(db, user)
@@ -195,6 +242,301 @@ def test_create_habit_trims_title(client, db):
     assert habit.title == "Read"
 
 
+def test_create_habit_defaults_to_daily(client, db):
+    _login(client, db)
+    client.post("/habits", data={"title": "Read", "emoji": EMOJI_CHOICES[0]})
+    habit = Habit.query.first()
+    assert habit.frequency_type == "daily"
+    assert habit.frequency_days is None
+
+
+def test_create_habit_with_specific_days_frequency(client, db):
+    _login(client, db)
+    mask = _spaced_days_mask(date.today())
+    response = client.post(
+        "/habits",
+        data={"title": "Run", "emoji": EMOJI_CHOICES[0], "frequency_type": "days", "frequency_days": str(mask)},
+    )
+    assert response.status_code == 302
+    habit = Habit.query.filter_by(title="Run").first()
+    assert habit.frequency_type == "days"
+    assert habit.frequency_days == mask
+
+
+def test_create_habit_specific_days_requires_at_least_one_day(client, db):
+    _login(client, db)
+    response = client.post(
+        "/habits",
+        data={"title": "Run", "emoji": EMOJI_CHOICES[0], "frequency_type": "days", "frequency_days": "0"},
+    )
+    assert response.status_code == 400
+    assert Habit.query.count() == 0
+
+
+def test_create_habit_rejects_unknown_frequency_type(client, db):
+    _login(client, db)
+    response = client.post(
+        "/habits", data={"title": "Run", "emoji": EMOJI_CHOICES[0], "frequency_type": "fortnightly"},
+    )
+    assert response.status_code == 400
+    assert Habit.query.count() == 0
+
+
+# -- specific-days check-in gate ----------------------------------------------
+
+
+def test_checkin_blocked_on_a_non_scheduled_day(client, db):
+    user = _login(client, db)
+    today = date.today()
+    tomorrow_only = WEEKDAY_BIT[(today + timedelta(days=1)).weekday()]
+    habit = _create_habit(db, user, created_on=today, frequency_type="days", frequency_days=tomorrow_only)
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+
+    assert response.status_code == 404
+    assert Checkin.query.filter_by(habit_id=habit.id).count() == 0
+
+
+def test_checkin_allowed_on_a_scheduled_day(client, db):
+    user = _login(client, db)
+    today = date.today()
+    today_only = WEEKDAY_BIT[today.weekday()]
+    habit = _create_habit(db, user, created_on=today, frequency_type="days", frequency_days=today_only)
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+
+    assert response.status_code == 200
+    assert Checkin.query.filter_by(habit_id=habit.id, date=today).count() == 1
+
+
+def test_dashboard_card_shows_not_scheduled_chip_instead_of_checkin(client, db):
+    user = _login(client, db)
+    today = date.today()
+    tomorrow_only = WEEKDAY_BIT[(today + timedelta(days=1)).weekday()]
+    _create_habit(db, user, created_on=today, frequency_type="days", frequency_days=tomorrow_only)
+
+    response = client.get("/dashboard").get_data(as_text=True)
+    assert "Not scheduled today" in response
+
+
+# -- weekly (X times/week) frequency ------------------------------------------
+
+
+def test_create_habit_with_weekly_frequency(client, db):
+    _login(client, db)
+    response = client.post(
+        "/habits",
+        data={"title": "Gym", "emoji": EMOJI_CHOICES[0], "frequency_type": "weekly", "frequency_target": "3"},
+    )
+    assert response.status_code == 302
+    habit = Habit.query.filter_by(title="Gym").first()
+    assert habit.frequency_type == "weekly"
+    assert habit.frequency_target == 3
+    assert habit.frequency_days is None
+
+
+def test_create_habit_weekly_requires_target_in_range(client, db):
+    _login(client, db)
+    response = client.post(
+        "/habits",
+        data={"title": "Gym", "emoji": EMOJI_CHOICES[0], "frequency_type": "weekly", "frequency_target": "7"},
+    )
+    assert response.status_code == 400
+    assert Habit.query.count() == 0
+
+
+def test_checkin_never_blocked_for_weekly_habit(client, db):
+    # Unlike Specific Days, a Weekly habit has no single "due" day - any day
+    # can contribute toward the week's target, so the schedule gate is
+    # always a no-op here.
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, created_on=today, frequency_type="weekly", frequency_target=3)
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+
+    assert response.status_code == 200
+    assert Checkin.query.filter_by(habit_id=habit.id, date=today).count() == 1
+
+
+def test_weekly_checkin_prices_the_target_reaching_checkin_with_a_milestone_bonus(client, db):
+    # target=1, so every check-in alone hits that week's target. 6
+    # consecutive prior weeks (one check-in each) plus today's live
+    # check-in (via the route) makes this the week-streak's 7th week -
+    # the week-7 milestone bonus.
+    user = _login(client, db)
+    today = date.today()
+    this_week = week_start(today)
+    weeks_hit = [this_week - timedelta(days=7 * i) for i in range(1, 7)]
+    habit = _create_habit(db, user, created_on=weeks_hit[-1], frequency_type="weekly", frequency_target=1)
+    for wk in weeks_hit:
+        db.session.add(Checkin(habit_id=habit.id, date=wk))
+        db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=wk))
+    db.session.commit()
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+    assert response.status_code == 200
+
+    amounts = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id, date=today))
+    assert amounts == [5, 10]
+
+
+def test_weekly_freeze_order_independence(client, db):
+    # target=1. 5 consecutive prior weeks hit, then a missed week right
+    # before this one, then today's live check-in (this week, via the
+    # route) - prices at week-streak 1 (the miss breaks the chain) *before*
+    # the freeze. Freezing the missed week afterwards must bridge it into a
+    # 7-week streak and reprice today's check-in to the same milestone
+    # bonus it would have gotten freezing first - the same order-
+    # independence guarantee as test_specific_days_freeze_order_independence,
+    # one granularity up.
+    user = _login(client, db)
+    today = date.today()
+    this_week = week_start(today)
+    missed_week = this_week - timedelta(days=7)
+    weeks_hit = [this_week - timedelta(days=7 * i) for i in range(2, 7)]
+    habit = _create_habit(db, user, created_on=weeks_hit[-1], frequency_type="weekly", frequency_target=1)
+    for wk in weeks_hit:
+        db.session.add(Checkin(habit_id=habit.id, date=wk))
+        db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=wk))
+    db.session.commit()
+    # `missed_week` is deliberately left with no check-in.
+
+    client.post(f"/habits/{habit.id}/checkin")  # this week, before the freeze
+    before = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id, date=today))
+    assert before == [5]
+
+    _give_freeze(db, user)
+    response = client.post(f"/habits/{habit.id}/freeze")
+    assert response.status_code == 200
+
+    freeze = Freeze.query.filter_by(habit_id=habit.id).first()
+    assert freeze.used_on == missed_week
+
+    after = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id, date=today))
+    assert after == [5, 10]  # repriced to the week-7 milestone - identical to freezing the missed week first
+
+
+def test_dashboard_shows_weekly_progress_chip(client, db):
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, created_on=today, frequency_type="weekly", frequency_target=3)
+    db.session.add(Checkin(habit_id=habit.id, date=today))
+    db.session.commit()
+
+    response = client.get("/dashboard").get_data(as_text=True)
+    assert "1/3 this week" in response
+
+
+# -- edit frequency (restart, not retroactive) --------------------------------
+
+
+def test_edit_frequency_updates_type_and_sets_changed_on(client, db):
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, created_on=today - timedelta(days=10))
+    mask = _spaced_days_mask(today)
+
+    response = client.post(
+        f"/habits/{habit.id}/frequency",
+        data={"frequency_type": "days", "frequency_days": str(mask)},
+    )
+    assert response.status_code == 302
+
+    db.session.refresh(habit)
+    assert habit.frequency_type == "days"
+    assert habit.frequency_days == mask
+    assert habit.frequency_changed_on == today
+
+
+def test_edit_frequency_rejects_room_habit(client, db):
+    user = _login(client, db)
+    today = date.today()
+    room = Room(
+        title="Morning Run", emoji="🏃", creator_id=user.id, duration_days=14,
+        start_date=today, invite_token=secrets.token_urlsafe(16), join_code=generate_join_code(),
+    )
+    db.session.add(room)
+    db.session.flush()
+    db.session.add(RoomMember(room_id=room.id, user_id=user.id, joined_on=today))
+    habit = Habit(user_id=user.id, room_id=room.id, title="Morning Run", emoji="🏃", created_on=today)
+    db.session.add(habit)
+    db.session.commit()
+
+    response = client.post(
+        f"/habits/{habit.id}/frequency",
+        data={"frequency_type": "weekly", "frequency_target": "3"},
+    )
+    assert response.status_code == 400
+
+    db.session.refresh(habit)
+    assert habit.frequency_type == "daily"
+    assert habit.frequency_changed_on is None
+
+
+def test_edit_frequency_requires_ownership(client, db):
+    owner = _create_user(db, username="owner")
+    habit = _create_habit(db, owner)
+
+    _login(client, db, username="intruder")
+    response = client.post(f"/habits/{habit.id}/frequency", data={"frequency_type": "daily"})
+    assert response.status_code == 404
+
+
+def test_edit_frequency_cannot_resurrect_an_unbroken_streak(client, db):
+    # A genuine, currently-active 5-day streak with no gap at all - editing
+    # frequency still unconditionally restarts the count from today, per
+    # the approved design ("streak restarts on change").
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, created_on=today - timedelta(days=4))
+    for i in range(4, -1, -1):
+        d = today - timedelta(days=i)
+        db.session.add(Checkin(habit_id=habit.id, date=d))
+        db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=d))
+    db.session.commit()
+
+    response = client.get(f"/habits/{habit.id}")
+    assert b'data-current-streak="5"' in response.data
+
+    today_only = WEEKDAY_BIT[today.weekday()]
+    client.post(f"/habits/{habit.id}/frequency", data={"frequency_type": "days", "frequency_days": str(today_only)})
+
+    response = client.get(f"/habits/{habit.id}")
+    assert b'data-current-streak="1"' in response.data  # restarted - only today (already done) counts
+    # The ledger is untouched - no PointTransaction was created or removed
+    # by the edit itself.
+    assert PointTransaction.query.filter_by(habit_id=habit.id).count() == 5
+    assert PointTransaction.query.filter_by(habit_id=habit.id, reason="milestone").count() == 0
+
+
+def test_edit_frequency_does_not_resurrect_a_pre_edit_broken_streak_or_pay_a_milestone(client, db):
+    # 6 consecutive completions, then a miss, then the habit is edited -
+    # mirrors the exact exploit the design is meant to close: editing
+    # frequency can never bridge a pre-edit gap back into a streak long
+    # enough to collect a milestone bonus that was never actually earned.
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, created_on=today - timedelta(days=7))
+    for i in range(7, 1, -1):  # days -7..-2 completed (6 days)
+        d = today - timedelta(days=i)
+        db.session.add(Checkin(habit_id=habit.id, date=d))
+        db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=d))
+    # yesterday (day -1) is deliberately missed; today is not yet checked in.
+    db.session.commit()
+
+    today_only = WEEKDAY_BIT[today.weekday()]
+    client.post(f"/habits/{habit.id}/frequency", data={"frequency_type": "days", "frequency_days": str(today_only)})
+    assert PointTransaction.query.filter_by(habit_id=habit.id, reason="milestone").count() == 0
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+    assert response.status_code == 200
+    # If the edit had bridged across the pre-edit miss, today would price as
+    # day 7 of the old streak and pay a milestone bonus. It must not.
+    amounts = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id, date=today))
+    assert amounts == [5]
+
+
 # -- habit detail / analytics page ---------------------------------------------
 
 
@@ -216,6 +558,19 @@ def test_habit_detail_renders_for_owner(client, db):
     # Brand new, nothing checked in yet: neutral status, locked insight.
     assert b"Due today" in response.data
     assert b"unlock after 14 days" in response.data
+
+
+def test_habit_detail_renders_for_weekly_habit(client, db):
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, title="Gym", frequency_type="weekly", frequency_target=3, created_on=today)
+    client.post(f"/habits/{habit.id}/checkin")
+
+    response = client.get(f"/habits/{habit.id}")
+    assert response.status_code == 200
+    assert b"Gym" in response.data
+    assert b"3x/week" in response.data
+    assert "Week streak".encode() in response.data
 
 
 def test_habit_detail_shows_on_track_after_checkin(client, db):
@@ -667,6 +1022,17 @@ def _give_freeze(db, user):
     return freeze
 
 
+def _spaced_days_mask(today):
+    """3 weekdays spaced 2 days apart, ending at `today`'s weekday - the
+    Mon/Wed/Fri pattern, generalized so tests work on whatever the real
+    weekday happens to be when they run."""
+    return (
+        WEEKDAY_BIT[today.weekday()]
+        | WEEKDAY_BIT[(today - timedelta(days=2)).weekday()]
+        | WEEKDAY_BIT[(today - timedelta(days=4)).weekday()]
+    )
+
+
 def test_dashboard_grid_shows_save_your_streak_for_an_eligible_habit(client, db):
     # Regression: dashboard.html's {% with %} block for the card grid lists
     # each field it forwards into habit_card.html by name. can_save_streak
@@ -686,6 +1052,34 @@ def test_dashboard_grid_shows_save_your_streak_for_an_eligible_habit(client, db)
 
     response = client.get("/dashboard")
     assert b"Save your streak" in response.data
+
+
+def test_dashboard_grid_shows_checkin_button_for_a_scheduled_daily_habit(client, db):
+    # Regression, same root cause as the test above: is_due_today,
+    # frequency_label and streak_unit were added to _habit_view()'s return
+    # dict (frequency feature) but never added to dashboard.html's {% with
+    # %} field list - so on the dashboard's initial GET, is_due_today came
+    # through as Jinja's Undefined, and `not Undefined` is True, making
+    # every habit card show "Not scheduled today" instead of the check-in
+    # button regardless of its actual schedule.
+    user = _login(client, db)
+    _create_habit(db, user, created_on=date.today())
+
+    response = client.get("/dashboard").get_data(as_text=True)
+    assert "Not scheduled today" not in response
+    assert "Check in" in response
+
+
+def test_dashboard_grid_shows_frequency_badge_for_a_specific_days_habit(client, db):
+    user = _login(client, db)
+    today = date.today()
+    mask = _spaced_days_mask(today)
+    _create_habit(db, user, created_on=today, frequency_type="days", frequency_days=mask)
+    weekday_abbrevs = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    expected_label = " ".join(weekday_abbrevs[i] for i in range(7) if mask & WEEKDAY_BIT[i])
+
+    response = client.get("/dashboard").get_data(as_text=True)
+    assert expected_label in response
 
 
 def test_save_your_streak_is_disabled_without_a_freeze_held(client, db):
@@ -868,6 +1262,54 @@ def test_use_freeze_after_todays_checkin_reprices_today(client, db):
 
     after = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id, date=today))
     assert after == [5, 10]  # repriced up to the day-7 milestone
+
+
+def test_specific_days_freeze_order_independence(client, db):
+    # A Mon/Wed/Fri-equivalent schedule (3 weekdays spaced 2 days apart,
+    # ending today - generalized so the test works on whatever the real
+    # weekday happens to be). 6 consecutive *scheduled* days completed, then
+    # a miss on the scheduled day right before today ("Wednesday"), today
+    # ("Friday") checked in *before* the freeze - so today prices as day 1
+    # (chain broken by the miss) at checkin time. Freezing "Wednesday"
+    # afterwards bridges it, making today actually the habit's 7th
+    # scheduled-day streak - repriced up to the milestone, identical to
+    # freezing Wednesday first.
+    user = _login(client, db)
+    today = date.today()
+    mask = _spaced_days_mask(today)
+    wed = today - timedelta(days=2)
+
+    # Walk backward through *actual* scheduled days (not fixed 2-day offsets
+    # - a Mon/Wed/Fri-style pattern's gap is 2 days within a week but 3 days
+    # crossing one, e.g. Fri -> Mon) to get the 6 scheduled days before Wed.
+    scheduled_before_wed = []
+    cursor = wed
+    for _ in range(6):
+        cursor = frequency.prev_scheduled(cursor, "days", mask)
+        scheduled_before_wed.append(cursor)
+
+    habit = _create_habit(
+        db, user, created_on=scheduled_before_wed[-1], frequency_type="days", frequency_days=mask
+    )
+    for d in scheduled_before_wed:
+        db.session.add(Checkin(habit_id=habit.id, date=d))
+        db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=d))
+    db.session.commit()
+    # "Wednesday" (today - 2) is deliberately left missing.
+
+    client.post(f"/habits/{habit.id}/checkin")  # "Friday" (today), before the freeze
+    before = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id, date=today))
+    assert before == [5]
+
+    _give_freeze(db, user)
+    response = client.post(f"/habits/{habit.id}/freeze")
+    assert response.status_code == 200
+
+    freeze = Freeze.query.filter_by(habit_id=habit.id).first()
+    assert freeze.used_on == wed
+
+    after = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id, date=today))
+    assert after == [5, 10]  # repriced to the day-7 milestone - identical to freezing Wed first
 
 
 def test_undo_after_freeze_reprice_removes_both_entries_and_keeps_freeze(client, db):

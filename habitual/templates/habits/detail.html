@@ -4,9 +4,113 @@
 
 {% block app_content %}
 <div class="py-10">
-  <a href="{{ back_url }}" class="inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text">
-    ← Back{{ " to room" if habit.room_id else " to dashboard" }}
-  </a>
+  <div class="flex items-center justify-between gap-4">
+    <a href="{{ back_url }}" class="inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text">
+      ← Back{{ " to room" if habit.room_id else " to dashboard" }}
+    </a>
+    {% if not habit.room_id %}
+    <div x-data="{
+      editOpen: false,
+      frequencyType: {{ (frequency_form.frequency_type.data or 'daily')|tojson|forceescape }},
+      frequencyDays: {{ (frequency_form.frequency_days.data or 0)|int|tojson }},
+      frequencyTarget: {{ (frequency_form.frequency_target.data or 3)|int|tojson }},
+    }">
+      <button
+        type="button"
+        @click="editOpen = true"
+        class="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-muted transition hover:border-text-muted hover:text-text"
+      >
+        Edit frequency
+      </button>
+
+      <div
+        x-show="editOpen"
+        x-trap="editOpen"
+        x-cloak
+        @keydown.escape.window="editOpen = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      >
+        <div
+          @click.outside="editOpen = false"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-frequency-heading"
+          class="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl"
+        >
+          <h2 id="edit-frequency-heading" class="font-heading text-xl font-semibold text-text">Edit frequency</h2>
+
+          <form method="post" action="{{ url_for('habits.edit_habit_frequency', habit_id=habit.id) }}" class="mt-5 space-y-4">
+            {{ frequency_form.csrf_token }}
+
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                @click="frequencyType = 'daily'"
+                :class="frequencyType === 'daily' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+                class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              >Daily</button>
+              <button
+                type="button"
+                @click="frequencyType = 'days'"
+                :class="frequencyType === 'days' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+                class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              >Specific days</button>
+              <button
+                type="button"
+                @click="frequencyType = 'weekly'"
+                :class="frequencyType === 'weekly' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+                class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              >X times/week</button>
+            </div>
+
+            <div x-show="frequencyType === 'days'" x-cloak class="grid grid-cols-7 gap-1.5">
+              {% set weekday_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+              {% for label in weekday_labels %}
+              <button
+                type="button"
+                @click="frequencyDays = frequencyDays ^ {{ 2 ** loop.index0 }}"
+                :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+                class="rounded-lg border px-1 py-1.5 text-xs font-medium transition-colors"
+              >{{ label }}</button>
+              {% endfor %}
+            </div>
+
+            <div x-show="frequencyType === 'weekly'" x-cloak class="flex items-center gap-2">
+              <button
+                type="button"
+                @click="frequencyTarget = Math.max(1, frequencyTarget - 1)"
+                class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+              >−</button>
+              <span class="w-24 text-center text-sm text-text" x-text="frequencyTarget + 'x per week'"></span>
+              <button
+                type="button"
+                @click="frequencyTarget = Math.min(6, frequencyTarget + 1)"
+                class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+              >+</button>
+            </div>
+
+            <input type="hidden" name="frequency_type" x-model="frequencyType">
+            <input type="hidden" name="frequency_days" :value="frequencyDays">
+            <input type="hidden" name="frequency_target" :value="frequencyTarget">
+
+            <p class="rounded-xl bg-bg/40 px-3 py-2.5 text-xs text-text-muted">
+              ⚠️ Changing frequency restarts your current streak. Points you've earned are kept.
+            </p>
+
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" @click="editOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+                Cancel
+              </button>
+              <button type="submit" class="rounded-2xl bg-accent px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90">
+                Save changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
 
   <div class="mt-6">
     {% include "partials/ring_card.html" %}

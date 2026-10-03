@@ -53,6 +53,37 @@
         button.classList.add("is-submitting");
       }
     });
+
+    // Positions a small anchored popover (the check-in note / undo-confirm
+    // dropdowns on habit cards) as a `position: fixed` box teleported to
+    // <body> - a card in a CSS grid row has no z-index of its own, so an
+    // `absolute` popover nested inside it can never paint above a *different*
+    // card that happens to come later in the grid (each grid item paints as
+    // its own unit; z-index on a descendant only wins against siblings
+    // within the same stacking context). Teleporting sidesteps that
+    // entirely. Flips above the trigger when there isn't room below, and
+    // clamps both axes to stay fully inside the viewport.
+    window.positionCardPopover = function positionCardPopover(triggerEl, popoverEl, gap = 8) {
+      if (!triggerEl || !popoverEl) return;
+      const margin = 8;
+      const rect = triggerEl.getBoundingClientRect();
+      const popoverHeight = popoverEl.offsetHeight;
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+
+      const spaceBelow = viewportHeight - rect.bottom;
+      const openUpward = spaceBelow < popoverHeight + gap && rect.top > popoverHeight + gap;
+      const top = openUpward ? rect.top - popoverHeight - gap : rect.bottom + gap;
+
+      const width = rect.width;
+      const left = Math.min(Math.max(rect.left, margin), viewportWidth - width - margin);
+
+      popoverEl.style.position = "fixed";
+      popoverEl.style.top = `${Math.max(Math.min(top, viewportHeight - popoverHeight - margin), margin)}px`;
+      popoverEl.style.left = `${Math.max(left, margin)}px`;
+      popoverEl.style.width = `${width}px`;
+      popoverEl.style.margin = "0";
+    };
   </script>
 
   {% block head %}{% endblock %}

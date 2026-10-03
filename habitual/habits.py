@@ -9,9 +9,11 @@ from sqlalchemy.exc import IntegrityError
 from wtforms import HiddenField, StringField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
-from habitual import analytics, badges, db, points
+from habitual import analytics, badges, db, frequency, points
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
 from habitual.utils.time import local_now, local_today, midnight_epoch_ms
+
+FREQUENCY_CHOICES = ("daily", "days", "weekly")
 
 habits = Blueprint("habits", __name__)
 
@@ -41,27 +43,142 @@ def _validate_emoji(form, field):
         raise ValidationError("Pick an emoji from the list.")
 
 
+def _validate_frequency_type(form, field):
+    if field.data not in FREQUENCY_CHOICES:
+        raise ValidationError("Pick a frequency.")
+
+
+def _validate_frequency_days(form, field):
+    if form.frequency_type.data != "days":
+        return
+    try:
+        mask = int(field.data or 0)
+    except (TypeError, ValueError):
+        mask = 0
+    if not (0 < mask <= frequency.ALL_DAYS_MASK):
+        raise ValidationError("Pick at least one day.")
+
+
+def _validate_frequency_target(form, field):
+    if form.frequency_type.data != "weekly":
+        return
+    try:
+        target = int(field.data or 0)
+    except (TypeError, ValueError):
+        target = 0
+    if not (1 <= target <= 6):
+        raise ValidationError("Pick 1-6 times a week.")
+
+
 class HabitForm(FlaskForm):
     title = StringField("Title", validators=[DataRequired(), _validate_title])
     emoji = HiddenField("Emoji", validators=[DataRequired(), _validate_emoji])
     tiny_version = StringField("Tiny version", validators=[Optional(), Length(max=120)])
+    frequency_type = HiddenField("Frequency", default="daily", validators=[DataRequired(), _validate_frequency_type])
+    frequency_days = HiddenField("Days", validators=[Optional(), _validate_frequency_days])
+    frequency_target = HiddenField("Target", validators=[Optional(), _validate_frequency_target])
+
+
+class FrequencyForm(FlaskForm):
+    """Just the frequency fields, reusing HabitForm's validators - used by
+    the standalone edit-frequency route, which never touches title/emoji."""
+    frequency_type = HiddenField("Frequency", default="daily", validators=[DataRequired(), _validate_frequency_type])
+    frequency_days = HiddenField("Days", validators=[Optional(), _validate_frequency_days])
+    frequency_target = HiddenField("Target", validators=[Optional(), _validate_frequency_target])
+
+
+WEEKDAY_ABBREVIATIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _not_scheduled_for(habit, start, end):
+    """A habit's non-scheduled dates in [start, end] - empty for Daily (and,
+    once it ships, Weekly). The integration point with points.py: union this
+    into a habit's `frozen` set before calling its streak functions, since
+    "bridges the chain without counting" is already exactly what `frozen`
+    means - see habitual/frequency.py."""
+    return frequency.not_scheduled_dates(habit.frequency_type, habit.frequency_days, start, end)
+
+
+def _freeze_schedule_for(habit, today):
+    """The (missed_candidate, window_end) pair points.freeze_target_date
+    needs for a Specific-Days habit - None for Daily (points.py's own
+    "yesterday" default applies)."""
+    if habit.frequency_type != "days":
+        return None
+    missed_candidate = frequency.prev_scheduled(today, habit.frequency_type, habit.frequency_days)
+    window_end = frequency.next_scheduled(missed_candidate, habit.frequency_type, habit.frequency_days)
+    return missed_candidate, window_end
+
+
+def _effective_start(habit):
+    """The start boundary every frequency-aware stat (streak, success rate,
+    habit strength, rings, insights) counts from - `habit.created_on` for a
+    habit whose frequency has never been edited (`frequency_changed_on` is
+    NULL), or the edit date otherwise. This is the restart mechanism: an
+    edit doesn't rewrite history (the ledger is untouched, and the grid/
+    calendar still show real pre-edit completions), but every *live-
+    computed* number treats the edit date as a fresh start, so a streak
+    broken before the edit can never bridge across it and resurrect
+    itself - see habitual/points.py's `floor` parameter."""
+    return habit.frequency_changed_on or habit.created_on
+
+
+def _frequency_label(habit):
+    if habit.frequency_type == "days":
+        return " ".join(
+            WEEKDAY_ABBREVIATIONS[i] for i in range(7) if (habit.frequency_days or 0) & frequency.WEEKDAY_BIT[i]
+        )
+    if habit.frequency_type == "weekly":
+        return f"{habit.frequency_target}x/week"
+    return "Daily"
 
 
 def _habit_view(habit, today, freezes_held):
-    """Pricing/stats for one habit card, derived from points.py's pure functions."""
+    """Pricing/stats for one habit card, derived from points.py's pure
+    functions. For Daily/Specific-Days, non-scheduled dates bridge the
+    streak/freeze math exactly like a frozen day already does (`bridge`),
+    but stay distinct from real freezes for success_rate, which excludes
+    them from both sides of the ratio instead of bridging. Weekly habits
+    use a parallel week-granularity family instead (`streak_unit` tells the
+    templates which word - "day" or "week" - to use for the streak)."""
     completed = {c.date for c in habit.checkins}
     frozen = {f.used_on for f in habit.freezes if f.used_on is not None}
     amounts = [pt.amount for pt in habit.point_transactions]
-    can_save_streak = points.freeze_available(completed, frozen, today)
+    effective_start = _effective_start(habit)
+
+    if habit.frequency_type == "weekly":
+        target = habit.frequency_target or 1
+        floor = points.week_start(effective_start)
+        current_streak = points.weekly_streak(completed, target, today, frozen, floor)
+        longest_streak = points.longest_weekly_streak(completed, target, effective_start, today, frozen)
+        success_rate = round(points.weekly_success_rate(completed, effective_start, today, target))
+        can_save_streak = points.weekly_freeze_available(completed, target, today, frozen, floor)
+        is_due_today = True
+        streak_unit = "week"
+    else:
+        not_scheduled = _not_scheduled_for(habit, effective_start, today)
+        bridge = frozen | not_scheduled
+        current_streak = points.current_streak(completed, bridge, today, effective_start)
+        longest_streak = points.longest_streak(completed, bridge, effective_start, today)
+        success_rate = round(points.success_rate(completed, effective_start, today, not_scheduled))
+        can_save_streak = points.freeze_available(
+            completed, bridge, today, _freeze_schedule_for(habit, today), effective_start
+        )
+        is_due_today = today not in not_scheduled
+        streak_unit = "day"
+
     return {
         "habit": habit,
-        "current_streak": points.current_streak(completed, frozen, today),
-        "longest_streak": points.longest_streak(completed, frozen, habit.created_on, today),
+        "current_streak": current_streak,
+        "longest_streak": longest_streak,
         "habit_points": points.earned_points(amounts),
-        "success_rate": round(points.success_rate(completed, habit.created_on, today)),
+        "success_rate": success_rate,
         "checked_in_today": today in completed,
         "can_save_streak": can_save_streak,
         "has_freeze_to_use": freezes_held > 0,
+        "is_due_today": is_due_today,
+        "frequency_label": _frequency_label(habit),
+        "streak_unit": streak_unit,
     }
 
 
@@ -105,29 +222,74 @@ def _overview_context(habit_rows, today):
             "emoji": h.emoji,
             "completed": {c.date for c in h.checkins},
             "frozen": {f.used_on for f in h.freezes if f.used_on is not None},
+            # `created_on` stays the habit's true creation date - the 30-day
+            # grid's day_state() call needs it unchanged so history from
+            # before a frequency edit still renders as plain done/missed,
+            # not "not tracked yet". `effective_start` is the restart floor
+            # the month_success/best_streak/needs_attention aggregates below
+            # use instead, so an edited habit's dashboard numbers can't
+            # resurrect a pre-edit streak either.
             "created_on": h.created_on,
+            "effective_start": _effective_start(h),
+            "not_scheduled": _not_scheduled_for(h, _effective_start(h), today),
+            "frequency_type": h.frequency_type,
+            "frequency_days": h.frequency_days,
+            "frequency_target": h.frequency_target,
         }
         for h in habit_rows
     ]
     grid_rows = analytics.thirty_day_grid(habit_infos, today)
+    # The 30-day heatmap table (overview_rows) keeps its full fixed window -
+    # a "not tracked yet" cell is a meaningful, intentional part of that
+    # grid. The line chart is different: a flat 0% for every day before the
+    # user's first habit existed reads as "you failed every day", not
+    # "there was nothing to track yet" - so it starts at whichever is later,
+    # the earliest habit's creation date or 30 days ago.
+    earliest_created_on = min((h["created_on"] for h in habit_infos), default=today)
+    chart_start = max(earliest_created_on, today - timedelta(days=29))
+    chart_rows = [r for r in grid_rows if r["date"] >= chart_start]
     return {
         "overview_habits": habit_infos,
         "overview_rows": grid_rows,
-        "overview_series": analytics.completion_series(grid_rows),
-        "overview_chart_labels": [r["date"].strftime("%b %-d") for r in reversed(grid_rows)],
+        "overview_series": analytics.completion_series(chart_rows),
+        "overview_chart_labels": [r["date"].strftime("%b %-d") for r in reversed(chart_rows)],
         **analytics.overview_summary(habit_infos, today),
     }
 
 
-def _day_status_context(user, habits_remaining):
+def _weekly_progress_for(habit_rows, today):
+    """Small 'Gym · 2/3 this week' chips, one per Weekly habit, always shown
+    (not just when incomplete) - Weekly habits are excluded from the
+    `habits_remaining` countdown entirely (a week isn't "due today"), so
+    this is their only presence in the header."""
+    week_start = points.week_start(today)
+    chips = []
+    for h in habit_rows:
+        if h.frequency_type != "weekly":
+            continue
+        completed = {c.date for c in h.checkins}
+        done_this_week = sum(1 for d in completed if week_start <= d <= today)
+        chips.append({
+            "id": h.id,
+            "title": h.title,
+            "emoji": h.emoji,
+            "done_this_week": done_this_week,
+            "target": h.frequency_target or 1,
+        })
+    return chips
+
+
+def _day_status_context(user, today, habit_rows, habits_remaining):
     """Header countdown fields: time left until the user's own local
     midnight (computed here from the server, never guessed from the
     browser's clock/timezone - the client just ticks a fixed target) plus
     the urgency flag for the last-3-hours treatment. `habits_remaining` of
     None (nothing to track yet) propagates through so the template can skip
-    the widget entirely."""
+    the countdown widget, but `weekly_progress` is still computed either
+    way (empty if there's really nothing, including no weekly habits)."""
+    weekly_progress = _weekly_progress_for(habit_rows, today)
     if habits_remaining is None:
-        return {"habits_remaining": None}
+        return {"habits_remaining": None, "weekly_progress": weekly_progress}
     midnight_ms = midnight_epoch_ms(user)
     seconds_left = max(0.0, midnight_ms / 1000 - local_now(user).timestamp())
     return {
@@ -136,6 +298,7 @@ def _day_status_context(user, habits_remaining):
         "hours_left": int(seconds_left // 3600),
         "minutes_left": int((seconds_left % 3600) // 60),
         "is_urgent": habits_remaining > 0 and seconds_left <= 3 * 3600,
+        "weekly_progress": weekly_progress,
     }
 
 
@@ -173,7 +336,7 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
     }
     if habit_rows:
         context.update(_overview_context(habit_rows, today))
-    context.update(_day_status_context(current_user, context.get("habits_remaining")))
+    context.update(_day_status_context(current_user, today, habit_rows, context.get("habits_remaining")))
     return context
 
 
@@ -196,6 +359,9 @@ def create_habit():
             emoji=form.emoji.data,
             tiny_version=(form.tiny_version.data or "").strip() or None,
             created_on=local_today(current_user),
+            frequency_type=form.frequency_type.data,
+            frequency_days=int(form.frequency_days.data) if form.frequency_type.data == "days" else None,
+            frequency_target=int(form.frequency_target.data) if form.frequency_type.data == "weekly" else None,
         )
         db.session.add(habit)
         db.session.commit()
@@ -207,38 +373,149 @@ def create_habit():
     return render_template("dashboard.html", **context), 400
 
 
+@habits.post("/habits/<int:habit_id>/frequency")
+@login_required
+def edit_habit_frequency(habit_id):
+    """Edits a habit's frequency - the only thing editable on an existing
+    habit for now (title/emoji stay create-only). Room habits reject this
+    entirely: a room's frequency is locked for every member and only ever
+    set via the room itself (create_room/join_room), never per-member -
+    mirrors delete_habit's existing `room_id is not None` guard."""
+    habit = db.get_or_404(Habit, habit_id)
+    if habit.user_id != current_user.id:
+        abort(404)
+    if habit.room_id is not None:
+        abort(400)
+
+    form = FrequencyForm()
+    if not form.validate_on_submit():
+        abort(400)
+
+    habit.frequency_type = form.frequency_type.data
+    habit.frequency_days = int(form.frequency_days.data) if form.frequency_type.data == "days" else None
+    habit.frequency_target = int(form.frequency_target.data) if form.frequency_type.data == "weekly" else None
+    # The restart mechanism (see _effective_start): this date becomes the
+    # new floor every live-computed stat counts from. The ledger - every
+    # PointTransaction already earned - is never touched.
+    habit.frequency_changed_on = local_today(current_user)
+    db.session.commit()
+
+    flash("Frequency updated - your streak restarts from today. Points you've earned are kept.", "info")
+    return redirect(url_for("habits.habit_detail", habit_id=habit.id))
+
+
 WEEKDAY_LETTERS = "MTWTFSS"
+
+
+def _weekly_analytics_context(habit, today, now_hour):
+    """Weekly-habit twin of `_analytics_context` - same return shape, but
+    everything is computed at week granularity (freezes key on a week's
+    Monday, not a day) via points.py's weekly function family. Day cells
+    (this week's row, the heatmap) have no frozen/not_scheduled distinction
+    at the day level - a frozen WEEK isn't "this one day was saved", so
+    they only ever show done/missed/future/before_created."""
+    completed = {c.date for c in habit.checkins}
+    frozen_weeks = {f.used_on for f in habit.freezes if f.used_on is not None}
+    target = habit.frequency_target or 1
+    effective_start = _effective_start(habit)
+    floor = points.week_start(effective_start)
+
+    this_week = points.week_start(today)
+    last_week = this_week - timedelta(days=7)
+    froze_last_week = last_week in frozen_weeks
+
+    week_ring = analytics.weekly_week_ring(completed, today, target)
+    month_ring = analytics.weekly_month_ring(completed, effective_start, today, target)
+    streak = points.weekly_streak(completed, target, today, frozen_weeks, floor)
+    status_label, status_variant = analytics.habit_status(
+        completed, frozen_weeks, froze_last_week, effective_start, today, now_hour,
+        not_due_today=(week_ring[0] >= target),
+    )
+
+    def _day_state(d):
+        if d > today:
+            return "future"
+        if d < habit.created_on:
+            return "before_created"
+        return "done" if d in completed else "missed"
+
+    week_days = [
+        {
+            "letter": WEEKDAY_LETTERS[i],
+            "state": _day_state(this_week + timedelta(days=i)),
+            "is_today": (this_week + timedelta(days=i)) == today,
+        }
+        for i in range(7)
+    ]
+
+    heatmap_start = this_week - timedelta(days=7 * 4)
+    heatmap_weeks = [
+        [_day_state(heatmap_start + timedelta(days=7 * w + i)) for i in range(7)]
+        for w in range(5)
+    ]
+
+    return {
+        "week_ring": week_ring,
+        "month_ring": month_ring,
+        "milestone_ring": (streak, points.next_milestone(streak)),
+        "strength": round(analytics.weekly_habit_strength(completed, target, effective_start, today)),
+        "status_label": status_label,
+        "status_variant": status_variant,
+        "week_days": week_days,
+        "heatmap_weeks": heatmap_weeks,
+        "insight": analytics.weekly_smart_insight(completed, target, effective_start, today),
+        "streak_unit": "week",
+        "ring_unit": "times",
+    }
 
 
 def _analytics_context(habit, today, now_hour):
     """Everything habits/detail.html's ring card needs, derived from
     analytics.py's pure functions."""
+    if habit.frequency_type == "weekly":
+        return _weekly_analytics_context(habit, today, now_hour)
+
     completed = {c.date for c in habit.checkins}
     frozen = {f.used_on for f in habit.freezes if f.used_on is not None}
     yesterday = today - timedelta(days=1)
     froze_used_yesterday = any(f.used_on == yesterday for f in habit.freezes)
-
-    week_ring = analytics.week_ring(completed, habit.created_on, today)
-    month_ring = analytics.month_ring(completed, habit.created_on, today)
-    streak = points.current_streak(completed, frozen, today)
-    status_label, status_variant = analytics.habit_status(
-        completed, frozen, froze_used_yesterday, habit.created_on, today, now_hour
-    )
+    effective_start = _effective_start(habit)
 
     week_start = today - timedelta(days=today.weekday())
+    heatmap_start = week_start - timedelta(days=7 * 4)  # 5 weeks total, current week last
+    # Bounded below by effective_start (not heatmap_start) - a frequency
+    # edit's restart floor, see _effective_start - so dates before an edit
+    # lose the not_scheduled distinction and read as plain done/missed
+    # instead (the accepted cosmetic trade-off; day_state's own
+    # before_created check still uses habit.created_on, unchanged, so real
+    # pre-edit history still renders instead of greying out).
+    not_scheduled = _not_scheduled_for(habit, max(heatmap_start, effective_start), today)
+    bridge = frozen | not_scheduled
+
+    week_ring = analytics.week_ring(completed, effective_start, today, not_scheduled)
+    month_ring = analytics.month_ring(completed, effective_start, today, not_scheduled)
+    streak = points.current_streak(completed, bridge, today, effective_start)
+    status_label, status_variant = analytics.habit_status(
+        completed, frozen, froze_used_yesterday, effective_start, today, now_hour,
+        not_due_today=(today in not_scheduled), not_scheduled=not_scheduled,
+    )
+
     week_days = [
         {
             "letter": WEEKDAY_LETTERS[i],
-            "state": analytics.day_state(week_start + timedelta(days=i), completed, frozen, habit.created_on, today),
+            "state": analytics.day_state(
+                week_start + timedelta(days=i), completed, frozen, habit.created_on, today, not_scheduled
+            ),
             "is_today": (week_start + timedelta(days=i)) == today,
         }
         for i in range(7)
     ]
 
-    heatmap_start = week_start - timedelta(days=7 * 4)  # 5 weeks total, current week last
     heatmap_weeks = [
         [
-            analytics.day_state(heatmap_start + timedelta(days=7 * w + i), completed, frozen, habit.created_on, today)
+            analytics.day_state(
+                heatmap_start + timedelta(days=7 * w + i), completed, frozen, habit.created_on, today, not_scheduled
+            )
             for i in range(7)
         ]
         for w in range(5)
@@ -248,12 +525,14 @@ def _analytics_context(habit, today, now_hour):
         "week_ring": week_ring,
         "month_ring": month_ring,
         "milestone_ring": (streak, points.next_milestone(streak)),
-        "strength": round(analytics.habit_strength(completed, frozen, habit.created_on, today)),
+        "strength": round(analytics.habit_strength(completed, frozen, effective_start, today, not_scheduled)),
         "status_label": status_label,
         "status_variant": status_variant,
         "week_days": week_days,
         "heatmap_weeks": heatmap_weeks,
-        "insight": analytics.smart_insight(completed, habit.created_on, today),
+        "insight": analytics.smart_insight(completed, effective_start, today, not_scheduled),
+        "streak_unit": "day",
+        "ring_unit": "days",
     }
 
 
@@ -262,17 +541,21 @@ def _month_calendar_context(habit, month_start, today):
     frozen = {f.used_on for f in habit.freezes if f.used_on is not None}
 
     cal = calendar_module.Calendar(firstweekday=0)
+    month_weeks = cal.monthdatescalendar(month_start.year, month_start.month)
+    not_scheduled = _not_scheduled_for(
+        habit, max(month_weeks[0][0], _effective_start(habit)), month_weeks[-1][-1]
+    )
     weeks = [
         [
             {
                 "day": d.day,
-                "state": analytics.day_state(d, completed, frozen, habit.created_on, today),
+                "state": analytics.day_state(d, completed, frozen, habit.created_on, today, not_scheduled),
             }
             if d.month == month_start.month
             else None
             for d in week
         ]
-        for week in cal.monthdatescalendar(month_start.year, month_start.month)
+        for week in month_weeks
     ]
 
     prev_month = (month_start - timedelta(days=1)).replace(day=1)
@@ -321,6 +604,10 @@ def habit_detail(habit_id):
             Checkin.query.filter_by(habit_id=habit.id).order_by(Checkin.date.desc()).limit(10).all()
         ),
         "back_url": back_url,
+        "frequency_form": FrequencyForm(
+            frequency_type=habit.frequency_type, frequency_days=habit.frequency_days,
+            frequency_target=habit.frequency_target,
+        ),
     }
     return render_template("habits/detail.html", **context)
 
@@ -335,6 +622,15 @@ def _room_gate_or_404(habit):
     from habitual import rooms  # local import avoids a circular import with rooms.py
     if rooms.member_ended(habit.room, current_user):
         abort(400)
+
+
+def _schedule_gate_or_404(habit, today):
+    """Blocks check-in/freeze-use on a day that isn't scheduled for a
+    Specific-Days habit - "this action doesn't apply right now", same style
+    as _room_gate_or_404. A no-op for Daily (and, once it ships, Weekly,
+    which has no single-day due/not-due concept)."""
+    if not frequency.is_scheduled(today, habit.frequency_type, habit.frequency_days):
+        abort(404)
 
 
 def _room_live_response(habit, toast=None, celebration=None, badges_earned=None):
@@ -370,6 +666,7 @@ def checkin(habit_id):
     _room_gate_or_404(habit)
 
     today = local_today(current_user)
+    _schedule_gate_or_404(habit, today)
     points_earned = 0
     bonus = 0
     streak_day = None
@@ -391,8 +688,16 @@ def checkin(habit_id):
             for f in Freeze.query.filter_by(habit_id=habit.id)
             if f.used_on is not None
         }
-        streak_day = points.streak_day_on(completed, frozen, today)
-        bonus = points.milestone_bonus(streak_day)
+        effective_start = _effective_start(habit)
+        if habit.frequency_type == "weekly":
+            target = habit.frequency_target or 1
+            floor = points.week_start(effective_start)
+            bonus = points.weekly_milestone_bonus_for_checkin(completed, target, today, frozen, floor)
+            streak_day = points.weekly_streak(completed, target, today, frozen, floor)
+        else:
+            bridge = frozen | _not_scheduled_for(habit, effective_start, today)
+            streak_day = points.streak_day_on(completed, bridge, today, effective_start)
+            bonus = points.milestone_bonus(streak_day)
 
         db.session.add(PointTransaction(
             user_id=current_user.id, habit_id=habit.id,
@@ -428,7 +733,7 @@ def checkin(habit_id):
         **_overview_context(_user_habits(current_user), today),
         "oob": True,
     }
-    context.update(_day_status_context(current_user, context["habits_remaining"]))
+    context.update(_day_status_context(current_user, today, _user_habits(current_user), context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
     if toast:
         trigger = {"toast": toast, "checkinCelebration": celebration}
@@ -477,7 +782,7 @@ def undo_checkin(habit_id):
         **_overview_context(_user_habits(current_user), today),
         "oob": True,
     }
-    context.update(_day_status_context(current_user, context["habits_remaining"]))
+    context.update(_day_status_context(current_user, today, _user_habits(current_user), context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
     resp.headers["HX-Trigger"] = json.dumps({"toast": toast})
     return resp
@@ -526,13 +831,25 @@ def use_freeze(habit_id):
     db.session.query(User).filter_by(id=current_user.id).with_for_update().first()
 
     today = local_today(current_user)
-    yesterday = today - timedelta(days=1)
     completed = {c.date for c in Checkin.query.filter_by(habit_id=habit.id)}
     frozen = {
         f.used_on for f in Freeze.query.filter_by(habit_id=habit.id) if f.used_on is not None
     }
 
-    if not points.freeze_available(completed, frozen, today):
+    effective_start = _effective_start(habit)
+    is_weekly = habit.frequency_type == "weekly"
+    if is_weekly:
+        target = habit.frequency_target or 1
+        floor = points.week_start(effective_start)
+        target_date = points.weekly_freeze_target_week(completed, target, today, frozen, floor)
+    else:
+        not_scheduled = _not_scheduled_for(habit, effective_start, today)
+        bridge = frozen | not_scheduled
+        target_date = points.freeze_target_date(
+            completed, bridge, today, _freeze_schedule_for(habit, today), effective_start
+        )
+
+    if target_date is None:
         abort(400)
 
     freeze = Freeze.query.filter_by(user_id=current_user.id, used_on=None).first()
@@ -540,16 +857,28 @@ def use_freeze(habit_id):
         abort(400)
 
     freeze.habit_id = habit.id
-    freeze.used_on = yesterday
+    freeze.used_on = target_date
 
     # Order-independent reprice: if today was already checked in before this
-    # freeze bridged yesterday's gap, today's streak day - and therefore its
-    # points - may now be higher. Replace today's ledger entries to match,
-    # same logic as pricing a fresh check-in (habitual/points.py).
+    # freeze bridged the gap, today's streak day (or, for Weekly, this
+    # week's milestone eligibility) - and therefore its points - may now be
+    # higher. Replace today's ledger entries to match, same logic as pricing
+    # a fresh check-in (habitual/points.py). Mon/Wed/Fri example: miss Wed,
+    # check in Fri (prices without the bridge), *then* freeze Wed - this
+    # reprices Friday (today, at that point) to exactly what it'd have been
+    # freezing Wed first. Weekly example: miss last week, check in this week
+    # (prices without the bridge), *then* freeze last week - this reprices
+    # today's check-in to exactly what it'd have been freezing last week
+    # first.
     if today in completed:
-        new_frozen = frozen | {yesterday}
-        new_streak_day = points.streak_day_on(completed, new_frozen, today)
-        new_total = points.points_for_day(new_streak_day)
+        if is_weekly:
+            new_frozen_weeks = frozen | {target_date}
+            new_bonus = points.weekly_milestone_bonus_for_checkin(completed, target, today, new_frozen_weeks, floor)
+            new_total = points.BASE_POINTS + new_bonus
+        else:
+            new_bridge = bridge | {target_date}
+            new_streak_day = points.streak_day_on(completed, new_bridge, today, effective_start)
+            new_total = points.points_for_day(new_streak_day)
         todays_txns = PointTransaction.query.filter_by(habit_id=habit.id, date=today).all()
         old_total = sum(txn.amount for txn in todays_txns)
         if new_total != old_total:
@@ -559,7 +888,7 @@ def use_freeze(habit_id):
                 user_id=current_user.id, habit_id=habit.id,
                 amount=points.BASE_POINTS, reason="daily", date=today,
             ))
-            bonus = points.milestone_bonus(new_streak_day)
+            bonus = new_bonus if is_weekly else points.milestone_bonus(new_streak_day)
             if bonus:
                 db.session.add(PointTransaction(
                     user_id=current_user.id, habit_id=habit.id,
@@ -582,7 +911,7 @@ def use_freeze(habit_id):
         **_overview_context(_user_habits(current_user), today),
         "oob": True,
     }
-    context.update(_day_status_context(current_user, context["habits_remaining"]))
+    context.update(_day_status_context(current_user, today, _user_habits(current_user), context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
     trigger = {"toast": toast}
     if newly_badges:
@@ -614,7 +943,7 @@ def delete_habit(habit_id):
         "oob": True,
         "no_habits_left": len(remaining_rows) == 0,
     }
-    context.update(_day_status_context(current_user, context["habits_remaining"]))
+    context.update(_day_status_context(current_user, today, remaining_rows, context["habits_remaining"]))
     resp = make_response(render_template("partials/delete_response.html", **context))
     resp.headers["HX-Trigger"] = json.dumps(
         {"toast": {"message": f'Deleted "{title}".', "type": "info"}}

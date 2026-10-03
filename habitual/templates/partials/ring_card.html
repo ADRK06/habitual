@@ -9,7 +9,14 @@
   <div class="flex items-start justify-between gap-4">
     <div class="flex items-center gap-3">
       <span class="text-4xl">{{ habit.emoji }}</span>
-      <h1 class="font-heading text-2xl font-semibold text-text">{{ habit.title }}</h1>
+      <div>
+        <h1 class="font-heading text-2xl font-semibold text-text">{{ habit.title }}</h1>
+        {% if frequency_label and frequency_label != 'Daily' %}
+        <span class="mt-0.5 inline-flex items-center rounded-full bg-border/50 px-2 py-0.5 text-[11px] font-medium text-text-muted">
+          {{ frequency_label }}
+        </span>
+        {% endif %}
+      </div>
     </div>
     <span
       class="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium
@@ -17,7 +24,7 @@
         {% elif status_variant == 'risk' %}bg-danger/20 text-text
         {% else %}bg-border/50 text-text-muted{% endif %}"
     >
-      {% if status_variant == 'saved' %}🧊{% elif status_variant == 'due' %}📅{% elif status_variant == 'risk' %}⚠️{% else %}✓{% endif %}
+      {% if status_variant == 'saved' %}🧊{% elif status_variant == 'due' %}📅{% elif status_variant == 'risk' %}⚠️{% elif status_variant == 'resting' %}🌿{% else %}✓{% endif %}
       {{ status_label }}
     </span>
   </div>
@@ -31,31 +38,31 @@
           data-month="{{ month_ring[0] }},{{ month_ring[1] }}"
           data-milestone="{{ milestone_ring[0] }},{{ milestone_ring[1] }}"
           role="img"
-          aria-label="Week {{ week_ring[0] }} of {{ week_ring[1] }} days, month {{ month_ring[0] }} of {{ month_ring[1] }} days, milestone day {{ milestone_ring[0] }} of {{ milestone_ring[1] }}"
+          aria-label="Week {{ week_ring[0] }} of {{ week_ring[1] }} {{ ring_unit or 'days' }}, month {{ month_ring[0] }} of {{ month_ring[1] }} {{ ring_unit or 'days' }}, milestone {{ streak_unit or 'day' }} {{ milestone_ring[0] }} of {{ milestone_ring[1] }}"
         ></canvas>
       </div>
       <dl class="space-y-2 text-sm">
         <div class="flex items-center gap-2">
           <span class="h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true"></span>
           <dt class="text-text-muted">Week</dt>
-          <dd class="font-medium text-text">{{ week_ring[0] }}/{{ week_ring[1] }} days</dd>
+          <dd class="font-medium text-text">{{ week_ring[0] }}/{{ week_ring[1] }} {{ ring_unit or 'days' }}</dd>
         </div>
         <div class="flex items-center gap-2">
           <span class="h-2.5 w-2.5 rounded-full bg-text" aria-hidden="true"></span>
           <dt class="text-text-muted">Month</dt>
-          <dd class="font-medium text-text">{{ month_ring[0] }}/{{ month_ring[1] }} days</dd>
+          <dd class="font-medium text-text">{{ month_ring[0] }}/{{ month_ring[1] }} {{ ring_unit or 'days' }}</dd>
         </div>
         <div class="flex items-center gap-2">
           <span class="h-2.5 w-2.5 rounded-full bg-streak" aria-hidden="true"></span>
           <dt class="text-text-muted">Milestone</dt>
-          <dd class="font-medium text-text">Day {{ milestone_ring[0] }} of {{ milestone_ring[1] }}</dd>
+          <dd class="font-medium text-text">{{ (streak_unit or 'day')|capitalize }} {{ milestone_ring[0] }} of {{ milestone_ring[1] }}</dd>
         </div>
       </dl>
     </div>
 
     <div class="grid w-fit grid-cols-2 gap-3">
       <div class="w-32 rounded-xl bg-bg/40 p-4">
-        <p class="text-xs text-text-muted">🔥 Streak</p>
+        <p class="text-xs text-text-muted">🔥 {{ (streak_unit or 'day')|capitalize }} streak</p>
         <p class="mt-1 font-heading text-3xl font-bold tabular-nums text-streak">{{ current_streak }}</p>
         <p class="text-xs text-text-muted">best {{ longest_streak }}</p>
       </div>

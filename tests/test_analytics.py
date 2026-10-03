@@ -10,7 +10,12 @@ from habitual.analytics import (
     smart_insight,
     thirty_day_grid,
     week_ring,
+    weekly_habit_strength,
+    weekly_month_ring,
+    weekly_smart_insight,
+    weekly_week_ring,
 )
+from habitual.frequency import not_scheduled_dates
 
 D0 = date(2026, 1, 1)  # a Thursday
 
@@ -294,4 +299,190 @@ def test_overview_summary_needs_attention_excludes_brand_new_habit():
     # same guard as habit_status's "At risk" check.
     habit_a = habit_info(1, set(), set(), D0)
     summary = overview_summary([habit_a], D0)
+    assert summary["needs_attention"] is None
+
+
+# --- frequency-aware (Specific Days) ----------------------------------------
+#
+# D0 (2026-01-01) is a Thursday. MON/WED/FRI below are the first full
+# Mon/Wed/Fri after it, used as a realistic Specific-Days schedule.
+
+MON = D0 + timedelta(days=4)
+TUE = MON + timedelta(days=1)
+WED = MON + timedelta(days=2)
+THU = MON + timedelta(days=3)
+FRI = MON + timedelta(days=4)
+
+
+def test_day_state_not_scheduled():
+    not_scheduled = not_scheduled_dates("days", 1 | 4 | 16, MON, FRI)  # Mon/Wed/Fri mask
+    assert day_state(TUE, set(), set(), MON, FRI, not_scheduled) == "not_scheduled"
+    assert day_state(WED, set(), set(), MON, FRI, not_scheduled) == "missed"
+
+
+def test_day_state_done_wins_over_not_scheduled():
+    # A completion on a date that isn't scheduled (e.g. leftover from before
+    # a frequency change) still shows as done, not not_scheduled.
+    not_scheduled = {TUE}
+    assert day_state(TUE, {TUE}, set(), MON, FRI, not_scheduled) == "done"
+
+
+def test_week_ring_denominator_shrinks_for_specific_days():
+    not_scheduled = not_scheduled_dates("days", 1 | 4 | 16, MON, MON + timedelta(days=6))
+    completed = {MON, WED}
+    assert week_ring(completed, MON, FRI, not_scheduled) == (2, 3)
+
+
+def test_month_ring_denominator_shrinks_for_specific_days():
+    month_end = date(2026, 1, 31)
+    not_scheduled = not_scheduled_dates("days", 1 | 4 | 16, date(2026, 1, 1), month_end)
+    numer, denom = month_ring({MON, WED}, date(2026, 1, 1), FRI, not_scheduled)
+    assert numer == 2
+    assert denom < 31
+
+
+def test_habit_strength_skips_not_scheduled_days():
+    # Tuesday (not scheduled) sitting between two completed scheduled days
+    # shouldn't cost any decay - strength stays at the max.
+    not_scheduled = {TUE}
+    completed = {MON, WED}
+    assert habit_strength(completed, set(), MON, WED, not_scheduled) == 100.0
+
+
+def test_habit_status_not_due_today_is_resting():
+    assert habit_status(set(), set(), False, MON, TUE, 10, not_due_today=True) == ("Not due today", "resting")
+
+
+def test_habit_status_completed_today_wins_over_not_due():
+    # Bonus/edge case: if today is somehow completed, that still wins.
+    assert habit_status({TUE}, set(), False, MON, TUE, 10, not_due_today=True) == ("On track", "ontrack")
+
+
+def test_smart_insight_weekday_gate_not_blocked_by_never_scheduled_weekdays():
+    # Mon/Wed/Fri habit, 3 weeks of perfect attendance on all 3 scheduled
+    # days, one single miss on a Wednesday - the never-scheduled weekdays
+    # (Tue/Thu/Sat/Sun) must not block the weekday-breakdown insight.
+    mask = 1 | 4 | 16
+    scheduled_days = [MON + timedelta(days=7 * w + o) for w in range(3) for o in (0, 2, 4)]
+    completed = set(scheduled_days) - {WED}
+    today = scheduled_days[-1]
+    not_scheduled = not_scheduled_dates("days", mask, MON, today)
+    insight = smart_insight(completed, MON, today, not_scheduled)
+    assert insight == "You miss most often on Wednesdays."
+
+
+def test_thirty_day_grid_excludes_not_scheduled_from_total_count():
+    not_scheduled = not_scheduled_dates("days", 1 | 4 | 16, MON, FRI)
+    habit = {**habit_info(1, {MON, WED}, set(), MON), "not_scheduled": not_scheduled}
+    grid = thirty_day_grid([habit], FRI)
+    tue_row = next(r for r in grid if r["date"] == TUE)
+    assert tue_row["total_count"] == 0
+    assert tue_row["states"] == ["not_scheduled"]
+
+
+def test_overview_summary_excludes_habits_not_due_today():
+    not_scheduled = not_scheduled_dates("days", 1 | 4 | 16, MON, TUE)
+    habit = {**habit_info(1, set(), set(), MON), "not_scheduled": not_scheduled}
+    summary = overview_summary([habit], TUE)  # Tuesday isn't scheduled
+    assert summary["today_total"] == 0
+    assert summary["today_done"] == 0
+    assert summary["habits_remaining"] == 0  # tracked, but nothing due - "All done today"
+
+
+def test_overview_summary_habits_remaining_none_only_with_zero_habits_total():
+    summary = overview_summary([], TUE)
+    assert summary["habits_remaining"] is None
+
+
+# --- frequency-aware (Weekly) ------------------------------------------------
+#
+# MON (2026-01-05) is a Monday - reused as the first week's anchor, same as
+# tests/test_points.py's WEEK0.
+
+WEEK0 = MON
+WEEK1 = WEEK0 + timedelta(days=7)
+
+
+def test_weekly_week_ring_is_literal_progress_toward_target():
+    completed = {WEEK0, WEEK0 + timedelta(days=1)}
+    today = WEEK0 + timedelta(days=2)
+    assert weekly_week_ring(completed, today, 3) == (2, 3)
+
+
+def test_weekly_month_ring_denominator_scales_with_overlapping_weeks():
+    created_on = date(2026, 1, 1)
+    today = date(2026, 1, 31)
+    completed = {WEEK0, WEEK0 + timedelta(days=1), WEEK1}
+    numer, denom = weekly_month_ring(completed, created_on, today, 2)
+    assert numer == 3
+    assert denom > 2 * 2  # more than 2 weeks overlap January
+
+
+def test_weekly_habit_strength_full_when_every_week_hits_target():
+    created_on = WEEK0
+    today = WEEK1 + timedelta(days=1)
+    completed = {WEEK0, WEEK0 + timedelta(days=1), WEEK1, WEEK1 + timedelta(days=1)}
+    assert weekly_habit_strength(completed, 2, created_on, today) == 100.0
+
+
+def test_weekly_habit_strength_in_progress_week_does_not_drag_score_down():
+    created_on = WEEK0
+    completed = {WEEK0, WEEK0 + timedelta(days=1)}  # week0 fully hit target
+    today = WEEK1  # week1 just started, hasn't hit target yet
+    assert weekly_habit_strength(completed, 2, created_on, today) == 100.0
+
+
+def test_weekly_smart_insight_none_before_14_days():
+    assert weekly_smart_insight(set(), 3, WEEK0, WEEK0 + timedelta(days=5)) is None
+
+
+def test_weekly_smart_insight_reports_month_over_month_change():
+    created_on = date(2025, 11, 1)
+    today = date(2026, 1, 10)
+    # Perfect hits every week in December, nothing in January so far.
+    completed = set()
+    cursor = date(2025, 12, 1)
+    while cursor <= date(2025, 12, 31):
+        completed.add(cursor)
+        cursor += timedelta(days=7)
+    insight = weekly_smart_insight(completed, 1, created_on, today)
+    assert insight is not None
+    assert "vs last month" in insight
+
+
+def _weekly_habit_info(id, completed, created_on, target, title="Gym", emoji="💪"):
+    return {
+        "id": id, "title": title, "emoji": emoji,
+        "completed": completed, "frozen": set(), "created_on": created_on,
+        "frequency_type": "weekly", "frequency_target": target,
+    }
+
+
+def test_overview_summary_excludes_weekly_habits_from_today_total():
+    weekly_habit = _weekly_habit_info(1, set(), WEEK0, 3)
+    daily_habit = habit_info(2, set(), set(), WEEK0)
+    summary = overview_summary([weekly_habit, daily_habit], WEEK0)
+    assert summary["today_total"] == 1  # only the daily habit counts
+
+
+def test_overview_summary_month_success_counts_weekly_habits_by_week():
+    weekly_habit = _weekly_habit_info(1, {WEEK0, WEEK0 + timedelta(days=1)}, WEEK0, 2)
+    today = WEEK0 + timedelta(days=1)
+    summary = overview_summary([weekly_habit], today)
+    assert summary["month_success"] == 100  # 2/2 in the one week so far
+
+
+def test_overview_summary_best_streak_is_unit_aware_for_weekly():
+    weekly_habit = _weekly_habit_info(1, {WEEK0, WEEK0 + timedelta(days=1)}, WEEK0, 2)
+    today = WEEK0 + timedelta(days=1)
+    summary = overview_summary([weekly_habit], today)
+    assert summary["best_streak"] == {
+        "id": 1, "title": "Gym", "emoji": "💪", "current_streak": 1, "streak_unit": "week",
+    }
+
+
+def test_overview_summary_needs_attention_skips_weekly_habits():
+    weekly_habit = _weekly_habit_info(1, set(), WEEK0, 3)
+    today = WEEK0 + timedelta(days=10)
+    summary = overview_summary([weekly_habit], today)
     assert summary["needs_attention"] is None

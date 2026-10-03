@@ -1,4 +1,4 @@
 <div id="room-streak-stat" {% if oob %}hx-swap-oob="true"{% endif %} class="rounded-xl border border-border bg-surface/40 p-3">
-  <p class="text-xs text-text-muted">Room streak</p>
+  <p class="text-xs text-text-muted">Room {{ room_streak_unit or 'day' }} streak</p>
   <p class="mt-1 font-heading text-xl font-bold tabular-nums text-streak">🔥 {{ streak_value }}</p>
 </div>

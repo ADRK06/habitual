@@ -63,6 +63,7 @@
           habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak,
           habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today,
           can_save_streak=card.can_save_streak, has_freeze_to_use=card.has_freeze_to_use,
+          is_due_today=card.is_due_today, frequency_label=card.frequency_label, streak_unit=card.streak_unit,
           room=card.room, member_count=card.member_count, days_remaining=card.days_remaining,
           viewer_ended=card.viewer_ended, health_pct=card.health_pct, leader_name=card.leader_name,
           leader_is_viewer=card.leader_is_viewer, is_creator=card.is_creator
@@ -96,7 +97,14 @@
       <form
         method="post"
         action="{{ url_for('habits.create_habit') }}"
-        x-data="{ emoji: {{ (form.emoji.data or '')|tojson|forceescape }}, title: {{ (form.title.data or '')|tojson|forceescape }}, tinyVersion: {{ (form.tiny_version.data or '')|tojson|forceescape }} }"
+        x-data="{
+          emoji: {{ (form.emoji.data or '')|tojson|forceescape }},
+          title: {{ (form.title.data or '')|tojson|forceescape }},
+          tinyVersion: {{ (form.tiny_version.data or '')|tojson|forceescape }},
+          frequencyType: {{ (form.frequency_type.data or 'daily')|tojson|forceescape }},
+          frequencyDays: {{ (form.frequency_days.data or 0)|int|tojson }},
+          frequencyTarget: {{ (form.frequency_target.data or 3)|int|tojson }},
+        }"
         class="mt-5 space-y-4"
       >
         {{ form.csrf_token }}
@@ -143,6 +151,60 @@
         </div>
 
         <div>
+          <label class="mb-1 block text-sm text-text-muted">Frequency</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              @click="frequencyType = 'daily'"
+              :class="frequencyType === 'daily' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+            >Daily</button>
+            <button
+              type="button"
+              @click="frequencyType = 'days'"
+              :class="frequencyType === 'days' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+            >Specific days</button>
+            <button
+              type="button"
+              @click="frequencyType = 'weekly'"
+              :class="frequencyType === 'weekly' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+            >X times/week</button>
+          </div>
+          <div x-show="frequencyType === 'days'" x-cloak class="mt-2 grid grid-cols-7 gap-1.5">
+            {% set weekday_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+            {% for label in weekday_labels %}
+            <button
+              type="button"
+              @click="frequencyDays = frequencyDays ^ {{ 2 ** loop.index0 }}"
+              :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="rounded-lg border px-1 py-1.5 text-xs font-medium transition-colors"
+            >{{ label }}</button>
+            {% endfor %}
+          </div>
+          <div x-show="frequencyType === 'weekly'" x-cloak class="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              @click="frequencyTarget = Math.max(1, frequencyTarget - 1)"
+              class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+            >−</button>
+            <span class="w-24 text-center text-sm text-text" x-text="frequencyTarget + 'x per week'"></span>
+            <button
+              type="button"
+              @click="frequencyTarget = Math.min(6, frequencyTarget + 1)"
+              class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+            >+</button>
+          </div>
+          <input type="hidden" name="frequency_type" x-model="frequencyType">
+          <input type="hidden" name="frequency_days" :value="frequencyDays">
+          <input type="hidden" name="frequency_target" :value="frequencyTarget">
+          {% for error in form.frequency_type.errors + form.frequency_days.errors + form.frequency_target.errors %}
+          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
           <label class="mb-1 block text-sm text-text-muted">Tiny version <span class="text-text-muted/70">(optional)</span></label>
           {{ form.tiny_version(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Just open the book', maxlength=120, **{'x-model': 'tinyVersion'}) }}
           <p class="mt-1 text-xs text-text-muted">Teacher tip: the tiny version should feel almost too easy.</p>
@@ -181,7 +243,13 @@
       <form
         method="post"
         action="{{ url_for('rooms.create_room') }}"
-        x-data="{ emoji: {{ (room_form.emoji.data or '')|tojson|forceescape }}, title: {{ (room_form.title.data or '')|tojson|forceescape }} }"
+        x-data="{
+          emoji: {{ (room_form.emoji.data or '')|tojson|forceescape }},
+          title: {{ (room_form.title.data or '')|tojson|forceescape }},
+          frequencyType: {{ (room_form.frequency_type.data or 'daily')|tojson|forceescape }},
+          frequencyDays: {{ (room_form.frequency_days.data or 0)|int|tojson }},
+          frequencyTarget: {{ (room_form.frequency_target.data or 3)|int|tojson }},
+        }"
         class="mt-5 space-y-4"
       >
         {{ room_form.csrf_token }}
@@ -217,6 +285,61 @@
           {{ room_form.duration_days(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-rooms focus:ring-2 focus:ring-rooms', value=room_form.duration_days.data or 14, type='number', min=7, max=90) }}
           <p class="mt-1 text-xs text-text-muted">7-90 days. Starts today for everyone who joins - their own final day is their own local timezone's.</p>
           {% for error in room_form.duration_days.errors %}
+          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm text-text-muted">Frequency</label>
+          <p class="mb-1.5 text-xs text-text-muted">Same for every member - locked once the room is created.</p>
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              @click="frequencyType = 'daily'"
+              :class="frequencyType === 'daily' ? 'bg-rooms/20 border-rooms text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+            >Daily</button>
+            <button
+              type="button"
+              @click="frequencyType = 'days'"
+              :class="frequencyType === 'days' ? 'bg-rooms/20 border-rooms text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+            >Specific days</button>
+            <button
+              type="button"
+              @click="frequencyType = 'weekly'"
+              :class="frequencyType === 'weekly' ? 'bg-rooms/20 border-rooms text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+            >X times/week</button>
+          </div>
+          <div x-show="frequencyType === 'days'" x-cloak class="mt-2 grid grid-cols-7 gap-1.5">
+            {% set weekday_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+            {% for label in weekday_labels %}
+            <button
+              type="button"
+              @click="frequencyDays = frequencyDays ^ {{ 2 ** loop.index0 }}"
+              :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-rooms/20 border-rooms text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="rounded-lg border px-1 py-1.5 text-xs font-medium transition-colors"
+            >{{ label }}</button>
+            {% endfor %}
+          </div>
+          <div x-show="frequencyType === 'weekly'" x-cloak class="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              @click="frequencyTarget = Math.max(1, frequencyTarget - 1)"
+              class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+            >−</button>
+            <span class="w-24 text-center text-sm text-text" x-text="frequencyTarget + 'x per week'"></span>
+            <button
+              type="button"
+              @click="frequencyTarget = Math.min(6, frequencyTarget + 1)"
+              class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+            >+</button>
+          </div>
+          <input type="hidden" name="frequency_type" x-model="frequencyType">
+          <input type="hidden" name="frequency_days" :value="frequencyDays">
+          <input type="hidden" name="frequency_target" :value="frequencyTarget">
+          {% for error in room_form.frequency_type.errors + room_form.frequency_days.errors + room_form.frequency_target.errors %}
           <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
           {% endfor %}
         </div>
@@ -360,13 +483,18 @@
       data: {
         labels: canvas.dataset.labels.split("|"),
         datasets: [{
-          data: canvas.dataset.series.split(",").map(Number),
+          // Monotone cubic interpolation stays smooth without ever
+          // overshooting above/below the two points it's drawn between -
+          // the default bezier ("tension") curve can bulge past a
+          // neighboring point's value, which reads as invented data on a
+          // 0-100% axis.
+          data: canvas.dataset.series.split(",").map((v) => Math.min(100, Math.max(0, Number(v)))),
           borderColor: token("--color-accent"),
           backgroundColor: token("--color-accent"),
           borderWidth: 2,
           pointRadius: 0,
           pointHoverRadius: 4,
-          tension: 0.3,
+          cubicInterpolationMode: "monotone",
         }],
       },
       options: {

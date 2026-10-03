@@ -16,6 +16,7 @@
       <p class="text-xs text-text-muted">Best streak</p>
       <p class="mt-1 truncate font-heading text-xl font-bold tabular-nums text-streak" title="{{ best_streak.title }}">
         {{ best_streak.emoji }} {{ best_streak.current_streak }}
+        <span class="text-xs font-medium text-text-muted">{{ best_streak.streak_unit or 'day' }}{{ 's' if best_streak.current_streak != 1 else '' }}</span>
       </p>
     </div>
     {% endif %}

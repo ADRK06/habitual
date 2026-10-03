@@ -45,6 +45,17 @@ class Habit(db.Model):
     emoji = db.Column(db.String(8), nullable=False)
     tiny_version = db.Column(db.String(120), nullable=True)
     created_on = db.Column(db.Date, nullable=False)
+    # "daily" (default) | "days" (specific weekdays) | "weekly" (X times/week).
+    # frequency_days: 7-bit mask (bit i = weekday i scheduled, Mon=0..Sun=6,
+    # matching date.weekday()) - only meaningful for "days". frequency_target:
+    # 1-6 - only meaningful for "weekly". frequency_changed_on: set to the
+    # local date of the most recent frequency edit, NULL if never edited -
+    # every frequency-aware stat restarts counting from this date rather than
+    # created_on once it's set (see habitual/frequency.py).
+    frequency_type = db.Column(db.String(10), nullable=False, default="daily", server_default="daily")
+    frequency_days = db.Column(db.Integer, nullable=True)
+    frequency_target = db.Column(db.Integer, nullable=True)
+    frequency_changed_on = db.Column(db.Date, nullable=True)
 
     checkins = db.relationship(
         "Checkin", backref="habit", cascade="all, delete-orphan", passive_deletes=False
@@ -120,6 +131,13 @@ class Room(db.Model):
     # Short human-typeable alternative to the link - regenerated together
     # with invite_token so an old code/link pair is invalidated as a unit.
     join_code = db.Column(db.String(6), unique=True, nullable=False, index=True)
+    # Same meaning as Habit's frequency_type/frequency_days/frequency_target -
+    # set once by the creator and copied onto every member's Habit row at
+    # join/create time. No frequency_changed_on here: room frequency is locked
+    # after creation (no edit route), so there's nothing to re-base.
+    frequency_type = db.Column(db.String(10), nullable=False, default="daily", server_default="daily")
+    frequency_days = db.Column(db.Integer, nullable=True)
+    frequency_target = db.Column(db.Integer, nullable=True)
 
     members = db.relationship(
         "RoomMember", backref="room", cascade="all, delete-orphan", passive_deletes=False

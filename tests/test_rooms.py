@@ -2,16 +2,20 @@ import secrets
 from datetime import date, datetime, timedelta, timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
+from habitual.frequency import WEEKDAY_BIT
 from habitual.habits import EMOJI_CHOICES
 from habitual.models import Checkin, Habit, PointTransaction, Room, RoomCrown, RoomMember, User
+from habitual.points import week_start
 from habitual.rooms import (
     JOIN_CODE_ALPHABET,
     JOIN_CODE_LENGTH,
     JOIN_CODE_MAX_FAILURES,
     MAX_ROOM_MEMBERS,
+    _flame_size_class,
     finalize_due_crowns,
     generate_join_code,
     normalize_join_code,
+    room_streak_value,
 )
 
 VALID_PASSWORD = "Sup3r$ecret"
@@ -31,16 +35,23 @@ def _login(client, db, username="aadhira", timezone="Asia/Kolkata"):
     return user
 
 
-def _create_room(db, creator, title="Morning Run", emoji="🏃", duration_days=14, start_date=None):
+def _create_room(
+    db, creator, title="Morning Run", emoji="🏃", duration_days=14, start_date=None,
+    frequency_type="daily", frequency_days=None, frequency_target=None,
+):
     start_date = start_date or date.today()
     room = Room(
         title=title, emoji=emoji, creator_id=creator.id, duration_days=duration_days,
         start_date=start_date, invite_token=secrets.token_urlsafe(16), join_code=generate_join_code(),
+        frequency_type=frequency_type, frequency_days=frequency_days, frequency_target=frequency_target,
     )
     db.session.add(room)
     db.session.flush()
     db.session.add(RoomMember(room_id=room.id, user_id=creator.id, joined_on=start_date))
-    db.session.add(Habit(user_id=creator.id, room_id=room.id, title=title, emoji=emoji, created_on=start_date))
+    db.session.add(Habit(
+        user_id=creator.id, room_id=room.id, title=title, emoji=emoji, created_on=start_date,
+        frequency_type=frequency_type, frequency_days=frequency_days, frequency_target=frequency_target,
+    ))
     db.session.commit()
     return room
 
@@ -50,6 +61,8 @@ def _join_room_direct(db, room, user, joined_on=None):
     db.session.add(RoomMember(room_id=room.id, user_id=user.id, joined_on=joined_on))
     db.session.add(Habit(
         user_id=user.id, room_id=room.id, title=room.title, emoji=room.emoji, created_on=joined_on,
+        frequency_type=room.frequency_type, frequency_days=room.frequency_days,
+        frequency_target=room.frequency_target,
     ))
     db.session.commit()
 
@@ -118,6 +131,15 @@ def test_join_landing_shows_room_info_without_login(client, db):
     assert b"Log in" in response.data
 
 
+def test_join_landing_shows_frequency_commitment_for_a_weekly_room(client, db):
+    creator = _create_user(db, username="creator")
+    room = _create_room(db, creator, frequency_type="weekly", frequency_target=4)
+
+    response = client.get(f"/join/{room.invite_token}")
+    assert response.status_code == 200
+    assert b"4x/week" in response.data
+
+
 def test_join_landing_404_for_unknown_token(client, db):
     response = client.get("/join/not-a-real-token")
     assert response.status_code == 404
@@ -175,6 +197,118 @@ def test_join_landing_reflects_ended_state_for_a_logged_in_viewer(client, db):
     response = client.get(f"/join/{room.invite_token}")
     assert response.status_code == 200
     assert b"already ended" in response.data
+
+
+# -- frequency (Specific Days / Weekly) ---------------------------------------
+
+
+def test_create_room_with_specific_days_frequency_copies_to_creators_habit(client, db):
+    _login(client, db)
+    today = date.today()
+    mask = WEEKDAY_BIT[today.weekday()]
+    response = client.post(
+        "/rooms",
+        data={
+            "title": "Run Club", "emoji": EMOJI_CHOICES[0], "duration_days": "14",
+            "frequency_type": "days", "frequency_days": str(mask),
+        },
+    )
+    assert response.status_code == 302
+
+    room = Room.query.filter_by(title="Run Club").first()
+    assert room.frequency_type == "days"
+    assert room.frequency_days == mask
+    habit = Habit.query.filter_by(room_id=room.id).first()
+    assert habit.frequency_type == "days"
+    assert habit.frequency_days == mask
+
+
+def test_create_room_with_weekly_frequency_copies_to_creators_habit(client, db):
+    _login(client, db)
+    response = client.post(
+        "/rooms",
+        data={
+            "title": "Run Club", "emoji": EMOJI_CHOICES[0], "duration_days": "14",
+            "frequency_type": "weekly", "frequency_target": "3",
+        },
+    )
+    assert response.status_code == 302
+
+    room = Room.query.filter_by(title="Run Club").first()
+    assert room.frequency_type == "weekly"
+    assert room.frequency_target == 3
+    habit = Habit.query.filter_by(room_id=room.id).first()
+    assert habit.frequency_type == "weekly"
+    assert habit.frequency_target == 3
+
+
+def test_join_room_copies_room_frequency_to_new_members_habit(client, db):
+    creator = _create_user(db, username="creator")
+    room = _create_room(db, creator, frequency_type="weekly", frequency_target=4)
+    _login(client, db, username="joiner")
+
+    client.post(f"/join/{room.invite_token}")
+
+    joiner_habit = Habit.query.filter_by(room_id=room.id).filter(Habit.user_id != creator.id).first()
+    assert joiner_habit.frequency_type == "weekly"
+    assert joiner_habit.frequency_target == 4
+
+
+def test_room_crown_skipped_on_a_non_scheduled_day(db):
+    # A Specific-Days room with today excluded from the mask - nobody was
+    # asked to show up, so no crown race, no RoomCrown row, no bonus, even
+    # with a (would-be) valid check-in on the books for yesterday.
+    creator = _create_user(db, username="creator")
+    today = date.today()
+    tomorrow_only = WEEKDAY_BIT[(today + timedelta(days=1)).weekday()]
+    room = _create_room(
+        db, creator, start_date=today - timedelta(days=1),
+        frequency_type="days", frequency_days=tomorrow_only,
+    )
+    habit = Habit.query.filter_by(room_id=room.id, user_id=creator.id).first()
+    db.session.add(Checkin(habit_id=habit.id, date=today, proof_note="done it"))
+    db.session.commit()
+
+    finalize_due_crowns(room)
+
+    assert RoomCrown.query.filter_by(room_id=room.id).count() == 0
+    assert PointTransaction.query.filter_by(habit_id=habit.id, reason="crown").count() == 0
+
+
+def test_weekly_room_streak_requires_every_member_to_hit_target_that_week(db):
+    creator = _create_user(db, username="creator")
+    joiner = _create_user(db, username="joiner")
+    today = date.today()
+    this_week = week_start(today)
+    last_week = this_week - timedelta(days=7)
+    room = _create_room(db, creator, start_date=last_week, frequency_type="weekly", frequency_target=2)
+    _join_room_direct(db, room, joiner, joined_on=last_week)
+
+    creator_habit = Habit.query.filter_by(room_id=room.id, user_id=creator.id).first()
+    joiner_habit = Habit.query.filter_by(room_id=room.id, user_id=joiner.id).first()
+
+    # Last week: both members hit target (2). This week: the joiner falls
+    # short (only 1), breaking the room streak for everyone.
+    for d in (last_week, last_week + timedelta(days=1)):
+        db.session.add(Checkin(habit_id=creator_habit.id, date=d))
+        db.session.add(Checkin(habit_id=joiner_habit.id, date=d))
+    db.session.add(Checkin(habit_id=creator_habit.id, date=this_week))
+    db.session.add(Checkin(habit_id=creator_habit.id, date=this_week + timedelta(days=1)))
+    db.session.add(Checkin(habit_id=joiner_habit.id, date=this_week))
+    db.session.commit()
+
+    members = [RoomMember.query.filter_by(room_id=room.id, user_id=creator.id).first(),
+               RoomMember.query.filter_by(room_id=room.id, user_id=joiner.id).first()]
+    assert room_streak_value(room, members) == 1  # last week only - this week isn't decided yet either way
+
+
+def test_flame_size_grows_weekly_for_a_weekly_room():
+    # A 2-WEEK streak is a much bigger real commitment than a 2-DAY one -
+    # the flame must grow one size class per week for a Weekly room,
+    # not get stuck at the smallest size for nearly two months.
+    assert _flame_size_class(2, "day") == "text-xs"
+    assert _flame_size_class(2, "week") == "text-base"
+    assert _flame_size_class(0, "week") is None
 
 
 # -- leave + ownership transfer -----------------------------------------------
@@ -660,10 +794,19 @@ def test_dashboard_room_card_links_to_the_room_not_the_habit_stats_page(client, 
 def test_dashboard_room_card_has_leave_button_not_delete(client, db):
     user = _login(client, db)
     room = _create_room(db, user, title="Run Club")
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
 
     response = client.get("/dashboard").get_data(as_text=True)
     assert f'/rooms/{room.id}/leave' in response
     assert 'Leave "Run Club"?' in response
+    # The card's own top-right trigger must never show the bare delete
+    # glyph for a room habit - only the confirm modal's content (asserted
+    # above) isn't enough, since that passes even if the trigger itself
+    # still renders "x".
+    card_start = response.index(f'id="habit-card-{habit.id}"')
+    card_html = response[card_start:card_start + 2000]
+    assert ">&times;</button>" not in card_html
+    assert ">Leave room</button>" in card_html
 
 
 def test_delete_habit_route_rejects_a_room_habit(client, db):

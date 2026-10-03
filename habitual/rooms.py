@@ -8,11 +8,21 @@ from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy.exc import IntegrityError
 from wtforms import HiddenField, IntegerField, StringField
-from wtforms.validators import DataRequired, NumberRange
+from wtforms.validators import DataRequired, NumberRange, Optional
 
-from habitual import badges, db, points
+from habitual import badges, db, frequency, points
 from habitual.auth import _aware_utc
-from habitual.habits import _analytics_context, _dashboard_context, _habit_view, _validate_emoji, _validate_title
+from habitual.habits import (
+    _analytics_context,
+    _dashboard_context,
+    _frequency_label,
+    _habit_view,
+    _validate_emoji,
+    _validate_frequency_days,
+    _validate_frequency_target,
+    _validate_frequency_type,
+    _validate_title,
+)
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, Room, RoomCrown, RoomMember, User, Vouch
 from habitual.utils.time import local_now, local_today
 
@@ -37,6 +47,11 @@ class RoomForm(FlaskForm):
     duration_days = IntegerField(
         "Duration (days)", validators=[DataRequired(), NumberRange(min=7, max=90, message="7-90 days.")]
     )
+    # Set once by the creator, locked for everyone after creation (no edit
+    # route - see habitual/models.py's Room.frequency_type docstring).
+    frequency_type = HiddenField("Frequency", default="daily", validators=[DataRequired(), _validate_frequency_type])
+    frequency_days = HiddenField("Days", validators=[Optional(), _validate_frequency_days])
+    frequency_target = HiddenField("Target", validators=[Optional(), _validate_frequency_target])
 
 
 class JoinByCodeForm(FlaskForm):
@@ -150,13 +165,29 @@ def rank_members(room, members, as_of=None):
         frozen = {f.used_on for f in habit.freezes if f.used_on is not None and f.used_on <= reference_date}
         amounts = [pt.amount for pt in habit.point_transactions if pt.date <= reference_date]
         checkins_as_of = [c for c in habit.checkins if c.date <= reference_date]
+
+        # Streak/missed-days are frequency-aware, same as a solo habit's -
+        # a Weekly room's "streak" is in weeks, and a Specific-Days room's
+        # non-scheduled days bridge the chain instead of counting as misses.
+        if room.frequency_type == "weekly":
+            target = room.frequency_target or 1
+            current_streak_value = points.weekly_streak(completed, target, reference_date, frozen)
+            missed = points.weekly_missed_weeks(completed, target, habit.created_on, reference_date)
+        else:
+            not_scheduled = frequency.not_scheduled_dates(
+                room.frequency_type, room.frequency_days, habit.created_on, reference_date
+            )
+            bridge = frozen | not_scheduled
+            current_streak_value = points.current_streak(completed, bridge, reference_date)
+            missed = points.missed_days(completed, bridge, habit.created_on, reference_date)
+
         entries.append({
             "member": member,
             "user": user,
             "habit": habit,
             "points": points.earned_points(amounts),
-            "current_streak": points.current_streak(completed, frozen, reference_date),
-            "missed_days": points.missed_days(completed, frozen, habit.created_on, reference_date),
+            "current_streak": current_streak_value,
+            "missed_days": missed,
             "avg_checkin_seconds": _avg_checkin_time_seconds(user, checkins_as_of),
         })
     entries.sort(key=lambda e: (-e["points"], e["missed_days"], e["avg_checkin_seconds"]))
@@ -182,15 +213,32 @@ def room_health_pct(room, members):
 def room_streak_value(room, members):
     if not members:
         return 0
-    member_states = [
-        {"completed": _member_completed_dates(room, m.user), "joined_on": m.joined_on}
-        for m in members
-    ]
     # The most-behind member's own "today" - see points.room_streak's
     # docstring for why a day can't be judged "everyone made it" any
     # earlier than that.
     today_anchor = min(local_today(m.user) for m in members)
+
+    if room.frequency_type == "weekly":
+        member_states = [
+            {"completed": _member_completed_dates(room, m.user), "joined_on": m.joined_on}
+            for m in members
+        ]
+        return points.weekly_room_streak(member_states, room.frequency_target or 1, today_anchor)
+
+    # Specific-Days: every member shares the identical room-wide schedule,
+    # so a non-scheduled day bridges the room streak the same way it
+    # bridges a personal one - union it into every member's "completed"
+    # set uniformly (empty for Daily, a true no-op).
+    not_scheduled = frequency.not_scheduled_dates(room.frequency_type, room.frequency_days, room.start_date, today_anchor)
+    member_states = [
+        {"completed": _member_completed_dates(room, m.user) | not_scheduled, "joined_on": m.joined_on}
+        for m in members
+    ]
     return points.room_streak(member_states, today_anchor)
+
+
+def room_streak_unit(room):
+    return "week" if room.frequency_type == "weekly" else "day"
 
 
 def room_card_extra(room, viewer):
@@ -230,7 +278,14 @@ def _personal_stats(habit, viewer):
 def _date_closed(room, members, date_d):
     """True once every member who'd joined by `date_d` has moved past it in
     their own timezone - i.e. date_d can never receive another eligible
-    check-in from anyone, so its crown can be decided for good."""
+    check-in from anyone, so its crown can be decided for good. A
+    Specific-Days room (every member shares the identical room-wide
+    schedule) short-circuits to "nothing to close" on a non-scheduled day -
+    nobody was asked to show up, so there's no crown race, no RoomCrown
+    row, no bonus. Weekly rooms are unchanged: the crown is a daily
+    "first to check in" mechanic independent of the weekly target."""
+    if not frequency.is_scheduled(date_d, room.frequency_type, room.frequency_days):
+        return False
     joined = [m for m in members if m.joined_on <= date_d]
     if not joined:
         return False
@@ -329,6 +384,8 @@ def _todays_crown_user_id(room, members):
     if not members:
         return None
     today_anchor = _room_today_anchor(members)
+    if not frequency.is_scheduled(today_anchor, room.frequency_type, room.frequency_days):
+        return None
     decided = RoomCrown.query.filter_by(room_id=room.id, date=today_anchor).first()
     if decided is not None:
         return decided.user_id
@@ -361,12 +418,17 @@ def _rank_movement(room, members, ranked_today):
 FLAME_SIZE_CLASSES = ["text-xs", "text-sm", "text-base", "text-lg", "text-xl", "text-2xl"]
 
 
-def _flame_size_class(streak):
+def _flame_size_class(streak, unit="day"):
     """A streak flame that visibly grows with the streak - None (no flame)
-    at 0, one size class bigger every 7 days, capped at the biggest size."""
+    at 0, one size class bigger every 7 days, capped at the biggest size.
+    For a Weekly room, `streak` is already counted in weeks (much smaller
+    numbers for the same real commitment), so it grows one size class per
+    week instead - otherwise a weekly room's flames would stay stuck at
+    the smallest size for nearly two months."""
     if streak <= 0:
         return None
-    return FLAME_SIZE_CLASSES[min(streak // 7, len(FLAME_SIZE_CLASSES) - 1)]
+    step = 1 if unit == "week" else 7
+    return FLAME_SIZE_CLASSES[min(streak // step, len(FLAME_SIZE_CLASSES) - 1)]
 
 
 def _crown_badges_for_checkins(room, members, checkins):
@@ -468,7 +530,7 @@ def _leaderboard_context(room, members, viewer):
             "bar_pct": round(entry["points"] / leader_points * 100) if leader_points > 0 else 0,
             "gap_to_above": (above["points"] - entry["points"]) if above else None,
             "lead_margin": (entry["points"] - second["points"]) if second else None,
-            "flame_size": _flame_size_class(entry["current_streak"]),
+            "flame_size": _flame_size_class(entry["current_streak"], room_streak_unit(room)),
         })
     return entries
 
@@ -492,6 +554,8 @@ def render_room_live_update(room, viewer):
         leaderboard=_leaderboard_context(room, members, viewer),
         health_pct=room_health_pct(room, members),
         streak_value=room_streak_value(room, members),
+        room_streak_unit=room_streak_unit(room),
+        room_frequency_label=_frequency_label(room),
         feed=_feed_context(room, members, viewer),
         **_personal_stats(viewer_habit, viewer),
     )
@@ -518,6 +582,9 @@ def create_room():
         start_date=today,
         invite_token=secrets.token_urlsafe(16),
         join_code=generate_join_code(),
+        frequency_type=form.frequency_type.data,
+        frequency_days=int(form.frequency_days.data) if form.frequency_type.data == "days" else None,
+        frequency_target=int(form.frequency_target.data) if form.frequency_type.data == "weekly" else None,
     )
     db.session.add(room)
     db.session.flush()  # need room.id before the member/habit rows below
@@ -525,6 +592,8 @@ def create_room():
     db.session.add(RoomMember(room_id=room.id, user_id=current_user.id, joined_on=today))
     db.session.add(Habit(
         user_id=current_user.id, room_id=room.id, title=room.title, emoji=room.emoji, created_on=today,
+        frequency_type=room.frequency_type, frequency_days=room.frequency_days,
+        frequency_target=room.frequency_target,
     ))
     db.session.commit()
 
@@ -554,6 +623,7 @@ def join_landing(token):
         is_full=is_full,
         can_join=can_join,
         ended_for_viewer=ended_for_viewer,
+        frequency_label=_frequency_label(room),
     )
 
 
@@ -575,6 +645,8 @@ def join_room(token):
     db.session.add(RoomMember(room_id=room.id, user_id=current_user.id, joined_on=today))
     db.session.add(Habit(
         user_id=current_user.id, room_id=room.id, title=room.title, emoji=room.emoji, created_on=today,
+        frequency_type=room.frequency_type, frequency_days=room.frequency_days,
+        frequency_target=room.frequency_target,
     ))
     db.session.commit()
 
@@ -612,6 +684,8 @@ def room_detail(room_id):
         leaderboard=_leaderboard_context(room, members, current_user),
         health_pct=room_health_pct(room, members),
         streak_value=room_streak_value(room, members),
+        room_streak_unit=room_streak_unit(room),
+        room_frequency_label=_frequency_label(room),
         feed=_feed_context(room, members, current_user),
         invite_message=_invite_message(room),
         newly_awarded_badges=newly_awarded_badges,

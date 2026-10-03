@@ -17,7 +17,14 @@
     <div class="flex items-center gap-4">
       <span class="text-4xl">{{ room.emoji }}</span>
       <div>
-        <h1 class="font-heading text-2xl font-semibold text-text">{{ room.title }}</h1>
+        <div class="flex items-center gap-2">
+          <h1 class="font-heading text-2xl font-semibold text-text">{{ room.title }}</h1>
+          {% if room_frequency_label and room_frequency_label != 'Daily' %}
+          <span class="inline-flex items-center rounded-full bg-rooms/15 px-2 py-0.5 text-[11px] font-medium text-rooms">
+            {{ room_frequency_label }}
+          </span>
+          {% endif %}
+        </div>
         <p class="text-sm text-text-muted">
           {{ member_count }}/{{ max_members }} member{{ "s" if member_count != 1 else "" }}
           {%- if ended %} · room ended

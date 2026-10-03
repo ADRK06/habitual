@@ -1,5 +1,7 @@
 from datetime import date, time, timedelta
 
+import pytest
+
 from habitual.points import (
     balance,
     can_purchase_freeze,
@@ -7,8 +9,10 @@ from habitual.points import (
     current_streak,
     earned_points,
     freeze_available,
+    freeze_target_date,
     has_valid_proof_for_crown,
     longest_streak,
+    longest_weekly_streak,
     milestone_bonus,
     milestone_label,
     missed_days,
@@ -19,6 +23,15 @@ from habitual.points import (
     streak_day_on,
     streak_length_through,
     success_rate,
+    week_start,
+    weekly_completions,
+    weekly_freeze_available,
+    weekly_freeze_target_week,
+    weekly_milestone_bonus_for_checkin,
+    weekly_missed_weeks,
+    weekly_room_streak,
+    weekly_streak,
+    weekly_success_rate,
 )
 
 D0 = date(2026, 1, 1)
@@ -204,6 +217,72 @@ def test_freeze_not_available_if_yesterday_already_frozen():
     assert freeze_available(completed, frozen, today) is False
 
 
+# --- freeze_target_date: Specific-Days schedule-aware window --------------
+
+MON = date(2026, 1, 5)  # a Monday
+TUE = MON + timedelta(days=1)
+WED = MON + timedelta(days=2)
+THU = MON + timedelta(days=3)
+FRI = MON + timedelta(days=4)
+SAT = MON + timedelta(days=5)
+
+
+def test_freeze_target_date_specific_days_offered_the_day_after_a_miss():
+    # Mon/Wed/Fri: Monday done, Wednesday missed, checking in on Thursday.
+    completed = {MON}
+    schedule = (WED, FRI)  # (missed_candidate, window_end)
+    assert freeze_target_date(completed, set(), THU, schedule) == WED
+
+
+def test_freeze_target_date_specific_days_still_offered_on_window_end_regardless_of_checkin():
+    # Friday (window_end) already checked in - freeze for Wed must still be
+    # offered (order-independent, same as Daily never caring what "today"
+    # itself looks like).
+    completed = {MON, FRI}
+    schedule = (WED, FRI)
+    assert freeze_target_date(completed, set(), FRI, schedule) == WED
+
+
+def test_freeze_target_date_specific_days_window_closes_after_window_end():
+    completed = {MON, FRI}
+    schedule = (WED, FRI)
+    assert freeze_target_date(completed, set(), SAT, schedule) is None
+
+
+def test_freeze_target_date_specific_days_none_if_missed_day_already_frozen():
+    completed = {MON}
+    frozen = {WED}
+    schedule = (WED, FRI)
+    assert freeze_target_date(completed, frozen, THU, schedule) is None
+
+
+def test_freeze_target_date_specific_days_requires_a_prior_streak():
+    schedule = (WED, FRI)
+    assert freeze_target_date(set(), set(), THU, schedule) is None
+
+
+# --- success_rate with a `not_scheduled` set (Specific Days) ----------------
+
+
+def test_success_rate_not_scheduled_ignores_non_scheduled_gaps():
+    # Mon/Wed scheduled only - Tuesday being incomplete (it's never due)
+    # shouldn't drag the rate down.
+    not_scheduled = {TUE}
+    completed = {MON, WED}
+    assert success_rate(completed, MON, WED, not_scheduled) == 100.0
+
+
+def test_success_rate_not_scheduled_missed_scheduled_day_lowers_rate():
+    not_scheduled = {TUE, THU}  # Mon/Wed/Fri schedule
+    completed = {MON, FRI}  # Wed missed
+    assert success_rate(completed, MON, FRI, not_scheduled) == pytest.approx(66.66666666666667)
+
+
+def test_success_rate_not_scheduled_defaults_to_all_days_behavior():
+    completed = {MON, WED}
+    assert success_rate(completed, MON, WED) == success_rate(completed, MON, WED, set())
+
+
 def test_can_purchase_freeze_respects_cost_and_cap():
     assert can_purchase_freeze(balance=50, unused_freeze_count=0) is True
     assert can_purchase_freeze(balance=49, unused_freeze_count=0) is False
@@ -335,6 +414,35 @@ def test_room_streak_grace_period_before_todays_anchor_is_done():
     assert room_streak(members, today_anchor) == 1  # falls back to yesterday's count
 
 
+def test_weekly_room_streak_requires_every_joined_member_to_hit_target_each_week():
+    target = 2
+    members = [
+        {"completed": {WEEK0, WEEK0 + timedelta(days=1), WEEK1, WEEK1 + timedelta(days=1)}, "joined_on": WEEK0},
+        {"completed": {WEEK0, WEEK0 + timedelta(days=1)}, "joined_on": WEEK0},  # misses week1's target
+    ]
+    today_anchor = WEEK1 + timedelta(days=3)
+    assert weekly_room_streak(members, target, today_anchor) == 1  # week0 only
+
+
+def test_weekly_room_streak_ignores_weeks_before_a_member_joined():
+    target = 1
+    members = [
+        {"completed": {WEEK0, WEEK1}, "joined_on": WEEK0},
+        {"completed": {WEEK1}, "joined_on": WEEK1},  # joined in week1, week0 isn't held against them
+    ]
+    today_anchor = WEEK1 + timedelta(days=2)
+    assert weekly_room_streak(members, target, today_anchor) == 2
+
+
+def test_weekly_room_streak_grace_period_before_this_weeks_anchor_is_decided():
+    target = 1
+    members = [
+        {"completed": {WEEK0}, "joined_on": WEEK0},  # this week not hit yet
+    ]
+    today_anchor = WEEK1 + timedelta(days=1)
+    assert weekly_room_streak(members, target, today_anchor) == 1  # falls back to last week
+
+
 # --- missed days (leaderboard tiebreaker) -----------------------------------
 
 
@@ -355,3 +463,236 @@ def test_missed_days_frozen_gap_does_not_count_as_missed():
     frozen = days(1)
     today = D0 + timedelta(days=3)
     assert missed_days(completed, frozen, D0, today) == 0
+
+
+def test_weekly_missed_weeks_counts_weeks_under_target_excluding_the_current_one():
+    target = 2
+    completed = {WEEK0, WEEK0 + timedelta(days=1)}  # week0 hit, week1 (current) not yet
+    today = WEEK1 + timedelta(days=2)
+    assert weekly_missed_weeks(completed, target, WEEK0, today) == 0
+
+
+def test_weekly_missed_weeks_counts_a_fully_elapsed_short_week():
+    target = 2
+    completed = {WEEK0}  # only 1 completion in week0 - misses target
+    today = WEEK1 + timedelta(days=2)
+    assert weekly_missed_weeks(completed, target, WEEK0, today) == 1
+
+
+# --- weekly frequency (X times/week) -------------------------------------
+
+WEEK0 = MON  # 2026-01-05, a Monday
+WEEK1 = WEEK0 + timedelta(days=7)
+WEEK2 = WEEK0 + timedelta(days=14)
+WEEK3 = WEEK0 + timedelta(days=21)
+
+
+def test_week_start_returns_the_monday():
+    assert week_start(WEEK0 + timedelta(days=3)) == WEEK0
+    assert week_start(WEEK0) == WEEK0
+
+
+def test_weekly_completions_buckets_by_week():
+    completed = {WEEK0, WEEK0 + timedelta(days=1), WEEK1 + timedelta(days=2)}
+    assert weekly_completions(completed) == {WEEK0: 2, WEEK1: 1}
+
+
+def test_weekly_streak_counts_consecutive_weeks_hitting_target():
+    target = 3
+    completed = {
+        WEEK0, WEEK0 + timedelta(days=1), WEEK0 + timedelta(days=2),
+        WEEK1, WEEK1 + timedelta(days=1), WEEK1 + timedelta(days=2),
+        WEEK2, WEEK2 + timedelta(days=1), WEEK2 + timedelta(days=2),
+    }
+    today = WEEK2 + timedelta(days=2)  # Wednesday of week 2, already at target
+    assert weekly_streak(completed, target, today) == 3
+
+
+def test_weekly_streak_gives_grace_for_an_in_progress_week():
+    target = 3
+    completed = {
+        WEEK0, WEEK0 + timedelta(days=1), WEEK0 + timedelta(days=2),
+        WEEK1, WEEK1 + timedelta(days=1), WEEK1 + timedelta(days=2),
+        WEEK2, WEEK2 + timedelta(days=1),  # only 2 so far this week
+    }
+    today = WEEK2 + timedelta(days=3)  # Thursday - week 2 hasn't hit target yet
+    assert weekly_streak(completed, target, today) == 2
+
+
+def test_weekly_streak_breaks_on_a_missed_week():
+    target = 2
+    completed = {WEEK0, WEEK0 + timedelta(days=1), WEEK2, WEEK2 + timedelta(days=1)}
+    today = WEEK2 + timedelta(days=3)
+    assert weekly_streak(completed, target, today) == 1  # week1 missed entirely
+
+
+def test_weekly_streak_frozen_week_bridges_the_chain():
+    target = 2
+    completed = {WEEK0, WEEK0 + timedelta(days=1), WEEK2, WEEK2 + timedelta(days=1)}
+    today = WEEK2 + timedelta(days=3)
+    assert weekly_streak(completed, target, today, frozen_weeks={WEEK1}) == 3
+
+
+def test_longest_weekly_streak_finds_the_best_run_even_after_a_break():
+    target = 2
+    completed = {
+        WEEK0, WEEK0 + timedelta(days=1),
+        WEEK1, WEEK1 + timedelta(days=1),
+        WEEK3, WEEK3 + timedelta(days=1),
+    }  # week2 missed, breaking the chain before a fresh 1-week run
+    today = WEEK3 + timedelta(days=2)
+    assert longest_weekly_streak(completed, target, WEEK0, today) == 2
+    assert weekly_streak(completed, target, today) == 1
+
+
+def test_longest_weekly_streak_frozen_week_counts_toward_the_best_run():
+    target = 2
+    completed = {
+        WEEK0, WEEK0 + timedelta(days=1),
+        WEEK2, WEEK2 + timedelta(days=1),
+    }
+    today = WEEK2 + timedelta(days=2)
+    assert longest_weekly_streak(completed, target, WEEK0, today, frozen_weeks={WEEK1}) == 3
+
+
+def test_weekly_success_rate_basic():
+    # 2 weeks elapsed, target 3/week, 4 completions total -> 4/6 = 66.67%
+    completed = {WEEK0, WEEK0 + timedelta(days=1), WEEK1, WEEK1 + timedelta(days=1)}
+    today = WEEK1 + timedelta(days=3)
+    assert weekly_success_rate(completed, WEEK0, today, 3) == pytest.approx(200 / 3)
+
+
+def test_weekly_success_rate_current_week_counts_fully_even_if_just_started():
+    completed = set()
+    today = WEEK0  # Monday, the very first day
+    assert weekly_success_rate(completed, WEEK0, today, 3) == 0.0
+
+
+def test_weekly_freeze_target_week_offered_when_last_week_missed_with_active_streak():
+    target = 2
+    completed = {WEEK0, WEEK0 + timedelta(days=1)}  # week0 hit target, week1 missed
+    today = WEEK2  # first day of week 2
+    assert weekly_freeze_target_week(completed, target, today) == WEEK1
+    assert weekly_freeze_available(completed, target, today) is True
+
+
+def test_weekly_freeze_target_week_still_offered_even_if_this_week_already_hit():
+    target = 2
+    completed = {
+        WEEK0, WEEK0 + timedelta(days=1),  # week0 hit
+        WEEK2, WEEK2 + timedelta(days=1),  # week2 (this week) already hit too
+    }
+    today = WEEK2 + timedelta(days=2)
+    # order-independence, one granularity up from the daily freeze: whether
+    # this week is already done doesn't change whether last week's miss is
+    # still coverable.
+    assert weekly_freeze_target_week(completed, target, today) == WEEK1
+
+
+def test_weekly_freeze_target_week_none_without_a_prior_streak():
+    target = 2
+    completed = set()  # week1 missed, but there was no streak going into it
+    today = WEEK2
+    assert weekly_freeze_target_week(completed, target, today) is None
+
+
+def test_weekly_freeze_target_week_none_if_last_week_already_frozen():
+    target = 2
+    completed = {WEEK0, WEEK0 + timedelta(days=1)}
+    today = WEEK2
+    assert weekly_freeze_target_week(completed, target, today, frozen_weeks={WEEK1}) is None
+
+
+def test_weekly_milestone_bonus_only_fires_on_the_target_reaching_checkin():
+    target = 3
+    week_completions = [WEEK0, WEEK0 + timedelta(days=2), WEEK0 + timedelta(days=4)]
+    completed = set(week_completions)
+    assert weekly_milestone_bonus_for_checkin(completed, target, week_completions[0]) == 0
+    assert weekly_milestone_bonus_for_checkin(completed, target, week_completions[1]) == 0
+    assert weekly_milestone_bonus_for_checkin(completed, target, week_completions[2]) == milestone_bonus(1)
+
+
+def test_weekly_milestone_bonus_checkins_beyond_target_earn_no_bonus():
+    target = 2
+    completed = {WEEK0, WEEK0 + timedelta(days=2), WEEK0 + timedelta(days=4)}
+    extra = WEEK0 + timedelta(days=4)
+    assert weekly_milestone_bonus_for_checkin(completed, target, extra) == 0
+
+
+def test_weekly_milestone_bonus_reprices_identically_regardless_of_freeze_order():
+    # Mirrors test_checkin_then_freeze_matches_freeze_then_checkin, one
+    # granularity up: weeks 0-4 hit target (5-week streak), week 5 is
+    # missed, week 6 hits target again. Freezing week 5 bridges the chain
+    # into a 7-week streak (the week-7 milestone) - this must award the
+    # exact same bonus whether the freeze happens before or after week 6's
+    # target-reaching check-in prices.
+    target = 2
+    weeks = [WEEK0 + timedelta(days=7 * i) for i in range(7)]
+    completed = set()
+    for wk in weeks[:5]:
+        completed |= {wk, wk + timedelta(days=1)}
+    missed_week = weeks[5]
+    target_reaching_checkin = weeks[6] + timedelta(days=1)
+    completed |= {weeks[6], target_reaching_checkin}
+
+    checkin_then_freeze = weekly_milestone_bonus_for_checkin(completed, target, target_reaching_checkin, frozen_weeks=set())
+    freeze_then_checkin = weekly_milestone_bonus_for_checkin(
+        completed, target, target_reaching_checkin, frozen_weeks={missed_week}
+    )
+    assert checkin_then_freeze == 0  # priced without the bridge: week 6 alone, streak 1 - no milestone
+    assert freeze_then_checkin == milestone_bonus(7)  # priced with the bridge: a 7-week streak
+    assert freeze_then_checkin > checkin_then_freeze
+
+
+# --- frequency-edit restart (`floor`) -------------------------------------
+
+
+def test_current_streak_floor_is_a_noop_when_there_is_no_gap_to_cross():
+    completed = days(0, 1, 2)
+    today = D0 + timedelta(days=2)
+    assert current_streak(completed, set(), today, floor=D0) == 3
+
+
+def test_current_streak_floor_truncates_an_unbroken_chain_at_the_edit_date():
+    # No real gap at all - every day is genuinely completed - but a
+    # frequency edit still unconditionally restarts the count from the
+    # edit date forward, per the approved design ("streak restarts on
+    # change", not just "restarts if it would otherwise be exploitable").
+    completed = days(0, 1, 2, 3, 4)
+    today = D0 + timedelta(days=4)
+    floor = D0 + timedelta(days=3)  # edited on day 3
+    assert current_streak(completed, set(), today, floor=floor) == 2  # days 3-4 only
+
+
+def test_streak_day_on_returns_zero_before_the_floor():
+    completed = days(0, 1, 2)
+    floor = D0 + timedelta(days=1)
+    assert streak_day_on(completed, set(), D0, floor=floor) == 0  # day 0 predates the edit
+    assert streak_day_on(completed, set(), D0 + timedelta(days=1), floor=floor) == 1  # restarts at day 1
+
+
+def test_freeze_target_date_floor_blocks_saving_a_day_before_the_edit():
+    # 3-day streak, miss day 3, then edit frequency on day 4 (today). The
+    # missed day predates the edit, so a freeze bought today has nothing
+    # to cover - it can't resurrect pre-edit history either.
+    completed = days(0, 1, 2)
+    today = D0 + timedelta(days=4)
+    floor = today
+    assert freeze_target_date(completed, set(), today, floor=floor) is None
+    assert freeze_available(completed, set(), today, floor=floor) is False
+
+
+def test_weekly_streak_floor_truncates_an_unbroken_chain_at_the_edit_week():
+    target = 2
+    completed = {WEEK0, WEEK0 + timedelta(days=1), WEEK1, WEEK1 + timedelta(days=1)}
+    today = WEEK1 + timedelta(days=2)
+    assert weekly_streak(completed, target, today) == 2
+    assert weekly_streak(completed, target, today, floor=WEEK1) == 1  # edited during week 1
+
+
+def test_weekly_freeze_target_week_floor_blocks_a_pre_edit_week():
+    target = 1
+    completed = {WEEK0}  # week0 hit, week1 missed entirely
+    today = WEEK2
+    assert weekly_freeze_target_week(completed, target, today) == WEEK1
+    assert weekly_freeze_target_week(completed, target, today, floor=WEEK2) is None

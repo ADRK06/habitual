@@ -9,7 +9,7 @@
    dashboard.html's initDayStatus() takes over from data-midnight-ms /
    data-habits-remaining to keep it ticking live and to refresh at
    midnight. #}
-{% if oob or habits_remaining is not none %}
+{% if oob or habits_remaining is not none or weekly_progress %}
 <div
   id="day-status"
   {% if oob %}hx-swap-oob="true"{% endif %}
@@ -17,7 +17,7 @@
   data-midnight-ms="{{ midnight_epoch_ms }}"
   data-habits-remaining="{{ habits_remaining }}"
   {% endif %}
-  class="flex w-full flex-wrap items-center gap-2 {{ 'pb-6' if habits_remaining is not none else '' }}"
+  class="flex w-full flex-wrap items-center gap-2 {{ 'pb-6' if (habits_remaining is not none or weekly_progress) else '' }}"
 >
   {% if habits_remaining == 0 %}
   <span id="day-status-text" class="flex items-center gap-1.5 rounded-full border border-success/30 bg-success/15 px-3 py-1 text-sm font-medium text-success">
@@ -32,5 +32,13 @@
     <span class="text-text-muted">left today · {{ habits_remaining }} habit{{ "s" if habits_remaining != 1 else "" }} left</span>
   </span>
   {% endif %}
+
+  {% for chip in weekly_progress %}
+  <span class="flex items-center gap-1.5 rounded-full border border-border bg-surface/60 px-3 py-1 text-sm">
+    <span>{{ chip.emoji }}</span>
+    <span class="font-medium text-text">{{ chip.title }}</span>
+    <span class="tabular-nums {{ 'text-success' if chip.done_this_week >= chip.target else 'text-text-muted' }}">{{ chip.done_this_week }}/{{ chip.target }} this week</span>
+  </span>
+  {% endfor %}
 </div>
 {% endif %}
