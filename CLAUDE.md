@@ -332,4 +332,5 @@ Deploy: push to GitHub `main` → Vercel auto-deploys. Run `./scripts/migrate-pr
 **v2 (not now)**: photo proof (Vercel Blob), email/web-push reminders, ML "at-risk day" prediction, mobile,
 design and implement the Habitual logo (SVG, nav/footer/favicon) - reference image at
 `docs/reference/logo-reference.png`, keep its stacked-capsules + checkmark concept, simplified to our
-palette and fonts (see "Logo" under Design direction).
+palette and fonts (see "Logo" under Design direction). 3 icon-variation exploration (not yet picked) lives
+on the `logo-exploration` branch - a dev-only `/dev/logos` page, not merged into main.
