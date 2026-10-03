@@ -23,29 +23,40 @@
     </div>
   </div>
 
-  <div class="mt-4 grid grid-cols-7 gap-2 text-center text-xs text-text-muted">
-    <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
-  </div>
-  <div class="mt-2 grid grid-cols-7 gap-2">
-    {% for week in calendar.weeks %}
-      {% for cell in week %}
-        {% if cell is none %}
-          <div class="h-10 w-10"></div>
-        {% else %}
-          <div
-            class="flex h-10 w-10 items-center justify-center rounded-lg text-xs
-              {% if cell.state == 'done' %}bg-accent font-semibold text-bg
-              {% elif cell.state == 'frozen' %}bg-accent/25 text-accent
-              {% elif cell.state == 'not_scheduled' %}border border-dashed border-text-muted/25 text-text-muted/40
-              {% elif cell.state == 'missed' %}border border-border text-text-muted
-              {% else %}text-text-muted/50{% endif %}"
-            {% if cell.state == 'frozen' %}aria-label="{{ cell.day }}, streak frozen"{% endif %}
-            {% if cell.state == 'not_scheduled' %}aria-label="{{ cell.day }}, not scheduled"{% endif %}
-          >
-            {{ cell.day }}
-          </div>
-        {% endif %}
+  {# One shared 7-column grid width for both the weekday header and the date
+     rows, so columns line up exactly, and both the letters and the date
+     pills are centred within their column via justify-items-center -
+     otherwise a fixed-size pill (h-10 w-10) sits at the start of its grid
+     area instead of centred under its header letter. Capped at max-w-sm and
+     centred in the card so columns stay tight at square-ish width instead of
+     stretching across a wide card. #}
+  <div class="mx-auto mt-4 max-w-sm">
+    <div class="grid grid-cols-7 gap-2 justify-items-center text-center text-xs text-text-muted">
+      <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+    </div>
+    <div class="mt-2 grid grid-cols-7 gap-2 justify-items-center">
+      {% for week in calendar.weeks %}
+        {% for cell in week %}
+          {% if cell is none %}
+            <div class="h-10 w-10"></div>
+          {% else %}
+            {% set ring = ' ring-2 ring-accent ring-offset-2 ring-offset-bg' if cell.is_today else '' %}
+            {% set today_suffix = ', today' if cell.is_today else '' %}
+            <div
+              class="flex h-10 w-10 items-center justify-center rounded-lg text-xs
+                {% if cell.state == 'done' %}bg-accent font-semibold text-bg
+                {% elif cell.state == 'frozen' %}bg-accent/25 text-accent
+                {% elif cell.state == 'not_scheduled' %}border border-dashed border-text-muted/25 text-text-muted/40
+                {% elif cell.state == 'missed' %}border border-border text-text-muted
+                {% else %}text-text-muted/50{% endif %}{{ ring }}"
+              {% if cell.state == 'frozen' %}aria-label="{{ cell.day }}, streak frozen{{ today_suffix }}"{% endif %}
+              {% if cell.state == 'not_scheduled' %}aria-label="{{ cell.day }}, not scheduled{{ today_suffix }}"{% endif %}
+            >
+              {{ cell.day }}
+            </div>
+          {% endif %}
+        {% endfor %}
       {% endfor %}
-    {% endfor %}
+    </div>
   </div>
 </div>

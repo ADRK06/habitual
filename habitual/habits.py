@@ -550,6 +550,7 @@ def _month_calendar_context(habit, month_start, today):
             {
                 "day": d.day,
                 "state": analytics.day_state(d, completed, frozen, habit.created_on, today, not_scheduled),
+                "is_today": d == today,
             }
             if d.month == month_start.month
             else None

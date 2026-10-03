@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 from habitual import frequency
 from habitual.frequency import WEEKDAY_BIT
-from habitual.habits import EMOJI_CHOICES
+from habitual.habits import EMOJI_CHOICES, _month_calendar_context
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, Room, RoomMember, User
 from habitual.points import week_start
 from habitual.rooms import generate_join_code
@@ -604,6 +604,102 @@ def test_habit_detail_rejects_malformed_month_param(client, db):
     habit = _create_habit(db, user)
     response = client.get(f"/habits/{habit.id}?month=not-a-month")
     assert response.status_code == 200
+
+
+# -- month calendar grid: weekday offset, leap years, year rollover ----------
+
+
+def test_month_calendar_monday_start_month_aligns_with_no_leading_blanks(client, db):
+    # June 2026's 1st is a Monday - the first grid column - so the first
+    # week should have no leading blank cells at all, and the trailing
+    # 29th/30th in the last week should be followed by blanks for July.
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date(2026, 1, 1))
+    ctx = _month_calendar_context(habit, date(2026, 6, 1), today=date(2026, 6, 15))
+
+    assert len(ctx["weeks"]) == 5
+    first_week = ctx["weeks"][0]
+    assert all(cell is not None for cell in first_week)
+    assert [cell["day"] for cell in first_week] == [1, 2, 3, 4, 5, 6, 7]
+
+    last_week = ctx["weeks"][-1]
+    assert [cell["day"] if cell else None for cell in last_week] == [29, 30, None, None, None, None, None]
+
+    # "Today" (June 15) is the Monday starting the third week.
+    assert ctx["weeks"][2][0]["day"] == 15
+    assert ctx["weeks"][2][0]["is_today"] is True
+    assert first_week[0]["is_today"] is False
+
+
+def test_month_calendar_sunday_start_month_has_six_leading_blanks(client, db):
+    # November 2026's 1st is a Sunday - the last grid column (headers are
+    # Mon..Sun) - so the first week should show six leading blanks (for the
+    # tail end of October) before the 1st appears in column index 6.
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date(2026, 1, 1))
+    ctx = _month_calendar_context(habit, date(2026, 11, 1), today=date(2026, 11, 1))
+
+    first_week = ctx["weeks"][0]
+    assert first_week[:6] == [None, None, None, None, None, None]
+    assert first_week[6]["day"] == 1
+    assert first_week[6]["is_today"] is True
+
+    # November has 30 days and 6 calendar rows here - the last day (the
+    # 30th) lands in the final week's first column, trailing into December.
+    last_week = ctx["weeks"][-1]
+    assert last_week[0]["day"] == 30
+    assert last_week[1:] == [None] * 6
+
+
+def test_month_calendar_leap_year_february_has_29_days_and_marks_today(client, db):
+    # 2028 is a leap year - February must show the 29th and nothing beyond it.
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date(2026, 1, 1))
+    ctx = _month_calendar_context(habit, date(2028, 2, 1), today=date(2028, 2, 29))
+
+    all_days = [cell["day"] for week in ctx["weeks"] for cell in week if cell is not None]
+    assert all_days == list(range(1, 30))
+
+    last_week = ctx["weeks"][-1]
+    assert last_week[1]["day"] == 29
+    assert last_week[1]["is_today"] is True
+    assert last_week[2:] == [None] * 5
+
+
+def test_month_calendar_december_next_month_rolls_into_next_year(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date(2026, 1, 1))
+    ctx = _month_calendar_context(habit, date(2026, 12, 1), today=date(2026, 12, 10))
+
+    assert ctx["prev_month"] == date(2026, 11, 1)
+    assert ctx["next_month"] == date(2027, 1, 1)
+    # Viewing December 2026 is viewing "today"'s own current month here, so
+    # the next arrow must be disabled - there's nothing beyond it yet.
+    assert ctx["can_go_next"] is False
+    assert ctx["can_go_prev"] is True
+
+
+def test_month_calendar_next_arrow_enabled_for_a_past_month(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date(2026, 1, 1))
+    # Viewing December 2026 while "today" is a few months later - now a
+    # genuinely past month, so both arrows should be enabled.
+    ctx = _month_calendar_context(habit, date(2026, 12, 1), today=date(2027, 3, 1))
+
+    assert ctx["next_month"] == date(2027, 1, 1)
+    assert ctx["can_go_next"] is True
+    assert ctx["can_go_prev"] is True
+
+
+def test_month_calendar_prev_arrow_disabled_at_habit_creation_month(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, created_on=date(2026, 5, 1))
+    # Viewing the habit's own creation month - there's nothing earlier to
+    # show, so the prev arrow must be disabled regardless of "today".
+    ctx = _month_calendar_context(habit, date(2026, 5, 1), today=date(2026, 8, 1))
+
+    assert ctx["can_go_prev"] is False
+    assert ctx["can_go_next"] is True
 
 
 def _data_attrs(tag):
