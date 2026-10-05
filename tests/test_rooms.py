@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 from habitual.frequency import WEEKDAY_BIT
 from habitual.habits import EMOJI_CHOICES
-from habitual.models import Checkin, Habit, PointTransaction, Room, RoomCrown, RoomMember, User
+from habitual.models import Checkin, Habit, PointTransaction, Room, RoomCrown, RoomMember, User, Vouch
 from habitual.points import week_start
 from habitual.rooms import (
     JOIN_CODE_ALPHABET,
@@ -754,6 +754,58 @@ def test_room_page_check_in_returns_live_update_partial(client, db):
     assert 'id="leaderboard-list" hx-swap-oob="true"' in html
     assert 'id="room-health" hx-swap-oob="true"' in html
     assert "habit-card-" not in html  # the dashboard-shaped fragment never leaks into the room-page response
+
+
+def test_room_page_undo_on_an_active_room_habit_removes_vouches_and_crown(client, db):
+    # Regression test: undo on a room habit silently did nothing in the
+    # browser right after a check-in made on the same page load, because the
+    # undo button lives inside a <template x-teleport="body"> popover - htmx
+    # only processes the subtree it just swapped in, so it never saw the
+    # clone Alpine teleports into <body> afterwards, and the button's
+    # hx-delete was never wired up (fixed in base.html's htmx:afterSettle
+    # handler). This test covers the route itself: an active (non-ended)
+    # room, a real check-in, a vouch on it, and the daily crown all in play.
+    owner = _login(client, db, username="owner")
+    room = _create_room(db, owner)
+    owner_habit = Habit.query.filter_by(room_id=room.id, user_id=owner.id).first()
+
+    voucher = _create_user(db, username="voucher")
+    _join_room_direct(db, room, voucher)
+
+    checkin_resp = client.post(
+        f"/habits/{owner_habit.id}/checkin", data={"proof_note": "ran 5k", "room_view": "1"}
+    )
+    assert checkin_resp.status_code == 200
+    checkin = Checkin.query.filter_by(habit_id=owner_habit.id).first()
+    assert checkin is not None
+
+    db.session.add(Vouch(checkin_id=checkin.id, user_id=voucher.id, emoji="✅"))
+    db.session.commit()
+
+    # Not yet finalized (today isn't closed for anyone), but provisionally
+    # held by the owner - the leaderboard shows a crown badge. (Not a bare
+    # "👑" search: the check-in popover's own static copy ("...your shot at
+    # today's crown 👑") always contains that emoji regardless of state.)
+    assert b"Holding today" in client.get(f"/rooms/{room.id}").data
+
+    response = client.delete(f"/habits/{owner_habit.id}/checkin", data={"room_view": "1"})
+    assert response.status_code == 200
+    html = response.data.decode()
+    # Same room-shaped OOB bundle as a live check-in response - every panel
+    # that could be stale after an undo, never the dashboard-shaped partial.
+    assert 'id="my-room-panel"' in html
+    assert 'id="leaderboard-list" hx-swap-oob="true"' in html
+    assert 'id="room-health" hx-swap-oob="true"' in html
+    assert 'id="room-streak-stat" hx-swap-oob="true"' in html
+    assert 'id="room-feed" hx-swap-oob="true"' in html
+    assert "habit-card-" not in html
+
+    assert Checkin.query.filter_by(habit_id=owner_habit.id).count() == 0
+    assert PointTransaction.query.filter_by(habit_id=owner_habit.id).count() == 0
+    assert Vouch.query.filter_by(checkin_id=checkin.id).count() == 0  # cascaded away with the checkin
+
+    # No check-in left today, so nobody provisionally holds the crown.
+    assert b"Holding today" not in client.get(f"/rooms/{room.id}").data
 
 
 def test_dashboard_check_in_still_returns_dashboard_shaped_partial_for_a_room_habit(client, db):

@@ -37,6 +37,22 @@
       event.detail.headers["X-CSRFToken"] = document.querySelector('meta[name="csrf-token"]').content;
     });
 
+    // A swapped-in habit/room card ships its check-in/undo popover inside a
+    // <template x-teleport="body"> (habit_card.html, room_my_panel.html) -
+    // Alpine clones that template's content into <body> itself, on its own
+    // MutationObserver tick, which runs *after* htmx's own per-swap
+    // htmx.process() call has already finished with the swapped subtree.
+    // The clone's hx-delete/hx-post button renders and looks clickable, but
+    // htmx never wired a request handler to it - clicking Undo right after
+    // a check-in (no full page reload in between) silently did nothing.
+    // htmx:afterSettle fires after htmx's settle delay specifically so
+    // other libraries can finish reacting to the swap first, so Alpine's
+    // teleport has already landed by now - re-processing the whole document
+    // here (cheap, and a no-op for anything already bound) picks it up.
+    document.addEventListener("htmx:afterSettle", () => {
+      htmx.process(document.body);
+    });
+
     // Plain (non-htmx) forms don't get htmx's hx-disabled-elt for free -
     // disable their submit button on submit so a slow request (or an
     // impatient double-click/double-Enter) can't fire it twice. Native
