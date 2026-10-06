@@ -280,11 +280,13 @@ def room_streak_unit(room):
     return "week" if room.frequency_type == "weekly" else "day"
 
 
-def room_card_extra(room, viewer):
+def room_card_extra(room, viewer, members=None, habits_by_user=None):
     """Dashboard room-card fields - per-viewer (days remaining, ended) and
-    room-wide (health, leader)."""
-    members = _room_members(room)
-    habits_by_user = _room_member_habits(room, members)
+    room-wide (health, leader). `members`/`habits_by_user` let a caller that
+    already batch-fetched them (the dashboard's per-request room bundle -
+    see _room_bundle_for_user) pass them in instead of this re-fetching."""
+    members = members if members is not None else _room_members(room)
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     ranked = rank_members(room, members, habits_by_user=habits_by_user)
     leader = ranked[0] if ranked else None
     return {
@@ -355,7 +357,7 @@ def _crown_candidates(room, members, date_d, habits_by_user=None):
     return candidates
 
 
-def finalize_due_crowns(room, members=None):
+def finalize_due_crowns(room, members=None, habits_by_user=None):
     """Lazily finalizes the crown for every date that's fully closed and
     not yet decided - safe to call on every room-page/dashboard load.
     `room.finalized_through` is a high-water mark: once a date is decided
@@ -365,15 +367,19 @@ def finalize_due_crowns(room, members=None):
     the old RoomCrown-only dedup re-walked every such date on every single
     call. The UNIQUE(room_id, date) constraint still makes a concurrent
     double-finalize of the same date a no-op rather than a double-award, so
-    this never needs a lock or a cron."""
+    this never needs a lock or a cron.
+
+    `habits_by_user` lets a caller that already batch-fetched member habits
+    pass them in instead of this re-fetching - safe even though finalizing
+    may go on to add PointTransaction rows, since every commit below expires
+    the session's loaded objects, so a caller that re-reads `habit.
+    point_transactions` afterward (e.g. for ranking) transparently gets the
+    fresh data rather than a stale snapshot."""
     members = members if members is not None else _room_members(room)
     if not members:
         return
 
-    # Fetched once for the whole pending-dates loop below - safe to reuse
-    # across iterations since none of them touch Checkin rows, only
-    # RoomCrown/PointTransaction.
-    habits_by_user = _room_member_habits(room, members)
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     # A date can only be closed once every member who could have earned it
     # has moved past it - so nothing newer than the most-behind member's
     # own "yesterday" is even worth checking yet.
@@ -417,14 +423,58 @@ def finalize_due_crowns(room, members=None):
         cursor += timedelta(days=1)
 
 
-def finalize_due_crowns_for_user(user):
+def room_bundle_for_user(user):
+    """One batched fetch of every room `user` belongs to, each with its own
+    members and member-habit rows - {room_id: {"room", "members",
+    "habits_by_user"}}. The dashboard builds this once per request and
+    passes it to both finalize_due_crowns_for_user and each room card's
+    room_card_extra, instead of each of those (and each room the user is
+    in) independently re-fetching the same members/habits."""
+    memberships = RoomMember.query.filter_by(user_id=user.id).all()
+    room_ids = [m.room_id for m in memberships]
+    if not room_ids:
+        return {}
+
+    rooms_by_id = {r.id: r for r in Room.query.filter(Room.id.in_(room_ids))}
+    all_members = (
+        RoomMember.query.filter(RoomMember.room_id.in_(room_ids))
+        .options(selectinload(RoomMember.user))
+        .all()
+    )
+    members_by_room = {}
+    for m in all_members:
+        members_by_room.setdefault(m.room_id, []).append(m)
+
+    member_user_ids = {m.user_id for m in all_members}
+    habit_rows = (
+        Habit.query.filter(Habit.room_id.in_(room_ids), Habit.user_id.in_(member_user_ids))
+        .options(
+            selectinload(Habit.checkins), selectinload(Habit.freezes), selectinload(Habit.point_transactions),
+        )
+        .all()
+    )
+    habits_by_room = {}
+    for h in habit_rows:
+        habits_by_room.setdefault(h.room_id, {})[h.user_id] = h
+
+    return {
+        room_id: {
+            "room": room,
+            "members": members_by_room.get(room_id, []),
+            "habits_by_user": habits_by_room.get(room_id, {}),
+        }
+        for room_id, room in rooms_by_id.items()
+    }
+
+
+def finalize_due_crowns_for_user(user, room_bundle=None):
     """Called on dashboard load (and room-page load) so crown points reach
-    the header/leaderboard even if nobody ever opens the room page itself."""
-    room_ids = [m.room_id for m in RoomMember.query.filter_by(user_id=user.id)]
-    for room_id in room_ids:
-        room = db.session.get(Room, room_id)
-        if room is not None:
-            finalize_due_crowns(room)
+    the header/leaderboard even if nobody ever opens the room page itself.
+    `room_bundle` (see room_bundle_for_user) lets the dashboard pass in its
+    already-fetched members/habits instead of this re-fetching per room."""
+    bundle = room_bundle if room_bundle is not None else room_bundle_for_user(user)
+    for entry in bundle.values():
+        finalize_due_crowns(entry["room"], entry["members"], entry["habits_by_user"])
 
 
 def _crown_counts(room):

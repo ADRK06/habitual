@@ -933,6 +933,40 @@ def test_dashboard_room_card_has_leave_button_not_delete(client, db):
     assert 'aria-label="Leave Run Club"' in card_html
 
 
+def test_dashboard_shows_correct_leader_for_each_of_two_rooms_at_once(client, db):
+    # The dashboard batch-fetches every room a user's in with one shared
+    # query set (rooms.room_bundle_for_user) instead of each room card
+    # re-fetching its own - this guards against that batching mixing up
+    # which members/points belong to which room.
+    user = _login(client, db, username="multi_room")
+    other_a = _create_user(db, username="other_a")
+    other_b = _create_user(db, username="other_b")
+
+    room_a = _create_room(db, user, title="Room A")
+    _join_room_direct(db, room_a, other_a)
+    room_b = _create_room(db, user, title="Room B")
+    _join_room_direct(db, room_b, other_b)
+
+    # other_a outscores the viewer in Room A; the viewer stays ahead in Room B.
+    other_a_habit = Habit.query.filter_by(room_id=room_a.id, user_id=other_a.id).first()
+    db.session.add(PointTransaction(
+        user_id=other_a.id, habit_id=other_a_habit.id, amount=50, reason="daily", date=date.today(),
+    ))
+    db.session.commit()
+
+    viewer_habit_a = Habit.query.filter_by(room_id=room_a.id, user_id=user.id).first()
+    viewer_habit_b = Habit.query.filter_by(room_id=room_b.id, user_id=user.id).first()
+    html = client.get("/dashboard").get_data(as_text=True)
+
+    def _card(habit):
+        start = html.index(f'id="habit-card-{habit.id}"')
+        return html[start:start + 6000]
+
+    assert "You lead" not in _card(viewer_habit_a)
+    assert f"{other_a.name} leads" in _card(viewer_habit_a)
+    assert "You lead" in _card(viewer_habit_b)
+
+
 def test_delete_habit_route_rejects_a_room_habit(client, db):
     user = _login(client, db)
     room = _create_room(db, user)

@@ -356,18 +356,29 @@ def _day_status_context(user, today, habit_rows, habits_remaining):
     }
 
 
-def _room_card_context(habit):
+def _room_card_context(habit, room_bundle=None):
     """Extra Room-badge/leader/health/days-left fields for a dashboard card
-    whose habit belongs to a room - {} for a solo habit."""
+    whose habit belongs to a room - {} for a solo habit. `room_bundle` (see
+    rooms.room_bundle_for_user) lets the dashboard pass in its already-
+    fetched members/habits for this room instead of this re-fetching them -
+    every other caller (checkin/undo/freeze responses) has no bundle and
+    falls back to room_card_extra's own fetch, unchanged."""
     if habit.room_id is None:
         return {}
     from habitual import rooms  # local import avoids a circular import with rooms.py
+    entry = (room_bundle or {}).get(habit.room_id)
+    if entry is not None:
+        return rooms.room_card_extra(entry["room"], current_user, entry["members"], entry["habits_by_user"])
     return rooms.room_card_extra(habit.room, current_user)
 
 
 def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code_error=None):
     from habitual import rooms  # local import avoids a circular import with rooms.py
-    rooms.finalize_due_crowns_for_user(current_user)  # fix #1: crown points land even if nobody opens the room page
+    # One batched fetch of every room this user's in, shared below by crown
+    # finalization and every room card - instead of each re-fetching the
+    # same room's members/habits independently.
+    room_bundle = rooms.room_bundle_for_user(current_user)
+    rooms.finalize_due_crowns_for_user(current_user, room_bundle)  # fix #1: crown points land even if nobody opens the room page
     # Evaluated before _header_stats below, so its badge_rows (and the header
     # stats it re-renders) already reflect anything newly awarded this load.
     newly_awarded_badges = badges.check_and_award(current_user)
@@ -377,7 +388,7 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
     habit_rows = _user_habits(current_user)
     context = {
         "habit_cards": [
-            {**_habit_view(h, today, header["freezes_held"]), **_room_card_context(h)} for h in habit_rows
+            {**_habit_view(h, today, header["freezes_held"]), **_room_card_context(h, room_bundle)} for h in habit_rows
         ],
         "form": form or HabitForm(),
         "room_form": room_form or rooms.RoomForm(),
