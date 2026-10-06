@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
+from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from wtforms import HiddenField, StringField
@@ -218,8 +219,17 @@ def _habit_view(habit, today, freezes_held):
 
 
 def _header_stats(user):
-    amounts = [pt.amount for pt in PointTransaction.query.filter_by(user_id=user.id)]
-    balance = points.balance(amounts)
+    # SQL-side equivalent of points.earned_points/points.balance (sum of
+    # positive amounts; sum of everything) - the header renders on every
+    # page load and action, so this can't pull the user's entire lifetime
+    # ledger into Python just to add it up (CLAUDE.md: earned points never
+    # decrease, so that list only grows).
+    earned_points, balance = db.session.query(
+        func.coalesce(func.sum(case((PointTransaction.amount > 0, PointTransaction.amount), else_=0)), 0),
+        func.coalesce(func.sum(PointTransaction.amount), 0),
+    ).filter(PointTransaction.user_id == user.id).one()
+    earned_points, balance = int(earned_points), int(balance)
+
     freezes_held = Freeze.query.filter_by(user_id=user.id, used_on=None).count()
     can_buy_freeze = points.can_purchase_freeze(balance, freezes_held)
     if can_buy_freeze:
@@ -229,7 +239,7 @@ def _header_stats(user):
     else:
         freeze_buy_disabled_reason = f"Need {points.FREEZE_COST} balance to buy a freeze (you have {balance})."
     return {
-        "earned_points": points.earned_points(amounts),
+        "earned_points": earned_points,
         "balance": balance,
         "freezes_held": freezes_held,
         "can_buy_freeze": can_buy_freeze,

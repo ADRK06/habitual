@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 from habitual import frequency
 from habitual.frequency import WEEKDAY_BIT
-from habitual.habits import EMOJI_CHOICES, _month_calendar_context
+from habitual.habits import EMOJI_CHOICES, _header_stats, _month_calendar_context
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, Room, RoomMember, User
 from habitual.points import week_start
 from habitual.rooms import generate_join_code
@@ -1061,6 +1061,35 @@ def test_create_habit_form_xdata_attribute_is_well_formed(client, db):
     response = client.get("/dashboard")
     assert b'x-data="{ emoji: ""' not in response.data
     assert b"&#34;&#34;" in response.data
+
+
+# -- header stats -------------------------------------------------------------
+
+
+def test_header_stats_earned_points_excludes_spends_but_balance_includes_them(client, db):
+    # earned_points (CLAUDE.md: "never decreases except via habit delete")
+    # must only sum positive ledger rows, while balance sums everything -
+    # the SQL aggregate in _header_stats has to reproduce points.py's
+    # earned_points/balance semantics exactly, not just their happy path.
+    user = _login(client, db)
+    db.session.add_all([
+        PointTransaction(user_id=user.id, habit_id=None, amount=100, reason="daily", date=date.today()),
+        PointTransaction(user_id=user.id, habit_id=None, amount=15, reason="milestone", date=date.today()),
+        PointTransaction(user_id=user.id, habit_id=None, amount=-50, reason="freeze_purchase", date=date.today()),
+    ])
+    db.session.commit()
+
+    stats = _header_stats(user)
+
+    assert stats["earned_points"] == 115  # 100 + 15, the spend excluded
+    assert stats["balance"] == 65  # 100 + 15 - 50
+
+
+def test_header_stats_with_no_transactions_is_zero_not_none(client, db):
+    user = _login(client, db)
+    stats = _header_stats(user)
+    assert stats["earned_points"] == 0
+    assert stats["balance"] == 0
 
 
 # -- buy freeze -------------------------------------------------------------
