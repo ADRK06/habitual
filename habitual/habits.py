@@ -771,14 +771,15 @@ def checkin(habit_id):
         return room_response
 
     header = _header_stats(current_user)
+    habit_rows = _user_habits(current_user)
     context = {
         **_habit_view(habit, today, header["freezes_held"]),
         **_room_card_context(habit),
         **header,
-        **_overview_context(_user_habits(current_user), today),
+        **_overview_context(habit_rows, today),
         "oob": True,
     }
-    context.update(_day_status_context(current_user, today, _user_habits(current_user), context["habits_remaining"]))
+    context.update(_day_status_context(current_user, today, habit_rows, context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
     if toast:
         trigger = {"toast": toast, "checkinCelebration": celebration}
@@ -820,14 +821,15 @@ def undo_checkin(habit_id):
         return room_response
 
     header = _header_stats(current_user)
+    habit_rows = _user_habits(current_user)
     context = {
         **_habit_view(habit, today, header["freezes_held"]),
         **_room_card_context(habit),
         **header,
-        **_overview_context(_user_habits(current_user), today),
+        **_overview_context(habit_rows, today),
         "oob": True,
     }
-    context.update(_day_status_context(current_user, today, _user_habits(current_user), context["habits_remaining"]))
+    context.update(_day_status_context(current_user, today, habit_rows, context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
     resp.headers["HX-Trigger"] = json.dumps({"toast": toast})
     return resp
@@ -949,14 +951,15 @@ def use_freeze(habit_id):
         return room_response
 
     header = _header_stats(current_user)
+    habit_rows = _user_habits(current_user)
     context = {
         **_habit_view(habit, today, header["freezes_held"]),
         **_room_card_context(habit),
         **header,
-        **_overview_context(_user_habits(current_user), today),
+        **_overview_context(habit_rows, today),
         "oob": True,
     }
-    context.update(_day_status_context(current_user, today, _user_habits(current_user), context["habits_remaining"]))
+    context.update(_day_status_context(current_user, today, habit_rows, context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
     trigger = {"toast": toast}
     if newly_badges:
