@@ -1,6 +1,7 @@
 import secrets
 from datetime import date, timedelta
 
+import habitual.badges as badges_module
 from habitual.badges import (
     CROWN_COLLECTOR,
     CROWN_COLLECTOR_THRESHOLD,
@@ -208,6 +209,54 @@ def test_check_and_award_grants_room_champion_to_the_ended_rooms_top_member(db):
 
     assert ROOM_CHAMPION in winner_newly
     assert ROOM_CHAMPION not in loser_newly
+
+
+def test_room_champion_is_not_rechecked_once_already_awarded(db, monkeypatch):
+    # _is_room_champion ranks every room the user's in - expensive enough
+    # that it shouldn't run forever once the (permanent) badge is already
+    # held. check_and_award must short-circuit on existing_types instead of
+    # calling it again.
+    user = _create_user(db)
+    db.session.add(Badge(user_id=user.id, type=ROOM_CHAMPION, earned_on=date.today()))
+    db.session.commit()
+
+    calls = []
+    monkeypatch.setattr(badges_module, "_is_room_champion", lambda u: calls.append(u.id) or True)
+
+    check_and_award(user)
+
+    assert calls == []
+
+
+def test_room_champion_still_awarded_on_a_plain_page_load_with_no_action(db):
+    # "gate it on ended and not yet awarded" must not mean "stop checking" -
+    # a room that ends while nobody takes any further action still has to
+    # grant the badge the next time check_and_award runs (e.g. a dashboard
+    # load), same as before this gate existed.
+    winner = _create_user(db, username="winner2")
+    loser = _create_user(db, username="loser2")
+    start = date.today() - timedelta(days=10)
+    room = Room(
+        title="Race", emoji="🏃", creator_id=winner.id, duration_days=7,
+        start_date=start, invite_token=secrets.token_urlsafe(16), join_code=generate_join_code(),
+    )
+    db.session.add(room)
+    db.session.flush()
+    db.session.add(RoomMember(room_id=room.id, user_id=winner.id, joined_on=start))
+    db.session.add(RoomMember(room_id=room.id, user_id=loser.id, joined_on=start))
+    winner_habit = Habit(user_id=winner.id, room_id=room.id, title="Race", emoji="🏃", created_on=start)
+    loser_habit = Habit(user_id=loser.id, room_id=room.id, title="Race", emoji="🏃", created_on=start)
+    db.session.add_all([winner_habit, loser_habit])
+    db.session.commit()
+    _checkin_run(db, winner_habit, start, 7)
+    _checkin_run(db, loser_habit, start, 2)
+
+    assert ROOM_CHAMPION not in {b.type for b in Badge.query.filter_by(user_id=winner.id)}
+
+    newly = {b["type"] for b in check_and_award(winner)}
+
+    assert ROOM_CHAMPION in newly
+    assert ROOM_CHAMPION in {b.type for b in Badge.query.filter_by(user_id=winner.id)}
 
 
 # --- badge_rows_for -----------------------------------------------------

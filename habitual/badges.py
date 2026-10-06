@@ -97,6 +97,8 @@ def check_and_award(user) -> list[dict]:
     catalog entries for badges newly earned by this call, for a celebration
     modal - empty if nothing changed."""
     today = local_today(user)
+    existing_types = {b.type for b in Badge.query.filter_by(user_id=user.id)}
+
     habit_rows = (
         Habit.query.filter_by(user_id=user.id)
         .options(selectinload(Habit.checkins), selectinload(Habit.freezes))
@@ -120,15 +122,23 @@ def check_and_award(user) -> list[dict]:
 
     crown_count = RoomCrown.query.filter_by(user_id=user.id).count()
 
+    # room_champion is the one eligibility check that isn't cheap - it ranks
+    # every room the user's in (and, within that, only actually re-ranks
+    # ended ones - see _is_room_champion). Badges are permanent (this
+    # module's own docstring), so once a user holds it there's nothing left
+    # to gain by ever running that scan again for them - this is what keeps
+    # check_and_award cheap on every page load and action despite running
+    # unconditionally.
+    is_room_champion = ROOM_CHAMPION in existing_types or _is_room_champion(user)
+
     eligible = earned_badge_types(
         has_any_checkin=has_any_checkin,
         best_streak_ever=best_streak_ever,
         used_freeze_reached_week=used_freeze_reached_week,
         crown_count=crown_count,
-        is_room_champion=_is_room_champion(user),
+        is_room_champion=is_room_champion,
     )
 
-    existing_types = {b.type for b in Badge.query.filter_by(user_id=user.id)}
     newly_earned = sorted(eligible - existing_types, key=BADGE_ORDER.index)
 
     newly = []
