@@ -358,14 +358,18 @@ def _crown_candidates(room, members, date_d, habits_by_user=None):
 def finalize_due_crowns(room, members=None):
     """Lazily finalizes the crown for every date that's fully closed and
     not yet decided - safe to call on every room-page/dashboard load.
-    Already-finalized dates are skipped outright, and the
-    UNIQUE(room_id, date) constraint makes a concurrent double-finalize a
-    no-op rather than a double-award, so this never needs a lock or a cron."""
+    `room.finalized_through` is a high-water mark: once a date is decided
+    (crown awarded or not), it's recorded there and never re-examined again,
+    so this stops costing more the older/more-active a room gets - a date
+    with no crown winner used to have no record of ever being checked, so
+    the old RoomCrown-only dedup re-walked every such date on every single
+    call. The UNIQUE(room_id, date) constraint still makes a concurrent
+    double-finalize of the same date a no-op rather than a double-award, so
+    this never needs a lock or a cron."""
     members = members if members is not None else _room_members(room)
     if not members:
         return
 
-    already = {rc.date for rc in RoomCrown.query.filter_by(room_id=room.id)}
     # Fetched once for the whole pending-dates loop below - safe to reuse
     # across iterations since none of them touch Checkin rows, only
     # RoomCrown/PointTransaction.
@@ -374,31 +378,42 @@ def finalize_due_crowns(room, members=None):
     # has moved past it - so nothing newer than the most-behind member's
     # own "yesterday" is even worth checking yet.
     horizon = min(local_today(m.user) for m in members) - timedelta(days=1)
+    cursor = (room.finalized_through + timedelta(days=1)) if room.finalized_through else room.start_date
 
-    cursor = room.start_date
     while cursor <= horizon:
-        if cursor not in already and _date_closed(room, members, cursor):
-            winner = points.crown_winner(_crown_candidates(room, members, cursor, habits_by_user))
+        if not _date_closed(room, members, cursor):
+            # Dates must be decided in order - if this one isn't closed yet
+            # (someone eligible for it hasn't reached their own tomorrow),
+            # nothing after it can be trusted to be closed either.
+            break
+        winner = points.crown_winner(_crown_candidates(room, members, cursor, habits_by_user))
+        if winner is not None:
+            _, _, winner_user_id, winner_checkin_id, winner_habit_id = winner
+            db.session.add(RoomCrown(
+                room_id=room.id, date=cursor, user_id=winner_user_id, checkin_id=winner_checkin_id,
+            ))
+            db.session.add(PointTransaction(
+                user_id=winner_user_id, habit_id=winner_habit_id,
+                amount=points.CROWN_BONUS, reason="crown", date=cursor,
+            ))
+        room.finalized_through = cursor
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # A near-simultaneous call (another request) already finalized
+            # this exact date first - the date is still decided, just not by
+            # us; advance past it without re-awarding.
+            db.session.rollback()
+            room.finalized_through = cursor
+            db.session.commit()
+        else:
             if winner is not None:
-                _, _, winner_user_id, winner_checkin_id, winner_habit_id = winner
-                db.session.add(RoomCrown(
-                    room_id=room.id, date=cursor, user_id=winner_user_id, checkin_id=winner_checkin_id,
-                ))
-                db.session.add(PointTransaction(
-                    user_id=winner_user_id, habit_id=winner_habit_id,
-                    amount=points.CROWN_BONUS, reason="crown", date=cursor,
-                ))
-                try:
-                    db.session.commit()
-                except IntegrityError:
-                    db.session.rollback()
-                else:
-                    # Lands on whichever page load happened to finalize this
-                    # date, not necessarily the winner's own - that's fine,
-                    # the badge shows up next time they load a page.
-                    winner_user = db.session.get(User, winner_user_id)
-                    if winner_user is not None:
-                        badges.check_and_award(winner_user)
+                # Lands on whichever page load happened to finalize this
+                # date, not necessarily the winner's own - that's fine,
+                # the badge shows up next time they load a page.
+                winner_user = db.session.get(User, winner_user_id)
+                if winner_user is not None:
+                    badges.check_and_award(winner_user)
         cursor += timedelta(days=1)
 
 

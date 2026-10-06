@@ -2,6 +2,7 @@ import secrets
 from datetime import date, datetime, timedelta, timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
+import habitual.rooms as rooms_module
 from habitual.frequency import WEEKDAY_BIT
 from habitual.habits import EMOJI_CHOICES
 from habitual.models import Checkin, Habit, PointTransaction, Room, RoomCrown, RoomMember, User, Vouch
@@ -572,6 +573,75 @@ def test_crown_finalization_ignores_members_who_joined_after_the_date(client, db
     crown = RoomCrown.query.filter_by(room_id=room.id, date=d0).first()
     assert crown is not None
     assert crown.user_id == early_user.id
+
+
+def test_finalize_due_crowns_advances_finalized_through_past_a_crownless_date(client, db):
+    # Nobody checked in at all - every closed date (up through yesterday)
+    # has no winner, so the old RoomCrown-only dedup had no record of any of
+    # them ever being decided and would re-walk the whole range on every
+    # single call forever. finalized_through must move past all of them
+    # anyway.
+    today = date.today()
+    d0 = today - timedelta(days=3)
+    user = _login(client, db, username="nobody_checked_in")
+    room = _create_room(db, user, duration_days=30, start_date=d0)
+
+    finalize_due_crowns(room)
+
+    assert db.session.get(Room, room.id).finalized_through == today - timedelta(days=1)
+    assert RoomCrown.query.filter_by(room_id=room.id).count() == 0
+
+
+def test_finalize_due_crowns_never_reexamines_an_already_decided_date(client, db, monkeypatch):
+    today = date.today()
+    d0 = today - timedelta(days=3)
+    user = _login(client, db, username="decided_once")
+    room = _create_room(db, user, duration_days=30, start_date=d0)
+
+    finalize_due_crowns(room)
+    horizon = today - timedelta(days=1)
+    assert db.session.get(Room, room.id).finalized_through == horizon
+
+    calls = []
+    original_date_closed = rooms_module._date_closed
+    monkeypatch.setattr(
+        rooms_module, "_date_closed",
+        lambda room, members, d: (calls.append(d), original_date_closed(room, members, d))[1],
+    )
+    finalize_due_crowns(room)
+
+    assert calls == []  # nothing from start_date..horizon was re-examined
+
+
+def test_late_joiner_does_not_reopen_already_finalized_dates(client, db):
+    today = date.today()
+    d0 = today - timedelta(days=5)
+    early_user = _login(client, db, username="early_finalizer")
+    room = _create_room(db, early_user, duration_days=30, start_date=d0)
+    early_habit = Habit.query.filter_by(room_id=room.id, user_id=early_user.id).first()
+    db.session.add(Checkin(
+        habit_id=early_habit.id, date=d0, proof_note="day one done",
+        created_at=datetime(d0.year, d0.month, d0.day, 8, 0, tzinfo=dt_timezone.utc),
+    ))
+    db.session.commit()
+
+    finalize_due_crowns(room)
+    finalized_after_first = db.session.get(Room, room.id).finalized_through
+    assert finalized_after_first is not None and finalized_after_first >= d0
+    crown_before = RoomCrown.query.filter_by(room_id=room.id, date=d0).first()
+    assert crown_before.user_id == early_user.id
+
+    # A new member joins today, long after d0 was already decided - must
+    # neither block further finalization nor reopen/reassign d0's crown.
+    latecomer = _create_user(db, username="latecomer_after_finalize")
+    _join_room_direct(db, room, latecomer, joined_on=today)
+
+    finalize_due_crowns(room)
+
+    room_after = db.session.get(Room, room.id)
+    assert room_after.finalized_through >= finalized_after_first
+    crown_after = RoomCrown.query.filter_by(room_id=room.id, date=d0).first()
+    assert crown_after.user_id == early_user.id
 
 
 # -- room page -----------------------------------------------------------------

@@ -138,6 +138,13 @@ class Room(db.Model):
     frequency_type = db.Column(db.String(10), nullable=False, default="daily", server_default="daily")
     frequency_days = db.Column(db.Integer, nullable=True)
     frequency_target = db.Column(db.Integer, nullable=True)
+    # High-water mark for crown finalization - every date from start_date
+    # through this one (inclusive) has already been decided for good
+    # (crown awarded or not), so rooms.finalize_due_crowns never re-walks
+    # it. NULL means nothing has been finalized yet. See that function's
+    # docstring for why this makes finalization cost independent of room
+    # age instead of re-scanning the whole history on every call.
+    finalized_through = db.Column(db.Date, nullable=True)
 
     members = db.relationship(
         "RoomMember", backref="room", cascade="all, delete-orphan", passive_deletes=False
