@@ -1,5 +1,4 @@
 import smtplib
-import urllib.error
 
 import pytest
 
@@ -11,7 +10,7 @@ def _clean_env(monkeypatch):
     # Every provider branch reads straight from os.environ - start each
     # test from a blank slate so one test's env can't leak into another's.
     for key in (
-        "EMAIL_PROVIDER", "VERCEL", "BREVO_API_KEY", "MAIL_FROM_EMAIL", "MAIL_FROM_NAME",
+        "EMAIL_PROVIDER", "VERCEL", "MAIL_FROM_EMAIL", "MAIL_FROM_NAME",
         "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -29,92 +28,15 @@ def test_console_is_the_default_provider_and_prints(monkeypatch, capsys):
     assert "Body text" in out
 
 
-def test_console_refuses_on_vercel(monkeypatch, capsys):
+def test_console_refuses_on_vercel(monkeypatch, capsys, caplog):
     monkeypatch.setenv("VERCEL", "1")
     result = mailer.send_email("a@example.com", "Subject", "Body text")
     assert result is False
     assert "a@example.com" not in capsys.readouterr().out
+    assert "reason=console_on_vercel" in caplog.text
 
 
-# -- brevo ----------------------------------------------------------------------
-
-
-def test_brevo_sends_correct_request(monkeypatch):
-    monkeypatch.setenv("EMAIL_PROVIDER", "brevo")
-    monkeypatch.setenv("BREVO_API_KEY", "secret-key")
-    monkeypatch.setenv("MAIL_FROM_EMAIL", "noreply@habitual.app")
-    monkeypatch.setenv("MAIL_FROM_NAME", "Habitual")
-
-    captured = {}
-
-    class FakeResponse:
-        status = 201
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-    def fake_urlopen(request, timeout=None):
-        captured["url"] = request.full_url
-        captured["headers"] = dict(request.headers)
-        captured["body"] = request.data
-        captured["timeout"] = timeout
-        return FakeResponse()
-
-    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
-
-    result = mailer.send_email("to@example.com", "Hi", "text body", "<p>html</p>")
-    assert result is True
-    assert captured["url"] == mailer.BREVO_API_URL
-    assert captured["headers"]["Api-key"] == "secret-key"
-    assert captured["timeout"] == mailer.TIMEOUT_SECONDS
-    import json
-    payload = json.loads(captured["body"])
-    assert payload["to"] == [{"email": "to@example.com"}]
-    assert payload["sender"] == {"email": "noreply@habitual.app", "name": "Habitual"}
-    assert payload["textContent"] == "text body"
-    assert payload["htmlContent"] == "<p>html</p>"
-
-
-def test_brevo_missing_config_fails_without_sending(monkeypatch):
-    monkeypatch.setenv("EMAIL_PROVIDER", "brevo")
-    # No BREVO_API_KEY/MAIL_FROM_EMAIL set.
-    called = []
-    monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: called.append(1))
-    result = mailer.send_email("to@example.com", "Hi", "text body")
-    assert result is False
-    assert not called
-
-
-def test_brevo_http_error_returns_false(monkeypatch):
-    monkeypatch.setenv("EMAIL_PROVIDER", "brevo")
-    monkeypatch.setenv("BREVO_API_KEY", "secret-key")
-    monkeypatch.setenv("MAIL_FROM_EMAIL", "noreply@habitual.app")
-
-    def fake_urlopen(request, timeout=None):
-        raise urllib.error.HTTPError(
-            mailer.BREVO_API_URL, 400, "Bad Request", {}, fp=__import__("io").BytesIO(b'{"message":"bad"}')
-        )
-
-    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
-    assert mailer.send_email("to@example.com", "Hi", "text body") is False
-
-
-def test_brevo_timeout_returns_false(monkeypatch):
-    monkeypatch.setenv("EMAIL_PROVIDER", "brevo")
-    monkeypatch.setenv("BREVO_API_KEY", "secret-key")
-    monkeypatch.setenv("MAIL_FROM_EMAIL", "noreply@habitual.app")
-
-    def fake_urlopen(request, timeout=None):
-        raise TimeoutError("timed out")
-
-    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
-    assert mailer.send_email("to@example.com", "Hi", "text body") is False
-
-
-# -- smtp -------------------------------------------------------------------
+# -- smtp -----------------------------------------------------------------
 
 
 class _FakeSMTP:
@@ -139,24 +61,47 @@ class _FakeSMTP:
         return False
 
 
+def _set_smtp_env(monkeypatch, password="abcd efgh ijkl mnop"):
+    monkeypatch.setenv("EMAIL_PROVIDER", "smtp")
+    monkeypatch.setenv("SMTP_USER", "me@gmail.com")
+    monkeypatch.setenv("SMTP_PASSWORD", password)
+    monkeypatch.setenv("MAIL_FROM_EMAIL", "me@gmail.com")
+    monkeypatch.setenv("MAIL_FROM_NAME", "Habitual")
+
+
 def test_smtp_sends_with_login_and_message(monkeypatch):
     _FakeSMTP.instances = []
-    monkeypatch.setenv("EMAIL_PROVIDER", "smtp")
-    monkeypatch.setenv("SMTP_HOST", "smtp.gmail.com")
-    monkeypatch.setenv("SMTP_PORT", "465")
-    monkeypatch.setenv("SMTP_USER", "me@gmail.com")
-    monkeypatch.setenv("SMTP_PASSWORD", "app-password")
+    _set_smtp_env(monkeypatch)
     monkeypatch.setattr(smtplib, "SMTP_SSL", _FakeSMTP)
 
     result = mailer.send_email("to@example.com", "Hi", "text body", "<p>html</p>")
     assert result is True
+
     smtp = _FakeSMTP.instances[0]
+    # Defaults to Gmail's host/port when SMTP_HOST/SMTP_PORT aren't set.
     assert smtp.host == "smtp.gmail.com"
+    assert smtp.port == 465
     assert smtp.timeout == mailer.TIMEOUT_SECONDS
-    assert smtp.logged_in == ("me@gmail.com", "app-password")
+    # Spaces stripped from the app password as Google displays it.
+    assert smtp.logged_in == ("me@gmail.com", "abcdefghijklmnop")
+
     from_addr, to_addrs, message = smtp.sent
+    assert from_addr == "me@gmail.com"
     assert to_addrs == ["to@example.com"]
     assert "text body" in message
+    assert "Habitual <me@gmail.com>" in message
+
+
+def test_smtp_respects_custom_host_and_port(monkeypatch):
+    _FakeSMTP.instances = []
+    _set_smtp_env(monkeypatch)
+    monkeypatch.setenv("SMTP_HOST", "smtp.example.org")
+    monkeypatch.setenv("SMTP_PORT", "587")
+    monkeypatch.setattr(smtplib, "SMTP_SSL", _FakeSMTP)
+
+    mailer.send_email("to@example.com", "Hi", "text body")
+    assert _FakeSMTP.instances[0].host == "smtp.example.org"
+    assert _FakeSMTP.instances[0].port == 587
 
 
 def test_smtp_missing_config_fails_without_connecting(monkeypatch):
@@ -167,22 +112,73 @@ def test_smtp_missing_config_fails_without_connecting(monkeypatch):
     assert not called
 
 
-def test_smtp_connection_error_returns_false(monkeypatch):
-    monkeypatch.setenv("EMAIL_PROVIDER", "smtp")
-    monkeypatch.setenv("SMTP_HOST", "smtp.gmail.com")
-    monkeypatch.setenv("SMTP_USER", "me@gmail.com")
-    monkeypatch.setenv("SMTP_PASSWORD", "app-password")
+def test_smtp_from_address_must_match_the_gmail_account(monkeypatch, caplog):
+    _set_smtp_env(monkeypatch)
+    monkeypatch.setenv("MAIL_FROM_EMAIL", "someone-else@example.com")
+    called = []
+    monkeypatch.setattr(smtplib, "SMTP_SSL", lambda *a, **k: called.append(1))
 
-    def raise_connection_error(*a, **k):
-        raise OSError("connection refused")
+    result = mailer.send_email("to@example.com", "Hi", "text body")
+    assert result is False
+    assert not called  # fails fast, never even attempts to connect
+    assert "reason=from_address_mismatch" in caplog.text
 
-    monkeypatch.setattr(smtplib, "SMTP_SSL", raise_connection_error)
-    assert mailer.send_email("to@example.com", "Hi", "text body") is False
+
+def test_smtp_auth_failure_returns_false_and_logs_reason(monkeypatch, caplog):
+    _set_smtp_env(monkeypatch)
+
+    class _AuthFailSMTP(_FakeSMTP):
+        def login(self, user, password):
+            raise smtplib.SMTPAuthenticationError(535, b"Authentication failed")
+
+    monkeypatch.setattr(smtplib, "SMTP_SSL", _AuthFailSMTP)
+    result = mailer.send_email("to@example.com", "Hi", "text body")
+    assert result is False
+    assert "reason=auth" in caplog.text
+    assert "535" not in caplog.text  # no provider detail leaked, just the fixed reason code
+
+
+def test_smtp_timeout_returns_false_and_logs_reason(monkeypatch, caplog):
+    _set_smtp_env(monkeypatch)
+
+    def raise_timeout(*a, **k):
+        raise TimeoutError("timed out")
+
+    monkeypatch.setattr(smtplib, "SMTP_SSL", raise_timeout)
+    result = mailer.send_email("to@example.com", "Hi", "text body")
+    assert result is False
+    assert "reason=timeout" in caplog.text
+
+
+def test_smtp_connection_refused_returns_false_and_logs_reason(monkeypatch, caplog):
+    _set_smtp_env(monkeypatch)
+
+    def raise_refused(*a, **k):
+        raise ConnectionRefusedError("connection refused")
+
+    monkeypatch.setattr(smtplib, "SMTP_SSL", raise_refused)
+    result = mailer.send_email("to@example.com", "Hi", "text body")
+    assert result is False
+    assert "reason=refused" in caplog.text
+
+
+def test_smtp_never_logs_the_password_or_body(monkeypatch, caplog):
+    _set_smtp_env(monkeypatch, password="super secret app password")
+
+    def raise_refused(*a, **k):
+        raise ConnectionRefusedError("x")
+
+    monkeypatch.setattr(smtplib, "SMTP_SSL", raise_refused)
+    mailer.send_email("to@example.com", "Hi", "a secret reset link body")
+    assert "secretapppassword" not in caplog.text
+    assert "secret app password" not in caplog.text
+    assert "reset link" not in caplog.text
 
 
 # -- unknown provider ----------------------------------------------------------
 
 
-def test_unknown_provider_fails_closed(monkeypatch):
+def test_unknown_provider_fails_closed(monkeypatch, caplog):
     monkeypatch.setenv("EMAIL_PROVIDER", "carrier-pigeon")
     assert mailer.send_email("to@example.com", "Hi", "text body") is False
+    assert "reason=unknown_provider" in caplog.text

@@ -48,9 +48,14 @@ decisions briefly in chat, keep code readable, and prefer clarity over clevernes
 **Hosting**
 - Vercel Python runtime, zero-config where possible. Entrypoint: `app.py` exposing `app`.
   Only add `vercel.json` if actually needed.
-- Env vars: `SECRET_KEY`, `DATABASE_URL`
+- Env vars: `SECRET_KEY`, `DATABASE_URL`, plus email (`EMAIL_PROVIDER` + `SMTP_*`/`MAIL_FROM_*`
+  — see `.env.example` and the README's Deployment section for Gmail setup)
 - Serverless means **no persistent disk** → no SQLite in prod, no file uploads to disk.
 - Use Neon's **pooled** connection string; set SQLAlchemy `pool_pre_ping=True` and a small pool.
+- Transactional email (`habitual/mailer.py`) is provider-agnostic via `EMAIL_PROVIDER`: `"smtp"`
+  (Gmail + an App Password — the only real-sending option) or `"console"` (dev default, prints
+  to the terminal, refuses outright on Vercel). Never hardcode `SMTP_PASSWORD`; never log it or
+  an email body — only a short, fixed `reason=...` code on failure.
 
 ---
 

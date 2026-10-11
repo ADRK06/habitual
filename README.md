@@ -6,7 +6,7 @@
 ![Flask](https://img.shields.io/badge/flask-3.1-black)
 ![PostgreSQL](https://img.shields.io/badge/postgresql-neon-336791)
 ![Deployed on Vercel](https://img.shields.io/badge/deployed-vercel-black)
-![Tests](https://img.shields.io/badge/tests-381%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-478%20passing-brightgreen)
 
 ---
 
@@ -112,7 +112,7 @@ JS framework.
 | Animation | GSAP + ScrollTrigger + Flip, Lenis (smooth scroll), View Transitions API |
 | Charts | Chart.js (rings, weekly bars); calendar heatmap is a custom Jinja grid |
 | Extras | canvas-confetti, Lucide icons, Google Fonts (Orbitron / Exo 2 / Inter) |
-| Testing | pytest (381 tests) |
+| Testing | pytest (478 tests) |
 | Hosting | Vercel (Python runtime), zero-config |
 
 ---
@@ -263,7 +263,7 @@ This command refuses to run against production (it checks for the `VERCEL` env v
 pytest
 ```
 
-381 tests currently pass, covering every scoring/streak/freeze rule
+478 tests currently pass, covering every scoring/streak/freeze rule
 ([`tests/test_points.py`](tests/test_points.py)) plus auth, habits, rooms, badges, analytics,
 and frequency behavior — see [`tests/`](tests/).
 
@@ -275,8 +275,8 @@ and frequency behavior — see [`tests/`](tests/).
   `app` directly, no `vercel.json` needed. Pushing to `main` on GitHub auto-deploys.
 - **Database:** [Neon](https://neon.tech/) Postgres, split into a `dev` branch (used locally)
   and a `main` branch (production), each with its own pooled connection string.
-- **Environment variables:** `SECRET_KEY` and `DATABASE_URL`, set in Vercel's project settings —
-  never committed.
+- **Environment variables:** `SECRET_KEY`, `DATABASE_URL`, and email (below), set in Vercel's
+  project settings — never committed.
 - **Schema changes against production:** put the prod pooled `DATABASE_URL` in a local,
   gitignored `.env.prod` (see `.env.prod.example`), then run:
 
@@ -285,6 +285,38 @@ and frequency behavior — see [`tests/`](tests/).
   ```
 
   before or alongside any deploy that changes the schema.
+
+### Email (password recovery)
+
+Transactional email (verification/reset links) goes through `habitual/mailer.py`, picked by the
+`EMAIL_PROVIDER` env var — see `.env.example` for the full variable list.
+
+- **`console`** (default if unset): prints the email to the terminal instead of sending. Fine for
+  local dev; **refused outright on Vercel** — if `EMAIL_PROVIDER` is missing or invalid there, the
+  app logs a loud error rather than silently dropping emails.
+- **`smtp`** (the production option): a dedicated Gmail account.
+  1. Turn on **2-Step Verification** on that Gmail account (Google Account → Security).
+  2. Generate an **App Password**: Google Account → Security → App passwords → create one for
+     "Mail" / "Other". Google shows it as four groups of four characters — `SMTP_PASSWORD` can
+     include the spaces, they're stripped automatically.
+  3. Set in Vercel (Production **and** Preview, if you want previews to send real email too):
+     `EMAIL_PROVIDER=smtp`, `SMTP_USER=you@gmail.com`, `SMTP_PASSWORD=<the app password>`,
+     `MAIL_FROM_EMAIL=you@gmail.com` (**must** match `SMTP_USER` — Gmail only sends mail "from"
+     the authenticated account), `MAIL_FROM_NAME=Habitual`. `SMTP_HOST`/`SMTP_PORT` default to
+     `smtp.gmail.com`/`465` and don't need setting.
+  4. Gmail's free sending limit is **~500 messages/day** — comfortably enough for a personal
+     app's verification/reset volume, but worth knowing if usage ever grows.
+
+  Outbound SMTP on port 465 works from Vercel's Python Functions: Vercel only blocks outbound
+  port 25, leaving 465 (implicit TLS, what this app uses) and 587 open —
+  [confirmed in Vercel's own docs](https://vercel.com/kb/guide/serverless-functions-and-smtp).
+
+Verify the configured provider actually sends, without going through the signup/forgot-password
+flow, with:
+
+```bash
+flask --app app send-test-email you@example.com
+```
 
 ---
 

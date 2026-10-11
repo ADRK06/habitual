@@ -230,3 +230,53 @@ def test_admin_reset_password_override_flag_bypasses_the_prod_check(app, db, mon
     assert result.exit_code == 0, result.output
     user = User.query.filter_by(username="aadhira").first()
     assert not user.check_password("Sup3r$ecret")
+
+
+# -- send-test-email ----------------------------------------------------------
+
+
+def test_send_test_email_refuses_when_provider_unset(app, monkeypatch):
+    monkeypatch.delenv("EMAIL_PROVIDER", raising=False)
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["send-test-email", "someone@example.com"])
+    assert result.exit_code != 0
+    assert "console" in result.output.lower()
+
+
+def test_send_test_email_refuses_when_provider_is_console(app, monkeypatch):
+    monkeypatch.setenv("EMAIL_PROVIDER", "console")
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["send-test-email", "someone@example.com"])
+    assert result.exit_code != 0
+
+
+def test_send_test_email_reports_success(app, monkeypatch):
+    monkeypatch.setenv("EMAIL_PROVIDER", "smtp")
+    monkeypatch.setattr("habitual.mailer.send_email", lambda *a, **k: True)
+
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["send-test-email", "someone@example.com"])
+
+    assert result.exit_code == 0, result.output
+    assert "someone@example.com" in result.output
+    assert "EMAIL_PROVIDER=smtp" in result.output
+
+
+def test_send_test_email_reports_the_masked_failure_reason(app, monkeypatch):
+    import habitual.mailer as mailer
+
+    monkeypatch.setenv("EMAIL_PROVIDER", "smtp")
+
+    def fake_send_email(*args, **kwargs):
+        mailer.logger.error("email send failed: provider=smtp reason=auth")
+        return False
+
+    monkeypatch.setattr(mailer, "send_email", fake_send_email)
+
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["send-test-email", "someone@example.com"])
+
+    assert result.exit_code != 0
+    assert "reason=auth" in result.output
+    # No secret ever shows up in the command's own output either.
+    assert "SMTP_PASSWORD" not in result.output

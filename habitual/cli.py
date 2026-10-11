@@ -2,6 +2,7 @@
 reachable over HTTP - these only run when someone has a local shell and
 runs `flask --app app <command>` directly.
 """
+import logging
 import os
 import secrets
 from datetime import timedelta
@@ -12,7 +13,7 @@ from dotenv import dotenv_values
 from flask import current_app
 from flask.cli import with_appcontext
 
-from habitual import db, points
+from habitual import db, mailer, points
 from habitual.config import _normalize_db_url
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
 from habitual.utils.time import local_today
@@ -144,3 +145,48 @@ def admin_reset_password(username, i_know_this_is_prod):
 
     click.echo(f"Temporary password for {user.username}: {temp_password}")
     click.echo("Shown once - not stored anywhere else. Ask them to change it (Account security) after logging in.")
+
+
+class _CaptureLastLogRecord(logging.Handler):
+    """Grabs the mailer's own secret-free "reason=..." log line instead of
+    adding a separate return channel to send_email() just for this command -
+    every other caller only ever needs the plain True/False."""
+
+    def __init__(self):
+        super().__init__()
+        self.message = None
+
+    def emit(self, record):
+        self.message = record.getMessage()
+
+
+@click.command("send-test-email")
+@click.argument("address")
+@with_appcontext
+def send_test_email(address):
+    """Sends one real test email through the configured EMAIL_PROVIDER and
+    prints success or the (secret-free) failure reason. Refuses outright if
+    EMAIL_PROVIDER is unset or "console" - nothing would actually be sent,
+    so there's nothing useful to test."""
+    provider = (os.environ.get("EMAIL_PROVIDER") or "console").strip().lower()
+    if provider == "console":
+        raise click.ClickException(
+            "EMAIL_PROVIDER is unset or \"console\" - nothing would actually be sent. "
+            "Set EMAIL_PROVIDER=smtp (and SMTP_HOST/SMTP_USER/SMTP_PASSWORD/MAIL_FROM_EMAIL) first."
+        )
+
+    handler = _CaptureLastLogRecord()
+    mailer.logger.addHandler(handler)
+    try:
+        sent = mailer.send_email(
+            address, "Habitual test email",
+            "This is a test email from Habitual's `flask send-test-email` command - "
+            "if you're reading this, your EMAIL_PROVIDER configuration works.",
+        )
+    finally:
+        mailer.logger.removeHandler(handler)
+
+    if sent:
+        click.echo(f"Sent a test email to {address} via EMAIL_PROVIDER={provider}.")
+    else:
+        raise click.ClickException(handler.message or "Failed to send (no reason captured).")
