@@ -24,12 +24,34 @@
     {% include "partials/header_stats.html" %}
   </header>
 
-  {% if not has_recovery_codes %}
+  {% if not current_user.email %}
   <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-3 text-sm text-text">
-    <span>🔑 You don't have recovery codes yet - generate them so you can reset your password if you ever get locked out.</span>
+    <span>📧 Add your email so you can recover your account if you ever forget your password.</span>
     <a href="{{ url_for('auth.account_security') }}" class="shrink-0 rounded-xl border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10">
-      Set up now
+      Add email
     </a>
+  </div>
+  {% elif current_user.pending_email %}
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-3 text-sm text-text">
+    <span>📧 Confirm your new email ({{ current_user.pending_email }}) - check your inbox for the link.</span>
+    <form method="post" action="{{ url_for('auth.resend_verification') }}" class="shrink-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button type="submit" class="rounded-xl border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10">
+        Resend
+      </button>
+    </form>
+  </div>
+  {% elif not current_user.email_verified_at %}
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-3 text-sm text-text">
+    <span>📧 Verify your email ({{ current_user.email }}) so you can recover your account.</span>
+    <form method="post" action="{{ url_for('auth.resend_verification') }}" class="shrink-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button type="submit" class="rounded-xl border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10">
+        Resend
+      </button>
+    </form>
   </div>
   {% endif %}
 

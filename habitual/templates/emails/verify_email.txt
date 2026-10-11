@@ -1,0 +1,9 @@
+Hi {{ name }},
+
+Click the link below to verify your email for your Habitual account (@{{ username }}):
+
+{{ link }}
+
+This link expires in 24 hours and works once.
+
+Didn't request this? You can safely ignore this email.

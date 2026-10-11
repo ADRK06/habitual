@@ -15,26 +15,63 @@
   <h1 class="mt-4 font-heading text-2xl font-semibold text-text">Account security</h1>
 
   <section class="mt-8 rounded-2xl border border-border bg-surface/40 p-6">
-    {% if new_codes %}
-      {% include "partials/recovery_codes_reveal.html" %}
-    {% else %}
-      <h2 class="font-heading text-lg font-semibold text-text">Recovery codes</h2>
-      <p class="mt-1 text-sm text-text-muted">
-        {% if has_codes %}
-        You have recovery codes saved. Regenerating replaces them - the old ones stop working immediately.
-        {% else %}
-        You don't have any recovery codes yet. Generate them so you can reset your password if you ever lose access -
-        there's no email recovery.
-        {% endif %}
-      </p>
-      <form method="post" action="{{ url_for('auth.regenerate_codes') }}" class="mt-4">
-        {{ codes_form.csrf_token }}
-        <button type="submit" class="relative rounded-xl border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
-          <span class="btn-label">{{ "Regenerate codes" if has_codes else "Generate recovery codes" }}</span>
-          {{ spinner(size='4') }}
-        </button>
-      </form>
+    <h2 class="font-heading text-lg font-semibold text-text">Email</h2>
+
+    {% if current_user.pending_email %}
+    <p class="mt-1 text-sm text-text-muted">
+      Current: <span class="text-text">{{ current_user.email or "none" }}</span>.
+      Pending confirmation: <span class="text-text">{{ current_user.pending_email }}</span> - check your inbox.
+    </p>
+    <form method="post" action="{{ url_for('auth.resend_verification') }}" class="mt-3">
+      {{ resend_form.csrf_token }}
+      <input type="hidden" name="next" value="{{ url_for('auth.account_security') }}">
+      <button type="submit" class="relative rounded-xl border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
+        <span class="btn-label">Resend confirmation email</span>
+        {{ spinner(size='4') }}
+      </button>
+    </form>
+    {% elif current_user.email %}
+    <p class="mt-1 text-sm text-text-muted">
+      <span class="text-text">{{ current_user.email }}</span>
+      {% if current_user.email_verified_at %}
+      - verified.
+      {% else %}
+      - not verified yet.
+      {% endif %}
+    </p>
+    {% if not current_user.email_verified_at %}
+    <form method="post" action="{{ url_for('auth.resend_verification') }}" class="mt-3">
+      {{ resend_form.csrf_token }}
+      <input type="hidden" name="next" value="{{ url_for('auth.account_security') }}">
+      <button type="submit" class="relative rounded-xl border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
+        <span class="btn-label">Resend verification email</span>
+        {{ spinner(size='4') }}
+      </button>
+    </form>
     {% endif %}
+    {% else %}
+    <p class="mt-1 text-sm text-text-muted">
+      No email on file yet. Add one so you can reset your password if you ever lose access.
+    </p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('auth.change_email') }}" class="mt-4 flex flex-wrap items-start gap-3">
+      {{ email_form.csrf_token }}
+      <div class="min-w-0 flex-1">
+        {{ email_form.email(
+          placeholder='you@example.com', autocomplete='email',
+          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent'
+        ) }}
+        {% for error in email_form.email.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        {% endfor %}
+      </div>
+      <button type="submit" class="relative shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+        <span class="btn-label">{{ "Change email" if current_user.email else "Add email" }}</span>
+        {{ spinner(size='4') }}
+      </button>
+    </form>
+    <p class="mt-2 text-xs text-text-muted">The new address must be confirmed before it replaces the old one.</p>
   </section>
 
   <section class="mt-6 rounded-2xl border border-border bg-surface/40 p-6">

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import spinner %}
+
+{% block title %}Check your email · Habitual{% endblock %}
+
+{% block content %}
+<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
+  <div class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 text-center shadow-2xl shadow-black/20">
+    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-2xl">📧</div>
+    <h1 class="mt-4 font-heading text-xl font-semibold text-text">Check your email</h1>
+    <p class="mt-2 text-sm text-text-muted">
+      We sent a verification link to <span class="text-text">{{ email }}</span>. Click it to confirm your email -
+      you can keep using Habitual in the meantime.
+    </p>
+
+    <form method="post" action="{{ url_for('auth.resend_verification') }}" class="mt-6">
+      {{ resend_form.csrf_token }}
+      <input type="hidden" name="next" value="{{ url_for('auth.check_email') }}">
+      <button type="submit" class="relative w-full rounded-2xl border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
+        <span class="btn-label">Resend email</span>
+        {{ spinner() }}
+      </button>
+    </form>
+
+    <p class="mt-4 text-xs text-text-muted">Didn't get it? Check spam, or resend above.</p>
+    <a href="{{ url_for('habits.dashboard') }}" class="mt-4 inline-block text-sm text-accent hover:underline">Go to dashboard</a>
+  </div>
+</div>
+{% endblock %}

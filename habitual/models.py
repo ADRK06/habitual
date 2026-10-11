@@ -27,8 +27,29 @@ class User(UserMixin, db.Model):
     # Bumped on every password reset/change - see get_id()/load_user below.
     session_version = db.Column(db.Integer, nullable=False, default=0)
 
-    recovery_codes = db.relationship(
-        "RecoveryCode", backref="user", cascade="all, delete-orphan", passive_deletes=False
+    # Stored lowercased/stripped. Nullable at the DB level (pre-existing
+    # accounts have none yet) even though the signup form requires it for
+    # new ones. Deliberately NOT globally unique - see the partial index
+    # below - an unverified claim is provisional and never blocks anyone
+    # else from claiming (and then verifying) the same address first.
+    email = db.Column(db.String(255), nullable=True, index=True)
+    # A new/changed address staged here until ITS OWN verification link is
+    # clicked - only then does it get promoted into `email` (see
+    # auth._claim_verified_email). Never unique: two people mid-change to
+    # the same typo'd address is harmless until one of them actually proves
+    # ownership.
+    pending_email = db.Column(db.String(255), nullable=True)
+    email_verified_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        # Uniqueness only among VERIFIED emails - see the `email` column's
+        # comment. Both dialects this app runs on (Postgres in prod/dev,
+        # SQLite in tests) support a partial/filtered unique index.
+        db.Index(
+            "uq_users_email_verified", "email", unique=True,
+            postgresql_where=db.text("email_verified_at IS NOT NULL"),
+            sqlite_where=db.text("email_verified_at IS NOT NULL"),
+        ),
     )
 
     def set_password(self, password):
@@ -39,12 +60,12 @@ class User(UserMixin, db.Model):
 
     def get_id(self):
         # Encodes session_version into Flask-Login's session identifier so
-        # bumping it (on a recovery-code password reset) invalidates every
+        # bumping it (on an email-link password reset) invalidates every
         # session cookie already holding the old value - see load_user,
         # which refuses to resolve a mismatched version. A self-service
-        # password/code change on the account security page bumps this too,
-        # but immediately re-calls login_user() to refresh ITS OWN session
-        # with the new version, so only other sessions get logged out.
+        # password change on the account security page bumps this too, but
+        # immediately re-calls login_user() to refresh ITS OWN session with
+        # the new version, so only other sessions get logged out.
         return f"{self.id}.{self.session_version}"
 
     @staticmethod
@@ -240,36 +261,47 @@ class RoomCrown(db.Model):
     user = db.relationship("User")
 
 
-class RecoveryCode(db.Model):
-    """One of a user's 8 one-time forgot-password codes. Only the Werkzeug
-    hash is ever stored (same hashing as the password itself) - the
-    plaintext is shown once, at generation time, and never persisted.
-    used_at set (not a delete) keeps a permanent "this code was spent"
-    record so a replay attempt can be told apart from one that was simply
-    never issued."""
+class EmailToken(db.Model):
+    """A one-time link token - either `purpose="verify_email"` (confirms
+    the user controls `target_email`, the first time or after an
+    add/change) or `purpose="reset"` (forgot-password). Only a SHA-256
+    digest is stored, not a slow password-style hash: unlike a password or
+    the old recovery codes, this token is a fresh 256-bit random value
+    (secrets.token_urlsafe), already far too high-entropy to brute-force
+    offline, so a fast hash with a direct indexed lookup is both the
+    standard approach for this kind of token and meaningfully cheaper per
+    email sent. target_email freezes which address this specific token is
+    for, so an older token can't verify a DIFFERENT (earlier) pending
+    address if the user changed their mind in between. used_at (not a
+    delete) keeps a permanent "already spent" record."""
 
-    __tablename__ = "recovery_codes"
+    __tablename__ = "email_tokens"
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    code_hash = db.Column(db.String(255), nullable=False)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    purpose = db.Column(db.String(20), nullable=False)
+    target_email = db.Column(db.String(255), nullable=False)
     created_at = db.Column(
         db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(dt_timezone.utc)
     )
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     used_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
 
-class IpLockout(db.Model):
-    """Per-IP brute-force lockout for routes with no logged-in user to key
-    a lockout column off of (forgot-password) - the username-keyed half of
-    that same lockout lives on User (failed_forgot_attempts/
-    forgot_locked_until), mirroring login's/join's existing pattern."""
+class RateLimit(db.Model):
+    """Generic rate limit/cooldown for anything with no logged-in user to
+    key a lockout column off of - `key` is whatever identifies the
+    requester for this scope (an IP address, an email address, ...). The
+    account-keyed half of forgot-password's limiting lives on User
+    (failed_forgot_attempts/forgot_locked_until) instead, mirroring
+    login's/join's existing per-account pattern."""
 
-    __tablename__ = "ip_lockouts"
-    __table_args__ = (db.UniqueConstraint("ip", "scope", name="uq_ip_lockout_ip_scope"),)
+    __tablename__ = "rate_limits"
+    __table_args__ = (db.UniqueConstraint("key", "scope", name="uq_rate_limit_key_scope"),)
 
     id = db.Column(db.Integer, primary_key=True)
-    ip = db.Column(db.String(45), nullable=False)  # long enough for IPv6
+    key = db.Column(db.String(255), nullable=False)
     scope = db.Column(db.String(30), nullable=False)
-    failed_attempts = db.Column(db.Integer, nullable=False, default=0)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
     locked_until = db.Column(db.DateTime(timezone=True), nullable=True)

@@ -10,6 +10,7 @@ def _signup_payload(**overrides):
     payload = {
         "name": "Aadhira",
         "username": "aadhira",
+        "email": "aadhira@example.com",
         "password": VALID_PASSWORD,
         "confirm_password": VALID_PASSWORD,
         "timezone": "Asia/Kolkata",
@@ -64,12 +65,13 @@ def test_login_ignores_external_next(client, db):
 # -- signup -------------------------------------------------------------------
 
 def test_signup_creates_user_and_logs_in(client, db):
-    # Signup no longer redirects straight to the dashboard - it shows the
-    # one-time recovery-codes page first (item 6), already logged in.
+    # Signup redirects to the "check your email" interstitial (email-based
+    # recovery) instead of straight to the dashboard - already logged in.
     response = client.post("/signup", data=_signup_payload())
-    assert response.status_code == 200
-    assert b"recovery code" in response.data.lower()
+    assert response.status_code == 302
+    assert response.location == "/check-email"
     assert User.query.filter_by(username="aadhira").count() == 1
+    assert client.sent_emails[-1]["to"] == "aadhira@example.com"
 
     dashboard = client.get("/dashboard")
     assert dashboard.status_code == 200
@@ -139,7 +141,7 @@ def test_signup_accepts_long_passphrase(client, db):
     response = client.post(
         "/signup", data=_signup_payload(password=passphrase, confirm_password=passphrase)
     )
-    assert response.status_code == 200
+    assert response.status_code == 302
     assert User.query.count() == 1
 
 

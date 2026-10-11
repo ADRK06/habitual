@@ -34,6 +34,15 @@
       </div>
 
       <div>
+        <label for="email" class="block text-sm text-text-muted mb-1">Email</label>
+        {{ form.email(id='email', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', autocomplete='email') }}
+        <p class="mt-1 text-xs text-text-muted">Used only to verify your account and let you reset your password - never shared.</p>
+        {% for error in form.email.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        {% endfor %}
+      </div>
+
+      <div>
         <label for="username" class="block text-sm text-text-muted mb-1">Username</label>
         {{ form.username(
           id='username',

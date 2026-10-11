@@ -12,7 +12,7 @@ from wtforms import HiddenField, StringField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 from habitual import analytics, badges, db, frequency, points
-from habitual.models import Checkin, Freeze, Habit, PointTransaction, RecoveryCode, User
+from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
 from habitual.utils.time import local_now, local_today, midnight_epoch_ms
 
 FREQUENCY_CHOICES = ("daily", "days", "weekly")
@@ -441,12 +441,6 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
         "emoji_choices": EMOJI_CHOICES,
         "habit_templates": HABIT_TEMPLATES,
         "newly_awarded_badges": newly_awarded_badges,
-        # Full-page-load only (not part of header/checkin-response context) -
-        # this nudge doesn't need to re-check on every check-in/undo/freeze
-        # OOB response, so it's kept off that hot path entirely.
-        "has_recovery_codes": RecoveryCode.query.filter_by(
-            user_id=current_user.id, used_at=None
-        ).first() is not None,
         **header,
     }
     if habit_rows:

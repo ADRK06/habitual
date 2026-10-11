@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Email verified" if ok else "Link invalid" }} · Habitual{% endblock %}
+
+{% block content %}
+<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
+  <div class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 text-center shadow-2xl shadow-black/20">
+    {% if ok %}
+    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/15 text-2xl">✅</div>
+    <h1 class="mt-4 font-heading text-xl font-semibold text-text">Email verified</h1>
+    <p class="mt-2 text-sm text-text-muted">You're all set - this email can now be used to recover your account.</p>
+    <a
+      href="{{ url_for('habits.dashboard') if already_logged_in else url_for('auth.login') }}"
+      class="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-bg transition hover:opacity-90"
+    >
+      {{ "Go to dashboard" if already_logged_in else "Log in" }}
+    </a>
+    {% else %}
+    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger/15 text-2xl">⚠️</div>
+    <h1 class="mt-4 font-heading text-xl font-semibold text-text">This link is invalid or has expired</h1>
+    <p class="mt-2 text-sm text-text-muted">Request a new one from Account security, or sign in and we'll take you there.</p>
+    <a
+      href="{{ url_for('auth.account_security') if already_logged_in else url_for('auth.login') }}"
+      class="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-bg transition hover:opacity-90"
+    >
+      {{ "Account security" if already_logged_in else "Log in" }}
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
