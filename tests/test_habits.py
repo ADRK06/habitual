@@ -774,6 +774,34 @@ def test_habit_detail_stat_tooltips_present(client, db):
     assert "completion chain over the last 5 weeks" in response  # chain tooltip
 
 
+def test_habit_detail_checkin_response_includes_todays_updated_heatmap_cell(client, db):
+    # Item 5: the analytics card (week row, 5-week heatmap, month calendar)
+    # must refresh with today's new state in the very same response that
+    # records the check-in - not require a second round-trip/reload.
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+
+    before = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+    assert 'aria-label="Missed, today"' in before
+    assert 'aria-label="Done, today"' not in before
+
+    response = client.post(f"/habits/{habit.id}/checkin", data={"detail_view": "1"})
+    html = response.get_data(as_text=True)
+    assert 'aria-label="Done, today"' in html
+    assert 'aria-label="Missed, today"' not in html
+
+
+def test_habit_detail_undo_response_reflects_todays_cell_reverting_to_missed(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+    client.post(f"/habits/{habit.id}/checkin", data={"detail_view": "1"})
+
+    response = client.delete(f"/habits/{habit.id}/checkin", data={"detail_view": "1"})
+    html = response.get_data(as_text=True)
+    assert 'aria-label="Missed, today"' in html
+    assert 'aria-label="Done, today"' not in html
+
+
 def test_dashboard_card_chain_and_tooltips_present(client, db):
     user = _login(client, db)
     habit = _create_habit(db, user, title="Read")
