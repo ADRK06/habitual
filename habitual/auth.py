@@ -34,9 +34,10 @@ EMAIL_HELP = "Enter a valid email address."
 # The checklist (PASSWORD_RE) only checks character variety, which "Password1!"
 # satisfies while still being trivially guessable. zxcvbn's score (0-4, based
 # on actual crack-time estimates, dictionary/pattern matching, and whatever
-# user_inputs it's given) is the real gate - the checklist stays as UX
+# user_inputs it's given) catches that - only scores 0-1 ("very guessable",
+# e.g. "Password1!") are rejected; 2 and up pass. The checklist stays as UX
 # guidance, never as the sole server-side bar.
-MIN_ZXCVBN_SCORE = 3
+MIN_ZXCVBN_SCORE = 2
 
 RESET_TOKEN_LIFETIME = timedelta(minutes=30)
 VERIFY_TOKEN_LIFETIME = timedelta(hours=24)

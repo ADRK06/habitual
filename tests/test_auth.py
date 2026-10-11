@@ -145,6 +145,18 @@ def test_signup_accepts_long_passphrase(client, db):
     assert User.query.count() == 1
 
 
+def test_signup_accepts_a_score_2_password(client, db):
+    # zxcvbn scores this "Fair" (2) against this account's own
+    # username/name - only 0-1 ("very guessable") are rejected now, so
+    # this must pass even though it's not a top-tier password.
+    password = "Tiger2024!"
+    response = client.post(
+        "/signup", data=_signup_payload(password=password, confirm_password=password)
+    )
+    assert response.status_code == 302
+    assert User.query.count() == 1
+
+
 def test_signup_rejects_password_containing_username(client, db):
     # Scores well (4) on its own in isolation, but is built directly from
     # the account's own username - zxcvbn is given user_inputs specifically
