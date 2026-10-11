@@ -705,11 +705,17 @@ def _room_live_response(habit, toast=None, celebration=None, badges_earned=None)
     room, renders that room's live-update partial instead of the usual
     dashboard-shaped one. Returns None otherwise - including for a room
     habit checked in from its dashboard card, which still wants the normal
-    dashboard-shaped response below."""
+    dashboard-shaped response below.
+
+    Deliberately skips finalize_due_crowns: a check-in/undo/freeze here only
+    ever touches today (or, for a freeze, yesterday's gap) and can't close
+    any new PAST date, so there's never a fresh date for it to decide - any
+    backlog was already cleared by the most recent dashboard/room-page load.
+    Today's own live/provisional crown (render_room_live_update's
+    leaderboard, via _todays_crown_user_id) is unaffected and stays fresh."""
     if not request.values.get("room_view") or habit.room_id is None:
         return None
     from habitual import rooms  # local import avoids a circular import with rooms.py
-    rooms.finalize_due_crowns(habit.room)
     resp = make_response(rooms.render_room_live_update(habit.room, current_user))
     trigger = {}
     if toast:

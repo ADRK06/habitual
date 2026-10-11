@@ -574,6 +574,45 @@ def _crown_badges_for_checkins(room, members, checkins, habits_by_user=None):
     return badges
 
 
+def _crown_badge_for_checkin(room, members, checkin):
+    """Same "final"/"provisional"/None badge as _crown_badges_for_checkins,
+    for a single checkin - without requiring every member's full habit
+    history preloaded. vouch() only ever needs one checkin's one date, so it
+    fetches just that date's checkins directly (two light queries: habit ids
+    for the room, then checkins on that date) instead of _room_member_habits'
+    full checkins+freezes+point_transactions eager load across the room."""
+    finalized = RoomCrown.query.filter_by(room_id=room.id, date=checkin.date).first()
+    if finalized is not None:
+        return "final" if finalized.checkin_id == checkin.id else None
+
+    eligible = [m for m in members if m.joined_on <= checkin.date]
+    if not eligible:
+        return None
+    user_by_habit_id = dict(
+        db.session.query(Habit.id, Habit.user_id)
+        .filter(Habit.room_id == room.id, Habit.user_id.in_([m.user_id for m in eligible]))
+    )
+    if not user_by_habit_id:
+        return None
+    member_by_user_id = {m.user_id: m for m in eligible}
+    day_checkins = Checkin.query.filter(
+        Checkin.habit_id.in_(user_by_habit_id.keys()), Checkin.date == checkin.date,
+    ).all()
+
+    candidates = []
+    for c in day_checkins:
+        if not points.has_valid_proof_for_crown(c.proof_note):
+            continue
+        member = member_by_user_id.get(user_by_habit_id.get(c.habit_id))
+        if member is None:
+            continue
+        local_time = _aware_utc(c.created_at).astimezone(ZoneInfo(member.user.timezone)).time()
+        candidates.append((local_time, _aware_utc(c.created_at), member.user_id, c.id, c.habit_id))
+
+    winner = points.crown_winner(candidates)
+    return "provisional" if winner is not None and winner[3] == checkin.id else None
+
+
 def _feed_context(room, members, viewer, limit=20, habits_by_user=None):
     """Recent check-ins across every member's room habit, newest first,
     each annotated with its crown badge and vouch state. There's no single
@@ -620,17 +659,24 @@ def _feed_context(room, members, viewer, limit=20, habits_by_user=None):
     return items
 
 
-def _leaderboard_context(room, members, viewer, habits_by_user=None):
+def _leaderboard_context(room, members, viewer, habits_by_user=None, skip_movement=False):
     """One entry per member, in rank order, with everything the podium +
     list view needs: today's crown holder (distinct from the points
     leader), rank movement since yesterday, a gap to whoever's directly
     above, a 0-100 bar relative to the leader, and a streak-scaled flame
-    size - all computed here so the template stays pure presentation."""
+    size - all computed here so the template stays pure presentation.
+
+    `skip_movement=True` (used by render_room_live_update, the OOB partial
+    after a check-in/undo/freeze) skips _rank_movement's own full second
+    rank_members() pass (re-ranking "as of yesterday") - yesterday's
+    standings can't have changed from an action taken today, so that whole
+    second ranking is pure waste on the hot path; movement badges just show
+    "–" until the next full page load instead of updating live."""
     habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     ranked = rank_members(room, members, habits_by_user=habits_by_user)
     crown_count_by_user = _crown_counts(room)
     todays_crown_user_id = _todays_crown_user_id(room, members, habits_by_user)
-    movement_by_user = _rank_movement(room, members, ranked, habits_by_user)
+    movement_by_user = {} if skip_movement else _rank_movement(room, members, ranked, habits_by_user)
     leader_points = ranked[0]["points"] if ranked else 0
 
     entries = []
@@ -671,7 +717,7 @@ def render_room_live_update(room, viewer):
     return render_template(
         "partials/room_live_update.html",
         room=room,
-        leaderboard=_leaderboard_context(room, members, viewer, habits_by_user),
+        leaderboard=_leaderboard_context(room, members, viewer, habits_by_user, skip_movement=True),
         health_pct=room_health_pct(room, members, habits_by_user),
         streak_value=room_streak_value(room, members, habits_by_user),
         room_streak_unit=room_streak_unit(room),
