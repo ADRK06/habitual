@@ -33,6 +33,45 @@
   <script>
     window.prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    // Shared Alpine data factory for every password field with a live
+    // zxcvbn meter (signup, forgot-password, account security's change-
+    // password form) - one definition so the scoring/labeling logic can't
+    // drift between pages. `zx` re-runs zxcvbn lazily (a getter, not a
+    // watcher) so it only ever costs anything while the user is actually
+    // looking at this field. Falls back to score 0 until zxcvbn.js has
+    // loaded (it's a classic, non-deferred script tag loaded right before
+    // this runs, but a flaky network could still beat it here).
+    window.passwordMeterData = function (opts = {}) {
+      return {
+        password: "",
+        confirm: "",
+        showPassword: false,
+        name: opts.name || "",
+        username: opts.username || "",
+        get hasLower() { return /[a-z]/.test(this.password); },
+        get hasUpper() { return /[A-Z]/.test(this.password); },
+        get hasDigit() { return /\d/.test(this.password); },
+        get hasSpecial() { return /[^\w\s]/.test(this.password); },
+        get hasLength() { return this.password.length >= 8; },
+        get matches() { return this.confirm.length > 0 && this.confirm === this.password; },
+        get zx() {
+          if (!this.password || !window.zxcvbn) return { score: 0, feedback: { warning: "", suggestions: [] } };
+          return window.zxcvbn(this.password, [this.username, this.name].filter(Boolean));
+        },
+        get score() { return this.zx.score; },
+        get strengthLabel() {
+          return ["Very weak", "Weak", "Fair", "Good", "Very strong"][this.score];
+        },
+        get strengthColor() {
+          return this.score <= 1 ? "bg-danger" : this.score === 2 ? "bg-rooms" : "bg-accent";
+        },
+        get feedbackText() {
+          const fb = this.zx.feedback || {};
+          return fb.warning || (fb.suggestions && fb.suggestions[0]) || "";
+        },
+      };
+    };
+
     document.addEventListener("htmx:configRequest", (event) => {
       event.detail.headers["X-CSRFToken"] = document.querySelector('meta[name="csrf-token"]').content;
     });

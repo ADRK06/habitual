@@ -9,6 +9,7 @@ from flask_wtf import FlaskForm
 from sqlalchemy.exc import IntegrityError
 from wtforms import HiddenField, PasswordField, StringField
 from wtforms.validators import DataRequired, EqualTo, ValidationError
+from zxcvbn import zxcvbn
 
 from habitual import db
 from habitual.models import User
@@ -21,6 +22,13 @@ PASSWORD_RE = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$")
 USERNAME_HELP = "3-20 characters: lowercase letters, numbers, underscore only."
 PASSWORD_HELP = "At least 8 characters, with an uppercase letter, a lowercase letter, a digit, and a special character."
 
+# The checklist (PASSWORD_RE) only checks character variety, which "Password1!"
+# satisfies while still being trivially guessable. zxcvbn's score (0-4, based
+# on actual crack-time estimates, dictionary/pattern matching, and whatever
+# user_inputs it's given) is the real gate - the checklist stays as UX
+# guidance, never as the sole server-side bar.
+MIN_ZXCVBN_SCORE = 3
+
 
 def _validate_username_format(form, field):
     if not USERNAME_RE.match((field.data or "").strip().lower()):
@@ -30,6 +38,22 @@ def _validate_username_format(form, field):
 def _validate_password_strength(form, field):
     if not PASSWORD_RE.match(field.data or ""):
         raise ValidationError(PASSWORD_HELP)
+
+
+def _validate_password_guessability(password, user_inputs):
+    """Raises ValidationError if zxcvbn scores `password` below
+    MIN_ZXCVBN_SCORE against `user_inputs` (name/username, so a password
+    built from either scores low) - shared by signup, password reset, and
+    the account-security change-password form."""
+    result = zxcvbn(password or "", user_inputs=[s for s in user_inputs if s])
+    if result["score"] < MIN_ZXCVBN_SCORE:
+        feedback = result.get("feedback") or {}
+        message = feedback.get("warning") or next(iter(feedback.get("suggestions") or []), None)
+        raise ValidationError(message or "This password is too easy to guess - try something longer or less common.")
+
+
+def _signup_zxcvbn(form, field):
+    _validate_password_guessability(field.data, [form.username.data, form.name.data])
 
 
 def _aware_utc(dt):
@@ -53,7 +77,9 @@ def safe_next_path(target):
 class SignupForm(FlaskForm):
     name = StringField("Name", validators=[DataRequired()])
     username = StringField("Username", validators=[DataRequired(), _validate_username_format])
-    password = PasswordField("Password", validators=[DataRequired(), _validate_password_strength])
+    password = PasswordField(
+        "Password", validators=[DataRequired(), _validate_password_strength, _signup_zxcvbn]
+    )
     confirm_password = PasswordField(
         "Confirm password",
         validators=[DataRequired(), EqualTo("password", message="Passwords must match.")],
