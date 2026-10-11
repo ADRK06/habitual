@@ -14,7 +14,9 @@ from wtforms.validators import DataRequired, EqualTo, ValidationError
 from zxcvbn import zxcvbn
 
 from habitual import db, mailer
-from habitual.models import EmailToken, RateLimit, User
+from habitual.models import (
+    Badge, EmailToken, Freeze, Habit, PointTransaction, RateLimit, Room, RoomCrown, RoomMember, User, Vouch,
+)
 
 auth = Blueprint("auth", __name__)
 
@@ -302,6 +304,64 @@ class CSRFOnlyForm(FlaskForm):
     etc.) a real CSRF-protected POST with nothing else to collect."""
 
 
+class DeleteAccountForm(FlaskForm):
+    confirm_username = StringField("Username", validators=[DataRequired()])
+    password = PasswordField("Password", validators=[DataRequired()])
+
+
+def _delete_account(user):
+    """Deletes `user` and everything that belongs to them. Caller still
+    has to commit - this is meant to run as one transaction, with the
+    actual User row deleted last so an error partway through never leaves
+    an orphaned half-deleted account.
+
+    - Every room the account is in: handled exactly like leaving it
+      normally (rooms._leave_room_as) - deletes their room habit,
+      transfers ownership or deletes the room if they were the last
+      member. Called once per membership, so this covers every room.
+    - Every remaining (solo) habit and its own cascade (check-ins,
+      freezes, point transactions) - room habits are already gone by the
+      point this runs, from the step above.
+    - Freezes/point-transactions not tied to any habit (habit_id NULL -
+      an unused freeze, or a freeze_purchase ledger row), which no
+      Habit's own cascade reaches.
+    - Vouches THIS user gave on someone ELSE's check-in. Vouches on their
+      OWN check-ins already went with those check-ins' habit, via
+      Checkin's own cascade, above - no separate step needed for those.
+    - Badges, email tokens, and the rate-limit rows keyed to their
+      account/email (never the IP-keyed ones - those aren't "theirs").
+    - Finalized room-crown history survives with the winner reference
+      cleared, same idea as checkin_id already being nulled when the
+      habit behind it is deleted (see _leave_room_as).
+
+    Deleting the User row itself is enough to invalidate every session
+    everywhere (load_user's db.session.get simply finds nothing) -
+    there's no separate session_version step needed the way a password
+    reset needs one."""
+    from habitual import rooms  # local import avoids a circular import with rooms.py
+
+    for member in RoomMember.query.filter_by(user_id=user.id).all():
+        room = db.session.get(Room, member.room_id)
+        members = rooms._room_members(room)
+        rooms._leave_room_as(room, members, user)
+
+    for habit in Habit.query.filter_by(user_id=user.id).all():
+        db.session.delete(habit)
+
+    Freeze.query.filter_by(user_id=user.id, habit_id=None).delete()
+    PointTransaction.query.filter_by(user_id=user.id, habit_id=None).delete()
+    Vouch.query.filter_by(user_id=user.id).delete()
+    Badge.query.filter_by(user_id=user.id).delete()
+    EmailToken.query.filter_by(user_id=user.id).delete()
+    RoomCrown.query.filter_by(user_id=user.id).update({"user_id": None}, synchronize_session=False)
+
+    RateLimit.query.filter_by(key=f"user:{user.id}", scope=RL_SCOPE_VERIFY_RESEND).delete()
+    if user.email:
+        RateLimit.query.filter_by(key=user.email, scope=RL_SCOPE_FORGOT_EMAIL).delete()
+
+    db.session.delete(user)
+
+
 @auth.route("/signup", methods=["GET", "POST"])
 def signup():
     if current_user.is_authenticated:
@@ -532,6 +592,7 @@ def account_security():
     return render_template(
         "auth/account_security.html",
         password_form=ChangePasswordForm(), email_form=ChangeEmailForm(), resend_form=CSRFOnlyForm(),
+        delete_form=DeleteAccountForm(),
     )
 
 
@@ -564,6 +625,7 @@ def change_email():
     return render_template(
         "auth/account_security.html",
         password_form=ChangePasswordForm(), email_form=form, resend_form=CSRFOnlyForm(),
+        delete_form=DeleteAccountForm(),
     ), 400
 
 
@@ -594,6 +656,47 @@ def change_password():
     return render_template(
         "auth/account_security.html",
         password_form=form, email_form=ChangeEmailForm(), resend_form=CSRFOnlyForm(),
+        delete_form=DeleteAccountForm(),
+    ), 400
+
+
+@auth.post("/account/security/delete")
+@login_required
+def delete_account():
+    form = DeleteAccountForm()
+    now = datetime.now(dt_timezone.utc)
+    locked_until = _aware_utc(current_user.delete_locked_until)
+
+    if locked_until and locked_until > now:
+        minutes_left = int((locked_until - now).total_seconds() // 60) + 1
+        flash(f"Too many failed attempts. Try again in {minutes_left} minute(s).", "error")
+        return redirect(url_for("auth.account_security"))
+
+    if form.validate_on_submit():
+        username_ok = form.confirm_username.data.strip().lower() == current_user.username
+        password_ok = current_user.check_password(form.password.data)
+
+        if username_ok and password_ok:
+            user = current_user._get_current_object()
+            _delete_account(user)
+            db.session.commit()
+            logout_user()
+            flash("Your account has been deleted.", "info")
+            return redirect(url_for("home"))
+
+        current_user.failed_delete_attempts += 1
+        if current_user.failed_delete_attempts >= LOCKOUT_THRESHOLD:
+            current_user.delete_locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
+        db.session.commit()
+        if not username_ok:
+            form.confirm_username.errors.append("That's not your username.")
+        if not password_ok:
+            form.password.errors.append("Incorrect password.")
+
+    return render_template(
+        "auth/account_security.html",
+        password_form=ChangePasswordForm(), email_form=ChangeEmailForm(), resend_form=CSRFOnlyForm(),
+        delete_form=form,
     ), 400
 
 

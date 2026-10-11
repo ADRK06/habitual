@@ -135,5 +135,89 @@
       </button>
     </form>
   </section>
+
+  <section class="mt-6 rounded-2xl border border-danger/30 bg-danger/5 p-6" x-data="{ confirmOpen: false }">
+    <h2 class="font-heading text-lg font-semibold text-text">Danger zone</h2>
+    <p class="mt-1 text-sm text-text-muted">
+      Deleting your account is permanent - every habit, point, badge, and room membership goes
+      with it. There's no undo.
+    </p>
+
+    <form id="delete-account-form" method="post" action="{{ url_for('auth.delete_account') }}" class="mt-4 space-y-4">
+      {{ delete_form.csrf_token }}
+
+      <div>
+        <label for="confirm_username" class="block text-sm text-text-muted mb-1">
+          Type your username (<span class="text-text">{{ current_user.username }}</span>) to confirm
+        </label>
+        {{ delete_form.confirm_username(
+          id='confirm_username', autocomplete='off', autocapitalize='off',
+          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-danger focus:ring-2 focus:ring-danger'
+        ) }}
+        {% for error in delete_form.confirm_username.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        {% endfor %}
+      </div>
+
+      <div>
+        <label for="delete_password" class="block text-sm text-text-muted mb-1">Current password</label>
+        {{ delete_form.password(
+          id='delete_password', type='password', autocomplete='current-password',
+          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-danger focus:ring-2 focus:ring-danger'
+        ) }}
+        {% for error in delete_form.password.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        {% endfor %}
+      </div>
+
+      <button
+        type="button"
+        @click="confirmOpen = true"
+        class="rounded-xl border border-danger/50 px-4 py-2 text-sm font-medium text-text transition hover:bg-danger/15"
+      >
+        Delete my account
+      </button>
+    </form>
+
+    <div
+      x-show="confirmOpen"
+      x-trap="confirmOpen"
+      x-cloak
+      @keydown.escape.window="confirmOpen = false"
+      x-transition:enter="transition ease-out duration-150"
+      x-transition:enter-start="opacity-0"
+      x-transition:enter-end="opacity-100"
+      x-transition:leave="transition ease-in duration-100"
+      x-transition:leave-start="opacity-100"
+      x-transition:leave-end="opacity-0"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+    >
+      <div
+        @click.outside="confirmOpen = false"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-account-heading"
+        class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl"
+      >
+        <h3 id="delete-account-heading" class="font-heading text-lg font-semibold text-text">Delete your account permanently?</h3>
+        <p class="mt-2 text-sm text-text-muted">
+          This can't be undone - every habit, point, badge, and room membership will be gone for good.
+        </p>
+        <div class="mt-5 flex justify-end gap-3">
+          <button type="button" @click="confirmOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="delete-account-form"
+            class="relative rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span class="btn-label">Yes, delete my account</span>
+            {{ spinner() }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
 {% endblock %}

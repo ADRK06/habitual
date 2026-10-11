@@ -863,25 +863,27 @@ def room_detail(room_id):
     )
 
 
-@rooms.post("/rooms/<int:room_id>/leave")
-@login_required
-def leave_room(room_id):
-    room = _room_or_404(room_id)
-    members = _room_members(room)
-    member = next((m for m in members if m.user_id == current_user.id), None)
-    if member is None:
-        abort(404)
+def _leave_room_as(room, members, user):
+    """Removes `user` from `room`: deletes their room habit (and, via its
+    own cascade, every check-in/freeze/point-transaction on it), nulling
+    any RoomCrown.checkin_id that pointed into those check-ins first so
+    that history survives the habit's delete instead of blocking on it
+    (see RoomCrown's docstring). If they were the last member, the room
+    itself is deleted; if they were the creator and others remain,
+    ownership transfers to the top-ranked remaining member. Shared by the
+    leave_room route and account deletion (which calls this once per room
+    the account is in) - caller still has to commit.
 
-    was_creator = room.creator_id == current_user.id
-    habit = _member_habit(room, current_user)
+    Returns True if `user` was actually a member (and something happened),
+    False if they weren't in this room at all."""
+    member = next((m for m in members if m.user_id == user.id), None)
+    if member is None:
+        return False
+
+    was_creator = room.creator_id == user.id
+    habit = _member_habit(room, user)
 
     if habit is not None:
-        # RoomCrown rows referencing one of this habit's check-ins must
-        # survive as history (per models.RoomCrown's docstring) - null the
-        # reference before the habit's own cascade deletes those check-ins,
-        # so the delete below never has a dangling/blocking FK to contend
-        # with. The crown's +2 PointTransaction lives on this same habit, so
-        # it (correctly) disappears with the rest of the habit's ledger.
         checkin_ids = [c.id for c in habit.checkins]
         if checkin_ids:
             RoomCrown.query.filter(RoomCrown.checkin_id.in_(checkin_ids)).update(
@@ -892,12 +894,23 @@ def leave_room(room_id):
     db.session.delete(member)
     db.session.flush()
 
-    remaining = [m for m in members if m.user_id != current_user.id]
+    remaining = [m for m in members if m.user_id != user.id]
     if not remaining:
         db.session.delete(room)
     elif was_creator:
         ranked = rank_members(room, remaining)
         room.creator_id = ranked[0]["user"].id
+
+    return True
+
+
+@rooms.post("/rooms/<int:room_id>/leave")
+@login_required
+def leave_room(room_id):
+    room = _room_or_404(room_id)
+    members = _room_members(room)
+    if not _leave_room_as(room, members, current_user):
+        abort(404)
 
     db.session.commit()
     flash(f'Left "{room.title}".', "info")

@@ -24,6 +24,8 @@ class User(UserMixin, db.Model):
     join_locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
     failed_forgot_attempts = db.Column(db.Integer, nullable=False, default=0)
     forgot_locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+    failed_delete_attempts = db.Column(db.Integer, nullable=False, default=0)
+    delete_locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
     # Bumped on every password reset/change - see get_id()/load_user below.
     session_version = db.Column(db.Integer, nullable=False, default=0)
 
@@ -247,7 +249,10 @@ class RoomCrown(db.Model):
     once by rooms.finalize_due_crowns() and never rewritten. checkin_id is
     nullable: if the winner later leaves the room (deleting their habit and
     its check-ins), this row survives as history with checkin_id cleared,
-    rather than disappearing or dangling."""
+    rather than disappearing or dangling. user_id is nullable for the same
+    reason, one level further: if the winner deletes their whole account
+    (not just leaves this room), the row survives with the user reference
+    cleared too, instead of a NOT NULL FK blocking the account delete."""
 
     __tablename__ = "room_crowns"
     __table_args__ = (db.UniqueConstraint("room_id", "date", name="uq_room_crown_room_date"),)
@@ -255,7 +260,7 @@ class RoomCrown(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     room_id = db.Column(db.Integer, db.ForeignKey("rooms.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     checkin_id = db.Column(db.Integer, db.ForeignKey("checkins.id"), nullable=True, index=True)
 
     user = db.relationship("User")
