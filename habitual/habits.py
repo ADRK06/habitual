@@ -226,6 +226,20 @@ def _habit_view(habit, today, freezes_held, now_hour):
         )
         strength = round(analytics.habit_strength(completed, frozen, effective_start, today, not_scheduled))
 
+    # The card's compact "chain" - last 7 real calendar days (today
+    # rightmost), not Monday-aligned like the habit page's own week row,
+    # since a card has no room for a 7-slot row that's mostly empty right
+    # after a habit's born mid-week. Weekly habits have no per-day
+    # frozen/not_scheduled concept, so their chain only ever shows done/
+    # missed/before_created - never "frozen" for a day that's merely part
+    # of a frozen week.
+    chain_not_scheduled = set() if habit.frequency_type == "weekly" else not_scheduled
+    chain_start = today - timedelta(days=6)
+    chain_days = [
+        analytics.day_state(chain_start + timedelta(days=i), completed, frozen, habit.created_on, today, chain_not_scheduled)
+        for i in range(7)
+    ]
+
     return {
         "habit": habit,
         "current_streak": current_streak,
@@ -238,6 +252,7 @@ def _habit_view(habit, today, freezes_held, now_hour):
         "is_due_today": is_due_today,
         "frequency_label": _frequency_label(habit),
         "frequency_badge_label": _frequency_badge_label(habit),
+        "chain_days": chain_days,
         "streak_unit": streak_unit,
         "status_label": status_label,
         "status_variant": status_variant,
@@ -758,6 +773,38 @@ def _room_live_response(habit, toast=None, celebration=None, badges_earned=None)
     return resp
 
 
+def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, badges_earned=None):
+    """If this check-in/undo/freeze came from the habit's own detail page
+    (flagged with a `detail_view` field, mirroring `_room_live_response`'s
+    `room_view`), re-renders that page's own panel (ring card + month
+    calendar + recent check-ins + the controls themselves) instead of the
+    dashboard-shaped response below. habits/detail.html has no header
+    stats/badges row of its own (those only live on the dashboard), so
+    there's nothing else here to OOB-swap alongside it."""
+    if not request.values.get("detail_view"):
+        return None
+    freezes_held = Freeze.query.filter_by(user_id=current_user.id, used_on=None).count()
+    context = {
+        **_habit_view(habit, today, freezes_held, now_hour),
+        **_analytics_context(habit, today, now_hour),
+        "calendar": _month_calendar_context(habit, today.replace(day=1), today),
+        "recent_checkins": (
+            Checkin.query.filter_by(habit_id=habit.id).order_by(Checkin.date.desc()).limit(10).all()
+        ),
+    }
+    resp = make_response(render_template("partials/habit_panel.html", **context))
+    trigger = {}
+    if toast:
+        trigger["toast"] = toast
+    if celebration:
+        trigger["checkinCelebration"] = celebration
+    if badges_earned:
+        trigger["badgesEarned"] = badges_earned
+    if trigger:
+        resp.headers["HX-Trigger"] = json.dumps(trigger)
+    return resp
+
+
 @habits.post("/habits/<int:habit_id>/checkin")
 @login_required
 def checkin(habit_id):
@@ -826,6 +873,11 @@ def checkin(habit_id):
     room_response = _room_live_response(habit, toast=toast, celebration=celebration, badges_earned=newly_badges)
     if room_response is not None:
         return room_response
+    detail_response = _detail_live_response(
+        habit, today, now_hour, toast=toast, celebration=celebration, badges_earned=newly_badges
+    )
+    if detail_response is not None:
+        return detail_response
 
     header = _header_stats(current_user)
     habit_rows = _user_habits(current_user)
@@ -877,6 +929,9 @@ def undo_checkin(habit_id):
     room_response = _room_live_response(habit, toast=toast)
     if room_response is not None:
         return room_response
+    detail_response = _detail_live_response(habit, today, now_hour, toast=toast)
+    if detail_response is not None:
+        return detail_response
 
     header = _header_stats(current_user)
     habit_rows = _user_habits(current_user)
@@ -1008,6 +1063,9 @@ def use_freeze(habit_id):
     room_response = _room_live_response(habit, toast=toast, badges_earned=newly_badges)
     if room_response is not None:
         return room_response
+    detail_response = _detail_live_response(habit, today, now_hour, toast=toast, badges_earned=newly_badges)
+    if detail_response is not None:
+        return detail_response
 
     header = _header_stats(current_user)
     habit_rows = _user_habits(current_user)

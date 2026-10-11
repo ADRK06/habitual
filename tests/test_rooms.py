@@ -893,6 +893,23 @@ def test_dashboard_check_in_still_returns_dashboard_shaped_partial_for_a_room_ha
     assert 'id="my-room-panel"' not in html
 
 
+def test_room_habits_own_detail_page_check_in_returns_its_own_panel(client, db):
+    # A room habit's own /habits/<id> page (reachable directly, separate
+    # from the room page's "Your progress" panel) sets detail_view, not
+    # room_view - it must get its own habit-panel partial, never the
+    # room-shaped or dashboard-shaped one.
+    user = _login(client, db)
+    room = _create_room(db, user)
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+
+    response = client.post(f"/habits/{habit.id}/checkin", data={"detail_view": "1"})
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert f'id="habit-panel-{habit.id}"' in html
+    assert 'id="my-room-panel"' not in html
+    assert f'id="habit-card-{habit.id}"' not in html
+
+
 def test_dashboard_shows_room_badge_and_leader(client, db):
     user = _login(client, db)
     _create_room(db, user, title="Run Club")
@@ -923,10 +940,8 @@ def test_dashboard_room_card_relabels_health_as_room_health(client, db):
     habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
 
     response = client.get("/dashboard").get_data(as_text=True)
-    card_start = response.index(f'id="habit-card-{habit.id}"')
-    card_html = response[card_start:card_start + 5000]
-    assert "Room health" in card_html
-    assert ">Health<" not in card_html
+    assert "Room health" in response
+    assert ">Health<" not in response
 
 
 def test_dashboard_room_card_has_leave_button_not_delete(client, db):

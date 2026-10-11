@@ -24,13 +24,19 @@
    needs no JS and stays keyboard/screen-reader reachable via a real,
    focusable, labelled element rather than a bare decorative span. #}
 {% macro tooltip(text) %}
+{# `relative z-10`: harmless on its own (habit detail/room pages have
+   nothing to out-stack), but required on the dashboard card, which has a
+   full-card absolute stretched link (habit_card.html) - a positioned
+   sibling with z-index: 0 still paints over any *non*-positioned content
+   regardless of DOM order, so without this the link would swallow every
+   hover/click meant for this button. #}
 <button
   type="button"
   tabindex="0"
   title="{{ text }}"
   aria-label="{{ text }}"
   onclick="event.preventDefault(); event.stopPropagation();"
-  class="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[10px] leading-none text-text-muted/70 transition-colors hover:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+  class="relative z-10 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[10px] leading-none text-text-muted/70 transition-colors hover:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
 >ⓘ</button>
 {% endmacro %}
 

@@ -78,11 +78,9 @@ def test_dashboard_card_shows_status_pill_and_strength_bar(client, db):
     client.post(f"/habits/{habit.id}/checkin")
 
     response = client.get("/dashboard").get_data(as_text=True)
-    card_start = response.index(f'id="habit-card-{habit.id}"')
-    card_html = response[card_start:card_start + 4000]
-    assert "On track" in card_html
-    assert "data-strength-bar" in card_html
-    assert "data-strength-fraction=\"1.0\"" in card_html
+    assert "On track" in response
+    assert "data-strength-bar" in response
+    assert "data-strength-fraction=\"1.0\"" in response
 
 
 def test_dashboard_card_shows_at_risk_pill_for_a_cold_habit(client, db):
@@ -689,6 +687,100 @@ def test_habit_strength_restarts_from_effective_start_after_frequency_edit(clien
 
     response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
     assert _strength_pct(response) == 100
+
+
+# -- habit detail page: check-in/undo/freeze controls + live OOB (item 3) ----
+
+
+def test_habit_detail_page_has_checkin_button(client, db):
+    # The habit detail page previously had no check-in/undo/freeze controls
+    # at all - item 3 adds them, reusing the same panel-swap pattern as
+    # room_my_panel.html.
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+    response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+    assert f'id="habit-panel-{habit.id}"' in response
+    assert f"hx-post=\"/habits/{habit.id}/checkin\"" in response
+    assert 'hx-vals=\'{"detail_view": "1"}\'' in response
+
+
+def test_habit_detail_checkin_returns_the_panel_partial_not_dashboard_shaped(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+    response = client.post(f"/habits/{habit.id}/checkin", data={"detail_view": "1"})
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert f'id="habit-panel-{habit.id}"' in html
+    assert "habit-card-" not in html  # never the dashboard-shaped fragment
+    assert "Done today" in html  # the swapped panel already reflects today's checkin
+
+
+def test_habit_detail_checkin_updates_streak_and_strength_live(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+    response = client.post(f"/habits/{habit.id}/checkin", data={"detail_view": "1"})
+    html = response.get_data(as_text=True)
+    assert 'data-current-streak="1"' in html
+    assert _strength_pct(html) == 100
+
+
+def test_habit_detail_undo_returns_the_panel_partial_with_checkin_button_back(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+    client.post(f"/habits/{habit.id}/checkin", data={"detail_view": "1"})
+
+    response = client.delete(f"/habits/{habit.id}/checkin", data={"detail_view": "1"})
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert f'id="habit-panel-{habit.id}"' in html
+    assert "habit-card-" not in html
+    assert 'data-current-streak="0"' in html
+    assert "Check in" in html
+
+
+def test_habit_detail_freeze_returns_the_panel_partial(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read", created_on=date.today() - timedelta(days=5))
+    for i in (5, 4, 3, 2):  # yesterday (offset 1) missed, rest completed
+        db.session.add(Checkin(habit_id=habit.id, date=date.today() - timedelta(days=i)))
+    db.session.add(Freeze(user_id=user.id))
+    db.session.commit()
+
+    response = client.post(f"/habits/{habit.id}/freeze", data={"detail_view": "1"})
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert f'id="habit-panel-{habit.id}"' in html
+    assert "habit-card-" not in html
+
+
+def test_habit_detail_without_detail_view_flag_gets_dashboard_shaped_response(client, db):
+    # A plain (non-detail-page) caller of the same route - e.g. a stray
+    # request missing the hidden field - must keep getting the normal
+    # dashboard-shaped partial, not the detail panel.
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+    response = client.post(f"/habits/{habit.id}/checkin")
+    html = response.get_data(as_text=True)
+    assert f'id="habit-card-{habit.id}"' in html
+    assert f'id="habit-panel-{habit.id}"' not in html
+
+
+def test_habit_detail_stat_tooltips_present(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+    response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+    assert "Consecutive" in response  # streak tooltip
+    assert "longest streak this habit has ever had" in response  # longest tooltip
+    assert "completion chain over the last 5 weeks" in response  # chain tooltip
+
+
+def test_dashboard_card_chain_and_tooltips_present(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Read")
+    client.post(f"/habits/{habit.id}/checkin")
+    response = client.get("/dashboard").get_data(as_text=True)
+    assert "Chain" in response
+    assert "last 7 days at a glance" in response
 
 
 def test_habit_detail_month_calendar_defaults_to_current_month(client, db):

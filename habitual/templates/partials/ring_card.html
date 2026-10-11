@@ -63,9 +63,15 @@
 
     <div class="grid w-fit grid-cols-2 gap-3">
       <div class="w-32 rounded-xl bg-bg/40 p-4">
-        <p class="text-xs text-text-muted">🔥 {{ (streak_unit or 'day')|capitalize }} streak</p>
+        <p class="flex items-center gap-1 text-xs text-text-muted">
+          🔥 {{ (streak_unit or 'day')|capitalize }} streak
+          {{ tooltip("Consecutive " + (streak_unit or 'day') + "s completed, ending today (or yesterday, if today isn't done yet). A used freeze keeps the chain unbroken without adding to the count.") }}
+        </p>
         <p class="mt-1 font-heading text-3xl font-bold tabular-nums text-streak">{{ current_streak }}</p>
-        <p class="text-xs text-text-muted">best {{ longest_streak }}</p>
+        <p class="flex items-center gap-1 text-xs text-text-muted">
+          best {{ longest_streak }}
+          {{ tooltip("The longest streak this habit has ever had.") }}
+        </p>
       </div>
       <div class="w-32 rounded-xl bg-bg/40 p-4">
         <p class="flex items-center gap-1 text-xs text-text-muted">
@@ -89,13 +95,19 @@
 
   <div class="grid gap-6 sm:grid-cols-2">
     <div>
-      <p class="mb-2 text-xs text-text-muted">This week</p>
+      <p class="mb-2 flex items-center gap-1 text-xs text-text-muted">
+        This week
+        {{ tooltip("This calendar week (Monday-Sunday) - filled means completed, dashed means not scheduled, empty means missed.") }}
+      </p>
       <div class="flex gap-2">
         {% for day in week_days %}{{ week_circle(day.letter, day.state, day.is_today) }}{% endfor %}
       </div>
     </div>
     <div>
-      <p class="mb-2 text-xs text-text-muted">Last 5 weeks</p>
+      <p class="mb-2 flex items-center gap-1 text-xs text-text-muted">
+        Last 5 weeks
+        {{ tooltip("Your completion chain over the last 5 weeks - filled means completed, dashed means not scheduled, empty means missed.") }}
+      </p>
       <div class="grid grid-cols-7 gap-1.5">
         {% for week in heatmap_weeks %}{% for state in week %}{{ heat_cell(state) }}{% endfor %}{% endfor %}
       </div>
