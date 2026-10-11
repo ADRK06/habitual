@@ -19,6 +19,21 @@
    scope - every password field with a live strength meter (signup,
    forgot-password, account security) shares this exact markup so the three
    pages can't drift. #}
+{# Small "ⓘ" info affordance next to a stat label - native title attribute
+   (same pattern already used on the freeze/delete buttons elsewhere), so it
+   needs no JS and stays keyboard/screen-reader reachable via a real,
+   focusable, labelled element rather than a bare decorative span. #}
+{% macro tooltip(text) %}
+<button
+  type="button"
+  tabindex="0"
+  title="{{ text }}"
+  aria-label="{{ text }}"
+  onclick="event.preventDefault(); event.stopPropagation();"
+  class="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[10px] leading-none text-text-muted/70 transition-colors hover:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+>ⓘ</button>
+{% endmacro %}
+
 {% macro password_meter() %}
 <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
   <div class="h-full rounded-full transition-all duration-300" :class="strengthColor" :style="`width: ${((score + 1) / 5) * 100}%`"></div>

@@ -1,4 +1,5 @@
 {% from "partials/day_cell.html" import week_circle, heat_cell %}
+{% from "_macros.html" import tooltip %}
 
 <div
   class="rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl"
@@ -67,7 +68,10 @@
         <p class="text-xs text-text-muted">best {{ longest_streak }}</p>
       </div>
       <div class="w-32 rounded-xl bg-bg/40 p-4">
-        <p class="text-xs text-text-muted">Habit strength</p>
+        <p class="flex items-center gap-1 text-xs text-text-muted">
+          Habit strength
+          {{ tooltip("A weighted score (0-100%) of how consistently you've kept this habit - recent days count more than old ones, so it reacts to recent streaks and misses faster than your lifetime success rate.") }}
+        </p>
         <p class="mt-1 font-heading text-3xl font-bold tabular-nums text-accent">{{ strength }}%</p>
         <div class="mt-2 h-1.5 w-full origin-left overflow-hidden rounded-full bg-border">
           <div

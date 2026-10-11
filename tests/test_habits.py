@@ -581,6 +581,85 @@ def test_habit_detail_shows_on_track_after_checkin(client, db):
     assert b"On track" in response.data
 
 
+# -- habit strength: per-habit schedule + effective start ---------------------
+
+
+def _strength_pct(html):
+    match = re.search(r'data-strength-fraction="([\d.]+)"', html)
+    assert match is not None
+    return round(float(match.group(1)) * 100)
+
+
+def test_habit_strength_tooltip_present(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user)
+    response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+    assert "Habit strength" in response
+    assert "weighted score" in response
+
+
+def test_habit_strength_daily_full_history_is_100(client, db):
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, created_on=today - timedelta(days=4))
+    for i in range(4, -1, -1):
+        db.session.add(Checkin(habit_id=habit.id, date=today - timedelta(days=i)))
+    db.session.commit()
+
+    response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+    assert _strength_pct(response) == 100
+
+
+def test_habit_strength_specific_days_ignores_non_scheduled_gaps(client, db):
+    # Scheduled Mon/Wed/Fri only - a daily-granularity score would be dragged
+    # down by Tue/Thu/weekend "gaps" that were never actually asked for.
+    user = _login(client, db)
+    today = date.today()
+    mask = WEEKDAY_BIT[0] | WEEKDAY_BIT[2] | WEEKDAY_BIT[4]
+    habit = _create_habit(db, user, created_on=today - timedelta(days=14), frequency_type="days", frequency_days=mask)
+
+    cursor = habit.created_on
+    while cursor <= today:
+        if frequency.is_scheduled(cursor, "days", mask):
+            db.session.add(Checkin(habit_id=habit.id, date=cursor))
+        cursor += timedelta(days=1)
+    db.session.commit()
+
+    response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+    assert _strength_pct(response) == 100
+
+
+def test_habit_strength_weekly_hits_100_once_target_met(client, db):
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, created_on=week_start(today), frequency_type="weekly", frequency_target=2)
+    db.session.add(Checkin(habit_id=habit.id, date=week_start(today)))
+    db.session.add(Checkin(habit_id=habit.id, date=today))
+    db.session.commit()
+
+    response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+    assert _strength_pct(response) == 100
+
+
+def test_habit_strength_restarts_from_effective_start_after_frequency_edit(client, db):
+    # A string of misses just before the edit would crater a lifetime score -
+    # but strength (like the streak) counts from the edit date onward, so a
+    # single post-edit completion should read as 100%, not dragged down by
+    # pre-edit history.
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, created_on=today - timedelta(days=10))
+    for i in range(10, 2, -1):  # days -10..-3 missed entirely
+        pass  # deliberately nothing checked in
+
+    today_only = WEEKDAY_BIT[today.weekday()]
+    client.post(f"/habits/{habit.id}/frequency", data={"frequency_type": "days", "frequency_days": str(today_only)})
+    client.post(f"/habits/{habit.id}/checkin")
+
+    response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+    assert _strength_pct(response) == 100
+
+
 def test_habit_detail_month_calendar_defaults_to_current_month(client, db):
     user = _login(client, db)
     habit = _create_habit(db, user)
