@@ -16,10 +16,22 @@
   <header class="flex flex-wrap items-start justify-between gap-6 pt-10 pb-6">
     <div>
       <h1 class="font-heading text-2xl font-semibold text-text">{{ current_user.name }}</h1>
-      <p class="text-sm text-text-muted">@{{ current_user.username }}</p>
+      <p class="text-sm text-text-muted">
+        @{{ current_user.username }}
+        · <a href="{{ url_for('auth.account_security') }}" class="hover:text-text hover:underline">Account security</a>
+      </p>
     </div>
     {% include "partials/header_stats.html" %}
   </header>
+
+  {% if not has_recovery_codes %}
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-3 text-sm text-text">
+    <span>🔑 You don't have recovery codes yet - generate them so you can reset your password if you ever get locked out.</span>
+    <a href="{{ url_for('auth.account_security') }}" class="shrink-0 rounded-xl border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10">
+      Set up now
+    </a>
+  </div>
+  {% endif %}
 
   {% include "partials/day_status.html" %}
   {% include "partials/badges_row.html" %}

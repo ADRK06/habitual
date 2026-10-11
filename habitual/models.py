@@ -22,6 +22,14 @@ class User(UserMixin, db.Model):
     locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
     failed_join_attempts = db.Column(db.Integer, nullable=False, default=0)
     join_locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+    failed_forgot_attempts = db.Column(db.Integer, nullable=False, default=0)
+    forgot_locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+    # Bumped on every password reset/change - see get_id()/load_user below.
+    session_version = db.Column(db.Integer, nullable=False, default=0)
+
+    recovery_codes = db.relationship(
+        "RecoveryCode", backref="user", cascade="all, delete-orphan", passive_deletes=False
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -29,10 +37,34 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    def get_id(self):
+        # Encodes session_version into Flask-Login's session identifier so
+        # bumping it (on a recovery-code password reset) invalidates every
+        # session cookie already holding the old value - see load_user,
+        # which refuses to resolve a mismatched version. A self-service
+        # password/code change on the account security page bumps this too,
+        # but immediately re-calls login_user() to refresh ITS OWN session
+        # with the new version, so only other sessions get logged out.
+        return f"{self.id}.{self.session_version}"
+
+    @staticmethod
+    def parse_id(user_id):
+        try:
+            raw_id, version = user_id.split(".", 1)
+            return int(raw_id), int(version)
+        except (AttributeError, ValueError):
+            return None, None
+
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.session.get(User, int(user_id))
+    raw_id, version = User.parse_id(user_id)
+    if raw_id is None:
+        return None
+    user = db.session.get(User, raw_id)
+    if user is None or user.session_version != version:
+        return None
+    return user
 
 
 class Habit(db.Model):
@@ -206,3 +238,38 @@ class RoomCrown(db.Model):
     checkin_id = db.Column(db.Integer, db.ForeignKey("checkins.id"), nullable=True, index=True)
 
     user = db.relationship("User")
+
+
+class RecoveryCode(db.Model):
+    """One of a user's 8 one-time forgot-password codes. Only the Werkzeug
+    hash is ever stored (same hashing as the password itself) - the
+    plaintext is shown once, at generation time, and never persisted.
+    used_at set (not a delete) keeps a permanent "this code was spent"
+    record so a replay attempt can be told apart from one that was simply
+    never issued."""
+
+    __tablename__ = "recovery_codes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    code_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(dt_timezone.utc)
+    )
+    used_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+
+class IpLockout(db.Model):
+    """Per-IP brute-force lockout for routes with no logged-in user to key
+    a lockout column off of (forgot-password) - the username-keyed half of
+    that same lockout lives on User (failed_forgot_attempts/
+    forgot_locked_until), mirroring login's/join's existing pattern."""
+
+    __tablename__ = "ip_lockouts"
+    __table_args__ = (db.UniqueConstraint("ip", "scope", name="uq_ip_lockout_ip_scope"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    ip = db.Column(db.String(45), nullable=False)  # long enough for IPv6
+    scope = db.Column(db.String(30), nullable=False)
+    failed_attempts = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime(timezone=True), nullable=True)

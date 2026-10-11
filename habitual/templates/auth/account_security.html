@@ -1,0 +1,102 @@
+{% extends "app_base.html" %}
+{% from "_macros.html" import spinner, password_meter %}
+
+{% block title %}Account security · Habitual{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js"></script>
+{% endblock %}
+
+{% block app_content %}
+<div class="mx-auto max-w-lg py-10">
+  <a href="{{ url_for('habits.dashboard') }}" class="inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text">
+    ← Back to dashboard
+  </a>
+  <h1 class="mt-4 font-heading text-2xl font-semibold text-text">Account security</h1>
+
+  <section class="mt-8 rounded-2xl border border-border bg-surface/40 p-6">
+    {% if new_codes %}
+      {% include "partials/recovery_codes_reveal.html" %}
+    {% else %}
+      <h2 class="font-heading text-lg font-semibold text-text">Recovery codes</h2>
+      <p class="mt-1 text-sm text-text-muted">
+        {% if has_codes %}
+        You have recovery codes saved. Regenerating replaces them - the old ones stop working immediately.
+        {% else %}
+        You don't have any recovery codes yet. Generate them so you can reset your password if you ever lose access -
+        there's no email recovery.
+        {% endif %}
+      </p>
+      <form method="post" action="{{ url_for('auth.regenerate_codes') }}" class="mt-4">
+        {{ codes_form.csrf_token }}
+        <button type="submit" class="relative rounded-xl border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
+          <span class="btn-label">{{ "Regenerate codes" if has_codes else "Generate recovery codes" }}</span>
+          {{ spinner(size='4') }}
+        </button>
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="mt-6 rounded-2xl border border-border bg-surface/40 p-6">
+    <h2 class="font-heading text-lg font-semibold text-text">Change password</h2>
+    <form
+      method="post"
+      action="{{ url_for('auth.change_password') }}"
+      x-data="passwordMeterData({ username: {{ current_user.username|tojson|forceescape }}, name: {{ current_user.name|tojson|forceescape }} })"
+      class="mt-4 space-y-4"
+    >
+      {{ password_form.csrf_token }}
+
+      <div>
+        <label for="current_password" class="block text-sm text-text-muted mb-1">Current password</label>
+        {{ password_form.current_password(
+          id='current_password', type='password', autocomplete='current-password',
+          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent'
+        ) }}
+        {% for error in password_form.current_password.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        {% endfor %}
+      </div>
+
+      <div>
+        <label for="new_password" class="block text-sm text-text-muted mb-1">New password</label>
+        <div class="relative">
+          {{ password_form.new_password(
+            id='new_password',
+            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 pr-16 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
+            **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'password'}
+          ) }}
+          <button
+            type="button"
+            @click="showPassword = !showPassword"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-text"
+          >
+            <span x-text="showPassword ? 'Hide' : 'Show'"></span>
+          </button>
+        </div>
+        {{ password_meter() }}
+        {% for error in password_form.new_password.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        {% endfor %}
+      </div>
+
+      <div>
+        <label for="confirm_password" class="block text-sm text-text-muted mb-1">Confirm new password</label>
+        {{ password_form.confirm_password(
+          id='confirm_password',
+          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
+          **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'confirm'}
+        ) }}
+        {% for error in password_form.confirm_password.errors %}
+        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        {% endfor %}
+      </div>
+
+      <button type="submit" class="relative rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+        <span class="btn-label">Change password</span>
+        {{ spinner() }}
+      </button>
+    </form>
+  </section>
+</div>
+{% endblock %}

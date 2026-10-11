@@ -64,10 +64,15 @@ def test_login_ignores_external_next(client, db):
 # -- signup -------------------------------------------------------------------
 
 def test_signup_creates_user_and_logs_in(client, db):
+    # Signup no longer redirects straight to the dashboard - it shows the
+    # one-time recovery-codes page first (item 6), already logged in.
     response = client.post("/signup", data=_signup_payload())
-    assert response.status_code == 302
-    assert response.location == "/dashboard"
+    assert response.status_code == 200
+    assert b"recovery code" in response.data.lower()
     assert User.query.filter_by(username="aadhira").count() == 1
+
+    dashboard = client.get("/dashboard")
+    assert dashboard.status_code == 200
 
 
 def test_signup_password_mismatch_rejected(client, db):
@@ -134,7 +139,7 @@ def test_signup_accepts_long_passphrase(client, db):
     response = client.post(
         "/signup", data=_signup_payload(password=passphrase, confirm_password=passphrase)
     )
-    assert response.status_code == 302
+    assert response.status_code == 200
     assert User.query.count() == 1
 
 
