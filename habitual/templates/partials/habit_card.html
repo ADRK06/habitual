@@ -1,5 +1,4 @@
-{% from "_macros.html" import spinner, tooltip %}
-{% from "partials/day_cell.html" import heat_cell %}
+{% from "_macros.html" import spinner %}
 <div
   id="habit-card-{{ habit.id }}"
   class="habit-card group relative flex h-full flex-col rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-accent/30 hover:shadow-xl"
@@ -75,47 +74,15 @@
     {% endif %}
   </div>
 
-  {# Status pill - same label/variant/wording as the habit detail page's
-     ring_card.html (both come from analytics.habit_status), just sized for
-     the card. Own fixed-height row so every card's streak number still
-     lines up regardless of which pill text is showing. #}
-  <div class="mt-2 flex h-6 items-center">
-    <span
-      class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium
-        {% if status_variant == 'ontrack' %}bg-success/15 text-success
-        {% elif status_variant == 'risk' %}bg-danger/20 text-text
-        {% elif status_variant == 'saved' %}bg-accent/15 text-accent
-        {% else %}bg-border/50 text-text-muted{% endif %}"
-    >
-      {% if status_variant == 'saved' %}🧊{% elif status_variant == 'due' %}📅{% elif status_variant == 'risk' %}⚠️{% elif status_variant == 'resting' %}🌿{% else %}✓{% endif %}
-      {{ status_label }}
-    </span>
-  </div>
-
-  <div class="mt-3 flex items-baseline gap-2">
+  <div class="mt-5 flex items-baseline gap-2">
     <span class="text-2xl">🔥</span>
     <span class="font-heading text-3xl font-bold tabular-nums text-streak">{{ current_streak }}</span>
-    <span class="flex items-center gap-1 text-xs text-text-muted">
-      {{ streak_unit or 'day' }} streak
-      {{ tooltip("Consecutive " + (streak_unit or 'day') + "s completed, ending today (or yesterday, if today isn't done yet). A used freeze keeps the chain unbroken without adding to the count.") }}
-    </span>
-  </div>
-
-  <div class="mt-3 flex items-center gap-1.5">
-    <span class="flex items-center gap-1 text-[11px] text-text-muted">
-      Chain {{ tooltip("Your last 7 days at a glance, oldest to today - filled means completed, dashed means not scheduled, empty means missed.") }}
-    </span>
-  </div>
-  <div class="mt-1 flex gap-1">
-    {% for state in chain_days or [] %}{{ heat_cell(state) }}{% endfor %}
+    <span class="text-xs text-text-muted">{{ streak_unit or 'day' }} streak</span>
   </div>
 
   <dl class="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
     <div class="rounded-xl bg-bg/40 py-2">
-      <dt class="flex items-center justify-center gap-1 text-text-muted">
-        {{ "Days left" if habit.room_id else "Longest" }}
-        {% if not habit.room_id %}{{ tooltip("The longest streak this habit has ever had.") }}{% endif %}
-      </dt>
+      <dt class="text-text-muted">{{ "Days left" if habit.room_id else "Longest" }}</dt>
       <dd class="mt-0.5 font-medium text-text">{{ days_remaining if habit.room_id else longest_streak }}</dd>
     </div>
     <div class="rounded-xl bg-bg/40 py-2">
@@ -123,34 +90,10 @@
       <dd class="mt-0.5 font-medium text-accent">{{ habit_points }}</dd>
     </div>
     <div class="rounded-xl bg-bg/40 py-2">
-      <dt class="flex items-center justify-center gap-1 text-text-muted">
-        {{ "Room health" if habit.room_id else "Success" }}
-        {% if not habit.room_id %}{{ tooltip("Completed days out of days tracked, over this habit's whole lifetime.") }}{% endif %}
-      </dt>
+      <dt class="text-text-muted">{{ "Room health" if habit.room_id else "Success" }}</dt>
       <dd class="mt-0.5 font-medium text-text">{{ health_pct if habit.room_id else success_rate }}%</dd>
     </div>
   </dl>
-
-  {# Strength bar - same analytics.habit_strength/weekly_habit_strength
-     number as the habit detail page, just condensed to fit the card's
-     fixed structure instead of the page's larger tile+ring layout. #}
-  <div class="mt-3">
-    <div class="flex items-center justify-between text-[11px] text-text-muted">
-      <span class="flex items-center gap-1">
-        Strength
-        {{ tooltip("A weighted score (0-100%) of how consistently you've kept this habit - recent days count more than old ones.") }}
-      </span>
-      <span class="font-medium text-text">{{ strength }}%</span>
-    </div>
-    <div class="mt-1 h-1.5 w-full origin-left overflow-hidden rounded-full bg-border">
-      <div
-        class="h-full origin-left rounded-full bg-accent"
-        style="transform: scaleX({{ (strength / 100) | round(3) }})"
-        data-strength-bar
-        data-strength-fraction="{{ (strength / 100) | round(3) }}"
-      ></div>
-    </div>
-  </div>
 
   {# Action area, pinned to the bottom of the card (mt-auto) regardless of
      how much is above it, so every card in a row bottoms out at the same

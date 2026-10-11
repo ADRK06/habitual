@@ -168,20 +168,14 @@ def _frequency_badge_label(habit):
     return _frequency_label(habit)
 
 
-def _habit_view(habit, today, freezes_held, now_hour):
+def _habit_view(habit, today, freezes_held):
     """Pricing/stats for one habit card, derived from points.py's pure
     functions. For Daily/Specific-Days, non-scheduled dates bridge the
     streak/freeze math exactly like a frozen day already does (`bridge`),
     but stay distinct from real freezes for success_rate, which excludes
     them from both sides of the ratio instead of bridging. Weekly habits
     use a parallel week-granularity family instead (`streak_unit` tells the
-    templates which word - "day" or "week" - to use for the streak).
-
-    `status_label`/`status_variant`/`strength` are the card's health pill and
-    strength bar (item 4) - computed with analytics.py's exact same
-    functions the habit detail page uses (_analytics_context/
-    _weekly_analytics_context below), so a card and its own detail page can
-    never disagree."""
+    templates which word - "day" or "week" - to use for the streak)."""
     completed = {c.date for c in habit.checkins}
     frozen = {f.used_on for f in habit.freezes if f.used_on is not None}
     amounts = [pt.amount for pt in habit.point_transactions]
@@ -196,16 +190,6 @@ def _habit_view(habit, today, freezes_held, now_hour):
         can_save_streak = points.weekly_freeze_available(completed, target, today, frozen, floor)
         is_due_today = True
         streak_unit = "week"
-
-        this_week = points.week_start(today)
-        last_week = this_week - timedelta(days=7)
-        froze_last_week = last_week in frozen
-        week_ring = analytics.weekly_week_ring(completed, today, target)
-        status_label, status_variant = analytics.habit_status(
-            completed, frozen, froze_last_week, effective_start, today, now_hour,
-            not_due_today=(week_ring[0] >= target),
-        )
-        strength = round(analytics.weekly_habit_strength(completed, target, effective_start, today))
     else:
         not_scheduled = _not_scheduled_for(habit, effective_start, today)
         bridge = frozen | not_scheduled
@@ -217,28 +201,6 @@ def _habit_view(habit, today, freezes_held, now_hour):
         )
         is_due_today = today not in not_scheduled
         streak_unit = "day"
-
-        yesterday = today - timedelta(days=1)
-        froze_used_yesterday = yesterday in frozen
-        status_label, status_variant = analytics.habit_status(
-            completed, frozen, froze_used_yesterday, effective_start, today, now_hour,
-            not_due_today=(today in not_scheduled), not_scheduled=not_scheduled,
-        )
-        strength = round(analytics.habit_strength(completed, frozen, effective_start, today, not_scheduled))
-
-    # The card's compact "chain" - last 7 real calendar days (today
-    # rightmost), not Monday-aligned like the habit page's own week row,
-    # since a card has no room for a 7-slot row that's mostly empty right
-    # after a habit's born mid-week. Weekly habits have no per-day
-    # frozen/not_scheduled concept, so their chain only ever shows done/
-    # missed/before_created - never "frozen" for a day that's merely part
-    # of a frozen week.
-    chain_not_scheduled = set() if habit.frequency_type == "weekly" else not_scheduled
-    chain_start = today - timedelta(days=6)
-    chain_days = [
-        analytics.day_state(chain_start + timedelta(days=i), completed, frozen, habit.created_on, today, chain_not_scheduled)
-        for i in range(7)
-    ]
 
     return {
         "habit": habit,
@@ -252,11 +214,7 @@ def _habit_view(habit, today, freezes_held, now_hour):
         "is_due_today": is_due_today,
         "frequency_label": _frequency_label(habit),
         "frequency_badge_label": _frequency_badge_label(habit),
-        "chain_days": chain_days,
         "streak_unit": streak_unit,
-        "status_label": status_label,
-        "status_variant": status_variant,
-        "strength": strength,
     }
 
 
@@ -426,12 +384,11 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
     newly_awarded_badges = badges.check_and_award(current_user)
 
     today = local_today(current_user)
-    now_hour = local_now(current_user).hour
     header = _header_stats(current_user)
     habit_rows = _user_habits(current_user)
     context = {
         "habit_cards": [
-            {**_habit_view(h, today, header["freezes_held"], now_hour), **_room_card_context(h, room_bundle)}
+            {**_habit_view(h, today, header["freezes_held"]), **_room_card_context(h, room_bundle)}
             for h in habit_rows
         ],
         "form": form or HabitForm(),
@@ -707,7 +664,7 @@ def habit_detail(habit_id):
         else url_for("habits.dashboard")
     )
     context = {
-        **_habit_view(habit, today, freezes_held, now_hour),
+        **_habit_view(habit, today, freezes_held),
         **_analytics_context(habit, today, now_hour),
         "calendar": _month_calendar_context(habit, calendar_month, today),
         "recent_checkins": (
@@ -785,7 +742,7 @@ def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, 
         return None
     freezes_held = Freeze.query.filter_by(user_id=current_user.id, used_on=None).count()
     context = {
-        **_habit_view(habit, today, freezes_held, now_hour),
+        **_habit_view(habit, today, freezes_held),
         **_analytics_context(habit, today, now_hour),
         "calendar": _month_calendar_context(habit, today.replace(day=1), today),
         "recent_checkins": (
@@ -882,7 +839,7 @@ def checkin(habit_id):
     header = _header_stats(current_user)
     habit_rows = _user_habits(current_user)
     context = {
-        **_habit_view(habit, today, header["freezes_held"], now_hour),
+        **_habit_view(habit, today, header["freezes_held"]),
         **_room_card_context(habit),
         **header,
         **_overview_context(habit_rows, today),
@@ -936,7 +893,7 @@ def undo_checkin(habit_id):
     header = _header_stats(current_user)
     habit_rows = _user_habits(current_user)
     context = {
-        **_habit_view(habit, today, header["freezes_held"], now_hour),
+        **_habit_view(habit, today, header["freezes_held"]),
         **_room_card_context(habit),
         **header,
         **_overview_context(habit_rows, today),
@@ -1070,7 +1027,7 @@ def use_freeze(habit_id):
     header = _header_stats(current_user)
     habit_rows = _user_habits(current_user)
     context = {
-        **_habit_view(habit, today, header["freezes_held"], now_hour),
+        **_habit_view(habit, today, header["freezes_held"]),
         **_room_card_context(habit),
         **header,
         **_overview_context(habit_rows, today),
