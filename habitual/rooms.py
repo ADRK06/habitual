@@ -309,7 +309,7 @@ def _personal_stats(habit, viewer):
     now_hour = local_now(viewer).hour
     freezes_held = Freeze.query.filter_by(user_id=viewer.id, used_on=None).count()
     return {
-        **_habit_view(habit, today, freezes_held),
+        **_habit_view(habit, today, freezes_held, now_hour),
         **_analytics_context(habit, today, now_hour),
     }
 

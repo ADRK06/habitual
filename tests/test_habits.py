@@ -69,6 +69,37 @@ def test_dashboard_shows_habit_card(client, db):
     assert b"No habits yet" not in response.data
 
 
+# -- dashboard card health (status pill + strength bar, item 4) --------------
+
+
+def test_dashboard_card_shows_status_pill_and_strength_bar(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Morning Run")
+    client.post(f"/habits/{habit.id}/checkin")
+
+    response = client.get("/dashboard").get_data(as_text=True)
+    card_start = response.index(f'id="habit-card-{habit.id}"')
+    card_html = response[card_start:card_start + 4000]
+    assert "On track" in card_html
+    assert "data-strength-bar" in card_html
+    assert "data-strength-fraction=\"1.0\"" in card_html
+
+
+def test_dashboard_card_shows_at_risk_pill_for_a_cold_habit(client, db):
+    user = _login(client, db)
+    today = date.today()
+    habit = _create_habit(db, user, title="Gym", created_on=today - timedelta(days=10))
+    # Only 2 of the last 7 days done - well under the 50% window threshold.
+    for i in (9, 8):
+        db.session.add(Checkin(habit_id=habit.id, date=today - timedelta(days=i)))
+    db.session.commit()
+
+    response = client.get("/dashboard").get_data(as_text=True)
+    card_start = response.index(f'id="habit-card-{habit.id}"')
+    card_html = response[card_start:card_start + 4000]
+    assert "At risk" in card_html
+
+
 # -- header countdown --------------------------------------------------------
 
 

@@ -63,9 +63,13 @@ function initRingsChart() {
 }
 
 function animateStrengthBar() {
-  const strengthBar = document.querySelector("[data-strength-bar]");
-  if (strengthBar && window.gsap && !window.prefersReducedMotion && !document.hidden) {
-    const target = parseFloat(strengthBar.dataset.strengthFraction);
-    gsap.fromTo(strengthBar, { scaleX: 0 }, { scaleX: target, duration: 0.8, ease: "power2.out" });
-  }
+  // querySelectorAll, not querySelector - the habit detail and room pages
+  // only ever have one of these, but the dashboard now renders one per
+  // habit card, and a bare querySelector would silently animate only the
+  // first.
+  if (!window.gsap || window.prefersReducedMotion || document.hidden) return;
+  document.querySelectorAll("[data-strength-bar]").forEach((bar) => {
+    const target = parseFloat(bar.dataset.strengthFraction);
+    gsap.fromTo(bar, { scaleX: 0 }, { scaleX: target, duration: 0.8, ease: "power2.out" });
+  });
 }

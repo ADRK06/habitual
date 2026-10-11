@@ -913,6 +913,22 @@ def test_dashboard_room_card_links_to_the_room_not_the_habit_stats_page(client, 
     assert f'href="/habits/{habit.id}"' not in response
 
 
+def test_dashboard_room_card_relabels_health_as_room_health(client, db):
+    # Room cards keep the member-health % stat, but item 4 relabels it
+    # "Room health" so it reads distinctly from the new per-habit strength
+    # bar (also shown on the same card) rather than implying they're the
+    # same number.
+    user = _login(client, db)
+    room = _create_room(db, user, title="Run Club")
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+
+    response = client.get("/dashboard").get_data(as_text=True)
+    card_start = response.index(f'id="habit-card-{habit.id}"')
+    card_html = response[card_start:card_start + 5000]
+    assert "Room health" in card_html
+    assert ">Health<" not in card_html
+
+
 def test_dashboard_room_card_has_leave_button_not_delete(client, db):
     user = _login(client, db)
     room = _create_room(db, user, title="Run Club")
