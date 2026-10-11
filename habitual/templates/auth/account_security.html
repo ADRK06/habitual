@@ -1,11 +1,7 @@
 {% extends "app_base.html" %}
-{% from "_macros.html" import spinner, password_meter %}
+{% from "_macros.html" import spinner %}
 
 {% block title %}Account security · Habitual{% endblock %}
-
-{% block head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js"></script>
-{% endblock %}
 
 {% block app_content %}
 <div class="mx-auto max-w-lg py-10">
@@ -79,7 +75,20 @@
     <form
       method="post"
       action="{{ url_for('auth.change_password') }}"
-      x-data="passwordMeterData({ username: {{ current_user.username|tojson|forceescape }}, name: {{ current_user.name|tojson|forceescape }} })"
+      x-data="{
+        password: '',
+        confirm: '',
+        showPassword: false,
+        get hasLower() { return /[a-z]/.test(this.password) },
+        get hasUpper() { return /[A-Z]/.test(this.password) },
+        get hasDigit() { return /\d/.test(this.password) },
+        get hasSpecial() { return /[^\w\s]/.test(this.password) },
+        get hasLength() { return this.password.length >= 8 },
+        get matches() { return this.confirm.length > 0 && this.confirm === this.password },
+        get score() { return [this.hasLength, this.hasUpper, this.hasLower, this.hasDigit, this.hasSpecial].filter(Boolean).length },
+        get strengthLabel() { return ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'][this.score] },
+        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-rooms' : 'bg-accent' },
+      }"
       class="mt-4 space-y-4"
     >
       {{ password_form.csrf_token }}
@@ -111,7 +120,18 @@
             <span x-text="showPassword ? 'Hide' : 'Show'"></span>
           </button>
         </div>
-        {{ password_meter() }}
+        <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
+          <div class="h-full rounded-full transition-all duration-300" :class="strengthColor" :style="`width: ${(score / 5) * 100}%`"></div>
+        </div>
+        <p class="mt-1 text-xs text-text-muted" x-text="password.length ? strengthLabel : ''"></p>
+
+        <ul class="mt-2 space-y-0.5 text-xs text-text-muted">
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasLength }">8+ characters</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasUpper }">Uppercase letter</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasLower }">Lowercase letter</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasDigit }">Digit</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasSpecial }">Special character</li>
+        </ul>
         {% for error in password_form.new_password.errors %}
         <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}

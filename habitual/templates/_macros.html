@@ -14,11 +14,6 @@
 </span>
 {% endmacro %}
 
-{# The zxcvbn-driven bar/label/feedback + the 5-rule checklist, assuming an
-   ancestor element has `x-data="passwordMeterData(...)"` (base.html) in
-   scope - every password field with a live strength meter (signup,
-   forgot-password, account security) shares this exact markup so the three
-   pages can't drift. #}
 {# Small "ⓘ" info affordance next to a stat label - native title attribute
    (same pattern already used on the freeze/delete buttons elsewhere), so it
    needs no JS and stays keyboard/screen-reader reachable via a real,
@@ -38,20 +33,4 @@
   onclick="event.preventDefault(); event.stopPropagation();"
   class="relative z-10 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[10px] leading-none text-text-muted/70 transition-colors hover:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
 >ⓘ</button>
-{% endmacro %}
-
-{% macro password_meter() %}
-<div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
-  <div class="h-full rounded-full transition-all duration-300" :class="strengthColor" :style="`width: ${((score + 1) / 5) * 100}%`"></div>
-</div>
-<p class="mt-1 text-xs text-text-muted" x-text="password.length ? strengthLabel : ''"></p>
-<p class="mt-0.5 text-xs text-text-muted" x-show="password.length && feedbackText" x-text="feedbackText"></p>
-
-<ul class="mt-2 space-y-0.5 text-xs text-text-muted">
-  <li class="transition-colors duration-200" :class="{ 'text-success': hasLength }">8+ characters</li>
-  <li class="transition-colors duration-200" :class="{ 'text-success': hasUpper }">Uppercase letter</li>
-  <li class="transition-colors duration-200" :class="{ 'text-success': hasLower }">Lowercase letter</li>
-  <li class="transition-colors duration-200" :class="{ 'text-success': hasDigit }">Digit</li>
-  <li class="transition-colors duration-200" :class="{ 'text-success': hasSpecial }">Special character</li>
-</ul>
 {% endmacro %}

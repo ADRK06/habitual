@@ -292,13 +292,16 @@ def test_reset_password_expired_token_rejected(client, db):
     assert b"invalid or has expired" in response.data
 
 
-def test_reset_password_rejects_weak_new_password(client, db):
+def test_reset_password_rejects_a_password_failing_the_checklist(client, db):
     _create_user(db, email="verified@example.com", verified=True)
     client.post("/forgot-password", data={"email": "verified@example.com"})
     token = _last_token(client)
 
+    # Fails the uppercase-letter rule - the server-side checklist is the
+    # only password-strength gate now, so this must still be rejected.
+    weak_password = "nouppercase1!"
     response = client.post(f"/reset-password/{token}", data={
-        "new_password": "Password1!", "confirm_password": "Password1!",
+        "new_password": weak_password, "confirm_password": weak_password,
     })
     assert response.status_code == 200
     user = User.query.filter_by(username="aadhira").first()

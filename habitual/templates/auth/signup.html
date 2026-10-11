@@ -1,11 +1,7 @@
 {% extends "base.html" %}
-{% from "_macros.html" import spinner, password_meter %}
+{% from "_macros.html" import spinner %}
 
 {% block title %}Sign up · Habitual{% endblock %}
-
-{% block head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js"></script>
-{% endblock %}
 
 {% block content %}
 <div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
@@ -17,7 +13,20 @@
 
     <form
       method="post"
-      x-data="passwordMeterData()"
+      x-data="{
+        password: '',
+        confirm: '',
+        showPassword: false,
+        get hasLower() { return /[a-z]/.test(this.password) },
+        get hasUpper() { return /[A-Z]/.test(this.password) },
+        get hasDigit() { return /\d/.test(this.password) },
+        get hasSpecial() { return /[^\w\s]/.test(this.password) },
+        get hasLength() { return this.password.length >= 8 },
+        get matches() { return this.confirm.length > 0 && this.confirm === this.password },
+        get score() { return [this.hasLength, this.hasUpper, this.hasLower, this.hasDigit, this.hasSpecial].filter(Boolean).length },
+        get strengthLabel() { return ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'][this.score] },
+        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-rooms' : 'bg-accent' },
+      }"
       x-init="document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone"
       class="space-y-4"
     >
@@ -27,7 +36,7 @@
 
       <div>
         <label for="name" class="block text-sm text-text-muted mb-1">Name</label>
-        {{ form.name(id='name', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', **{'x-model': 'name'}) }}
+        {{ form.name(id='name', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent') }}
         {% for error in form.name.errors %}
         <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
@@ -50,7 +59,6 @@
           autocomplete='off',
           autocapitalize='off',
           **{
-            'x-model': 'username',
             'hx-get': url_for('auth.check_username'),
             'hx-trigger': 'keyup changed delay:400ms',
             'hx-target': '#username-check',
@@ -84,7 +92,18 @@
           </button>
         </div>
 
-        {{ password_meter() }}
+        <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
+          <div class="h-full rounded-full transition-all duration-300" :class="strengthColor" :style="`width: ${(score / 5) * 100}%`"></div>
+        </div>
+        <p class="mt-1 text-xs text-text-muted" x-text="password.length ? strengthLabel : ''"></p>
+
+        <ul class="mt-2 space-y-0.5 text-xs text-text-muted">
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasLength }">8+ characters</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasUpper }">Uppercase letter</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasLower }">Lowercase letter</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasDigit }">Digit</li>
+          <li class="transition-colors duration-200" :class="{ 'text-success': hasSpecial }">Special character</li>
+        </ul>
         {% for error in form.password.errors %}
         <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}

@@ -115,61 +115,6 @@ def test_signup_duplicate_username_rejected(client, db):
     assert User.query.count() == 1
 
 
-# -- signup: zxcvbn guessability gate -----------------------------------------
-
-def test_signup_rejects_password1_despite_passing_checklist(client, db):
-    # "Password1!" satisfies every character-class rule but is one of the
-    # most common passwords in existence - the checklist alone must not be
-    # enough to pass signup.
-    response = client.post(
-        "/signup", data=_signup_payload(password="Password1!", confirm_password="Password1!")
-    )
-    assert response.status_code == 200
-    assert User.query.count() == 0
-
-
-def test_signup_rejects_pssw0rd_despite_passing_checklist(client, db):
-    response = client.post(
-        "/signup", data=_signup_payload(password="P@ssw0rd1", confirm_password="P@ssw0rd1")
-    )
-    assert response.status_code == 200
-    assert User.query.count() == 0
-
-
-def test_signup_accepts_long_passphrase(client, db):
-    passphrase = "Correct7!Horse8!Battery9!Staple0!"
-    response = client.post(
-        "/signup", data=_signup_payload(password=passphrase, confirm_password=passphrase)
-    )
-    assert response.status_code == 302
-    assert User.query.count() == 1
-
-
-def test_signup_accepts_a_score_2_password(client, db):
-    # zxcvbn scores this "Fair" (2) against this account's own
-    # username/name - only 0-1 ("very guessable") are rejected now, so
-    # this must pass even though it's not a top-tier password.
-    password = "Tiger2024!"
-    response = client.post(
-        "/signup", data=_signup_payload(password=password, confirm_password=password)
-    )
-    assert response.status_code == 302
-    assert User.query.count() == 1
-
-
-def test_signup_rejects_password_containing_username(client, db):
-    # Scores well (4) on its own in isolation, but is built directly from
-    # the account's own username - zxcvbn is given user_inputs specifically
-    # to catch this and drops it to 1.
-    password = "Aadhira992!"
-    response = client.post(
-        "/signup",
-        data=_signup_payload(username="aadhira992", password=password, confirm_password=password),
-    )
-    assert response.status_code == 200
-    assert User.query.filter_by(username="aadhira992").count() == 0
-
-
 # -- login: generic error + lockout -------------------------------------------
 
 def test_login_wrong_password_generic_message(client, db):

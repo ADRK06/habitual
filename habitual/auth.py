@@ -11,7 +11,6 @@ from flask_wtf import FlaskForm
 from sqlalchemy.exc import IntegrityError
 from wtforms import HiddenField, PasswordField, StringField
 from wtforms.validators import DataRequired, EqualTo, ValidationError
-from zxcvbn import zxcvbn
 
 from habitual import db, mailer
 from habitual.models import (
@@ -30,14 +29,6 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 USERNAME_HELP = "3-20 characters: lowercase letters, numbers, underscore only."
 PASSWORD_HELP = "At least 8 characters, with an uppercase letter, a lowercase letter, a digit, and a special character."
 EMAIL_HELP = "Enter a valid email address."
-
-# The checklist (PASSWORD_RE) only checks character variety, which "Password1!"
-# satisfies while still being trivially guessable. zxcvbn's score (0-4, based
-# on actual crack-time estimates, dictionary/pattern matching, and whatever
-# user_inputs it's given) catches that - only scores 0-1 ("very guessable",
-# e.g. "Password1!") are rejected; 2 and up pass. The checklist stays as UX
-# guidance, never as the sole server-side bar.
-MIN_ZXCVBN_SCORE = 2
 
 RESET_TOKEN_LIFETIME = timedelta(minutes=30)
 VERIFY_TOKEN_LIFETIME = timedelta(hours=24)
@@ -74,42 +65,6 @@ def _validate_email_format(form, field):
 def _validate_password_strength(form, field):
     if not PASSWORD_RE.match(field.data or ""):
         raise ValidationError(PASSWORD_HELP)
-
-
-def _validate_password_guessability(password, user_inputs):
-    """Raises ValidationError if zxcvbn scores `password` below
-    MIN_ZXCVBN_SCORE against `user_inputs` (name/username, so a password
-    built from either scores low) - shared by signup, password reset, and
-    the account-security change-password form."""
-    result = zxcvbn(password or "", user_inputs=[s for s in user_inputs if s])
-    if result["score"] < MIN_ZXCVBN_SCORE:
-        feedback = result.get("feedback") or {}
-        message = feedback.get("warning") or next(iter(feedback.get("suggestions") or []), None)
-        raise ValidationError(message or "This password is too easy to guess - try something longer or less common.")
-
-
-def _signup_zxcvbn(form, field):
-    _validate_password_guessability(field.data, [form.username.data, form.name.data])
-
-
-def _account_zxcvbn(form, field):
-    _validate_password_guessability(field.data, [current_user.username, current_user.name])
-
-
-def _apply_zxcvbn_check(form, field_name, user):
-    """Manually runs the guessability check against `user`'s own
-    username/name, for forms where the user is only known from request
-    context (a token, here) rather than from the form's own fields -
-    WTForms field validators only ever see (form, field), with no way to
-    inject extra context like a resolved user at declare-time. Returns
-    False (and appends the error, same as a normal validator) on failure."""
-    field = getattr(form, field_name)
-    try:
-        _validate_password_guessability(field.data, [user.username, user.name])
-    except ValidationError as exc:
-        field.errors.append(str(exc))
-        return False
-    return True
 
 
 def _aware_utc(dt):
@@ -256,9 +211,7 @@ class SignupForm(FlaskForm):
     name = StringField("Name", validators=[DataRequired()])
     username = StringField("Username", validators=[DataRequired(), _validate_username_format])
     email = StringField("Email", validators=[DataRequired(), _validate_email_format])
-    password = PasswordField(
-        "Password", validators=[DataRequired(), _validate_password_strength, _signup_zxcvbn]
-    )
+    password = PasswordField("Password", validators=[DataRequired(), _validate_password_strength])
     confirm_password = PasswordField(
         "Confirm password",
         validators=[DataRequired(), EqualTo("password", message="Passwords must match.")],
@@ -287,9 +240,7 @@ class ResetPasswordForm(FlaskForm):
 
 class ChangePasswordForm(FlaskForm):
     current_password = PasswordField("Current password", validators=[DataRequired()])
-    new_password = PasswordField(
-        "New password", validators=[DataRequired(), _validate_password_strength, _account_zxcvbn]
-    )
+    new_password = PasswordField("New password", validators=[DataRequired(), _validate_password_strength])
     confirm_password = PasswordField(
         "Confirm new password",
         validators=[DataRequired(), EqualTo("new_password", message="Passwords must match.")],
@@ -565,7 +516,7 @@ def reset_password(token):
         return resp
 
     form = ResetPasswordForm()
-    if form.validate_on_submit() and _apply_zxcvbn_check(form, "new_password", user):
+    if form.validate_on_submit():
         row.used_at = now
         user.set_password(form.new_password.data)
         # Invalidates every session currently logged in as this user (see
