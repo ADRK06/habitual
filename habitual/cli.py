@@ -1,7 +1,9 @@
-"""Dev-only CLI commands. Never reachable over HTTP - these only run when
-someone has a local shell and runs `flask --app app <command>` directly.
+"""CLI-only commands - dev tooling and an admin recovery command. Never
+reachable over HTTP - these only run when someone has a local shell and
+runs `flask --app app <command>` directly.
 """
 import os
+import secrets
 from datetime import timedelta
 from pathlib import Path
 
@@ -105,3 +107,40 @@ def dev_backdate(habit_id, days, skip_yesterday, include_today):
 
     db.session.commit()
     click.echo(f"Backdated {created} check-in(s) for habit {habit.id} ({habit.title!r}).")
+
+
+@click.command("admin-reset-password")
+@click.argument("username")
+@click.option(
+    "--i-know-this-is-prod", is_flag=True, default=False,
+    help="Bypass the production safety check - only for a genuine locked-out-user emergency on prod.",
+)
+@with_appcontext
+def admin_reset_password(username, i_know_this_is_prod):
+    """Admin-only: sets a random temporary password for a locked-out user,
+    printed once (never stored anywhere else), and clears every lockout and
+    session for their account. Refuses to run against production unless
+    --i-know-this-is-prod is passed - unlike dev-backdate, there's a
+    legitimate reason to need this against prod (a real user locked out
+    with no working email), so it has an explicit override instead of no
+    escape hatch at all."""
+    if not i_know_this_is_prod:
+        _refuse_if_production()
+
+    user = User.query.filter_by(username=username.strip().lower()).first()
+    if user is None:
+        raise click.ClickException(f"No user with username {username!r}.")
+
+    temp_password = secrets.token_urlsafe(12)
+    user.set_password(temp_password)
+    # Same invalidation as a normal reset (see habitual.auth) - any session
+    # or in-flight lockout this account had is cleared by this action too.
+    user.session_version += 1
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.failed_forgot_attempts = 0
+    user.forgot_locked_until = None
+    db.session.commit()
+
+    click.echo(f"Temporary password for {user.username}: {temp_password}")
+    click.echo("Shown once - not stored anywhere else. Ask them to change it (Account security) after logging in.")

@@ -153,3 +153,80 @@ def test_dev_backdate_refuses_against_prod_database_url(app, db, monkeypatch):
 
     assert result.exit_code != 0
     assert Checkin.query.filter_by(habit_id=habit.id).count() == 0
+
+
+# -- admin-reset-password ----------------------------------------------------
+
+
+def test_admin_reset_password_sets_a_working_temporary_password(app, db, monkeypatch):
+    _allow(monkeypatch)
+    user = _create_user(db)
+    user.failed_login_attempts = 3
+    user.locked_until = user.created_at  # any past/irrelevant value
+    db.session.commit()
+    old_session_id = user.get_id()
+
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["admin-reset-password", "aadhira"])
+    assert result.exit_code == 0, result.output
+
+    import re
+    match = re.search(r"Temporary password for aadhira: (\S+)", result.output)
+    assert match is not None
+    temp_password = match.group(1)
+
+    user = User.query.filter_by(username="aadhira").first()
+    assert user.check_password(temp_password)
+    assert not user.check_password("Sup3r$ecret")
+    assert user.failed_login_attempts == 0
+    assert user.locked_until is None
+
+    from habitual.models import load_user
+    assert load_user(old_session_id) is None  # old sessions invalidated too
+
+
+def test_admin_reset_password_rejects_unknown_username(app, db, monkeypatch):
+    _allow(monkeypatch)
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["admin-reset-password", "ghost"])
+    assert result.exit_code != 0
+
+
+def test_admin_reset_password_refuses_on_vercel(app, db, monkeypatch):
+    user = _create_user(db)
+    monkeypatch.setenv("VERCEL", "1")
+
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["admin-reset-password", "aadhira"])
+
+    assert result.exit_code != 0
+    user = User.query.filter_by(username="aadhira").first()
+    assert user.check_password("Sup3r$ecret")  # unchanged
+
+
+def test_admin_reset_password_refuses_against_prod_database_url(app, db, monkeypatch):
+    user = _create_user(db)
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr("habitual.cli.dotenv_values", lambda path: {"DATABASE_URL": "sqlite://"})
+    monkeypatch.setattr("pathlib.Path.exists", lambda self: True)
+
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["admin-reset-password", "aadhira"])
+
+    assert result.exit_code != 0
+    user = User.query.filter_by(username="aadhira").first()
+    assert user.check_password("Sup3r$ecret")
+
+
+def test_admin_reset_password_override_flag_bypasses_the_prod_check(app, db, monkeypatch):
+    _create_user(db)
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setattr("habitual.cli.dotenv_values", lambda path: {"DATABASE_URL": "sqlite://"})
+    monkeypatch.setattr("pathlib.Path.exists", lambda self: True)
+
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["admin-reset-password", "aadhira", "--i-know-this-is-prod"])
+
+    assert result.exit_code == 0, result.output
+    user = User.query.filter_by(username="aadhira").first()
+    assert not user.check_password("Sup3r$ecret")
