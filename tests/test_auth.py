@@ -115,17 +115,19 @@ def test_signup_duplicate_username_rejected(client, db):
     assert User.query.count() == 1
 
 
-# -- login: generic error + lockout -------------------------------------------
+# -- login: distinct errors + lockouts ----------------------------------------
 
-def test_login_wrong_password_generic_message(client, db):
+def test_login_wrong_password_message(client, db):
     _create_user(db)
     response = client.post("/login", data={"username": "aadhira", "password": "wrong", "next": ""})
-    assert b"Incorrect username or password" in response.data
+    assert b"Incorrect password" in response.data
+    assert b"No account found" not in response.data
 
 
-def test_login_unknown_username_generic_message(client, db):
+def test_login_unknown_username_message_links_to_signup(client, db):
     response = client.post("/login", data={"username": "ghost", "password": "whatever", "next": ""})
-    assert b"Incorrect username or password" in response.data
+    assert b"No account found with that username" in response.data
+    assert b'href="/signup' in response.data
 
 
 def test_login_locks_after_five_failures(client, db):
@@ -159,6 +161,58 @@ def test_successful_login_resets_lockout_counters(client, db):
     user = User.query.filter_by(username="aadhira").first()
     assert user.failed_login_attempts == 0
     assert user.locked_until is None
+
+
+# -- login: per-IP failure cap (covers unknown-username guessing) ------------
+
+def test_login_ip_cap_blocks_after_twenty_failures_from_unknown_usernames(client, db):
+    for i in range(20):
+        response = client.post(
+            "/login", data={"username": f"ghost{i}", "password": "whatever", "next": ""},
+            headers={"X-Forwarded-For": "9.9.9.9"},
+        )
+    assert b"No account found" in response.data
+
+    # The 21st attempt from the same IP is blocked outright, even with the
+    # right username/password for an existing account.
+    user = _create_user(db)
+    response = client.post(
+        "/login", data={"username": user.username, "password": VALID_PASSWORD, "next": ""},
+        headers={"X-Forwarded-For": "9.9.9.9"},
+    )
+    assert b"Too many failed logins from this network" in response.data
+    assert response.status_code == 200
+
+
+def test_login_ip_cap_counts_wrong_passwords_too(client, db):
+    # One real account with a wrong password, repeated past its own
+    # 5-failure account lockout - once THAT lockout kicks in, the account
+    # branch short-circuits before reaching the IP counter, so use fresh
+    # usernames per attempt to isolate the IP cap on its own.
+    for i in range(19):
+        _create_user(db, username=f"user{i}")
+        client.post(
+            "/login", data={"username": f"user{i}", "password": "wrong", "next": ""},
+            headers={"X-Forwarded-For": "8.8.8.8"},
+        )
+    from habitual.models import RateLimit
+    row = RateLimit.query.filter_by(key="8.8.8.8", scope="login_ip").first()
+    assert row.attempts == 19
+    assert row.locked_until is None
+
+
+def test_login_ip_failures_are_independent_per_ip(client, db):
+    for i in range(20):
+        client.post(
+            "/login", data={"username": f"ghost{i}", "password": "whatever", "next": ""},
+            headers={"X-Forwarded-For": "1.1.1.1"},
+        )
+
+    response = client.post(
+        "/login", data={"username": "someoneelse", "password": "whatever", "next": ""},
+        headers={"X-Forwarded-For": "2.2.2.2"},
+    )
+    assert b"No account found" in response.data  # not IP-limited, different IP
 
 
 # -- misc routes ----------------------------------------------------------------

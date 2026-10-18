@@ -45,6 +45,14 @@
       {% for error in form.username.errors %}
       <p class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
       {% endfor %}
+      {% if show_signup_link %}
+      <p class="text-sm text-text-muted">
+        <a href="{{ url_for('auth.signup', next=form.next.data or none) }}" class="text-accent hover:underline">Create an account</a> instead?
+      </p>
+      {% endif %}
+      {% for error in form.password.errors %}
+      <p class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+      {% endfor %}
 
       <button type="submit" class="relative w-full rounded-2xl bg-accent px-4 py-2 font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100">
         <span class="btn-label">Log in</span>

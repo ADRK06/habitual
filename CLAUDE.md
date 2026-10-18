@@ -128,7 +128,14 @@ Deleting a habit cascades to its check-ins, vouches and point transactions (its 
 - Password: ≥ 8 chars, at least one uppercase, one lowercase, one digit, one special character.
   Show a live checklist/strength meter; re-validate on the server.
 - After signup or login → redirect to `/dashboard`. Logged-in users visiting `/` go to the dashboard.
-- Basic brute-force protection: after 5 failed logins for a username, block for 10 minutes (store in DB).
+- Login errors are split: an unknown username shows "No account found with that username" with a
+  link to create an account; an existing username with the wrong password shows "Incorrect password".
+  Basic brute-force protection: after 5 failed logins for a known username, block that account for
+  10 minutes (store in DB). Since an unknown username can't be locked per account, failed logins are
+  also capped per client IP (20 failures / 10 minutes, `RateLimit` table, scope `login_ip`, via the
+  `X-Forwarded-For` client-IP helper) - this also covers repeated wrong-password attempts. Forgot-
+  password's response stays identical regardless of whether the account/email exists (see below) -
+  this username-reveal is deliberate for login only, not for password reset.
 
 ### Check-ins
 - At most **one check-in per habit per local day** (DB unique constraint + server check).

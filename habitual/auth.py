@@ -50,6 +50,12 @@ RL_SCOPE_FORGOT_EMAIL = "forgot_email"
 RL_SCOPE_FORGOT_IP = "forgot_ip"
 RL_SCOPE_RESET_SUBMIT_IP = "reset_submit_ip"
 RL_SCOPE_VERIFY_RESEND = "verify_resend"
+RL_SCOPE_LOGIN_IP = "login_ip"
+
+# A failed login against an unknown username can't be locked onto an
+# account (there isn't one) - that's covered instead by this per-IP cap,
+# separate from the per-account LOCKOUT_THRESHOLD/LOCKOUT_MINUTES above.
+LOGIN_IP_FAILURE_CAP = 20
 
 
 def _validate_username_format(form, field):
@@ -96,12 +102,12 @@ def _client_ip():
     return request.remote_addr or "unknown"
 
 
-def _check_rate_limit(key, scope, cap, cooldown_seconds, now):
+def _check_rate_limit(key, scope, cap, cooldown_seconds, now, lock_minutes=60):
     """Records this attempt for (key, scope) and returns whether it's
     allowed right now. Every allowed attempt (optionally) sets a short
     cooldown before the next one; once `cap` attempts land before that
-    cooldown fully lapses, the lock extends to a full hour instead - same
-    "N before locking, then wait" shape as the existing login/join
+    cooldown fully lapses, the lock extends to `lock_minutes` instead -
+    same "N before locking, then wait" shape as the existing login/join
     lockouts, just reused here for rate-limiting sends/requests instead of
     counting failures. Caller still has to commit."""
     row = RateLimit.query.filter_by(key=key, scope=scope).first()
@@ -116,10 +122,23 @@ def _check_rate_limit(key, scope, cap, cooldown_seconds, now):
 
     row.attempts += 1
     if row.attempts >= cap:
-        row.locked_until = now + timedelta(hours=1)
+        row.locked_until = now + timedelta(minutes=lock_minutes)
     elif cooldown_seconds:
         row.locked_until = now + timedelta(seconds=cooldown_seconds)
     return True
+
+
+def _rate_limit_locked_until(key, scope, now):
+    """Read-only peek at whether (key, scope) is currently locked, without
+    recording an attempt - used to short-circuit a request (e.g. before
+    checking a password) separately from _check_rate_limit, which always
+    records one."""
+    row = RateLimit.query.filter_by(key=key, scope=scope).first()
+    if row is not None and row.locked_until is not None:
+        locked_until = _aware_utc(row.locked_until)
+        if locked_until > now:
+            return locked_until
+    return None
 
 
 def _claim_verified_email(user, email, now):
@@ -365,15 +384,26 @@ def login():
         return redirect(safe_next_path(request.args.get("next")) or url_for("habits.dashboard"))
 
     form = LoginForm(next=request.args.get("next", ""))
+    show_signup_link = False
 
     if form.validate_on_submit():
         username = form.username.data.strip().lower()
         user = User.query.filter_by(username=username).first()
         now = datetime.now(dt_timezone.utc)
-        locked_until = _aware_utc(user.locked_until) if user else None
+        ip = _client_ip()
+        account_locked_until = _aware_utc(user.locked_until) if user else None
+        # An unknown username has no account to lock, so a scripted
+        # guesser would otherwise never be slowed down - this per-IP cap
+        # covers that gap instead (see LOGIN_IP_FAILURE_CAP's comment).
+        ip_locked_until = _rate_limit_locked_until(ip, RL_SCOPE_LOGIN_IP, now)
 
-        if locked_until and locked_until > now:
-            minutes_left = int((locked_until - now).total_seconds() // 60) + 1
+        if ip_locked_until:
+            minutes_left = int((ip_locked_until - now).total_seconds() // 60) + 1
+            form.username.errors.append(
+                f"Too many failed logins from this network. Try again in {minutes_left} minute(s)."
+            )
+        elif account_locked_until and account_locked_until > now:
+            minutes_left = int((account_locked_until - now).total_seconds() // 60) + 1
             form.username.errors.append(
                 f"Too many failed attempts. Try again in {minutes_left} minute(s)."
             )
@@ -383,15 +413,20 @@ def login():
             db.session.commit()
             login_user(user)
             return redirect(safe_next_path(form.next.data) or url_for("habits.dashboard"))
+        elif user:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= LOCKOUT_THRESHOLD:
+                user.locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
+            _check_rate_limit(ip, RL_SCOPE_LOGIN_IP, LOGIN_IP_FAILURE_CAP, 0, now, lock_minutes=LOCKOUT_MINUTES)
+            db.session.commit()
+            form.password.errors.append("Incorrect password.")
         else:
-            if user:
-                user.failed_login_attempts += 1
-                if user.failed_login_attempts >= 5:
-                    user.locked_until = now + timedelta(minutes=10)
-                db.session.commit()
-            form.username.errors.append("Incorrect username or password.")
+            _check_rate_limit(ip, RL_SCOPE_LOGIN_IP, LOGIN_IP_FAILURE_CAP, 0, now, lock_minutes=LOCKOUT_MINUTES)
+            db.session.commit()
+            form.username.errors.append("No account found with that username.")
+            show_signup_link = True
 
-    return render_template("auth/login.html", form=form)
+    return render_template("auth/login.html", form=form, show_signup_link=show_signup_link)
 
 
 @auth.get("/check-email")
