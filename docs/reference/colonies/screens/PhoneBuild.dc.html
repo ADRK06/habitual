@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Build menu, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; overflow: hidden">
+  <img src="../art/11daf5aa9d7ea8282bb0028766db8332.png" alt="" style="position: absolute; left: 16px; top: 0; width: 358px; height: 310px; image-rendering: pixelated; opacity: 0.35">
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 640px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 16px; background: #0C0F14; border-top: 1px solid #FFB238">
+    <div style="align-self: center; width: 40px; height: 4px; background: #2A3140"></div>
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 20px">BUILD</h1>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid #2A3140; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #FFB238"><svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><path d="M7 0 1 8h4l-1 6 6-8H6z" fill="#FFB238"></path></svg>340</div>
+        <a href="PhoneHome.dc.html" aria-label="Close" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid #2A3140; color: #ECE6D8; text-decoration: none"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"></path></svg></a>
+      </div>
+    </div>
+    <div style="font-size: 12px; color: #9A9384">Buildings unlock from check-ins in their category. Spending Energy never lowers your XP.</div>
+
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 10px; background: #141922; border: 1px solid #2A3140; opacity: {{r.op}}">
+        <img src="{{r.icon}}" alt="" style="width: 36px; height: 36px; image-rendering: pixelated">
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0">
+          <div style="font-size: 14px; font-weight: 500">{{r.name}}</div>
+          <div style="font-size: 11px; color: #9A9384">{{r.note}}</div>
+        </div>
+        <sc-if value="{{r.locked}}" hint-placeholder-val="{{false}}">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #9A9384; text-align: right">{{r.lock}}</div>
+        </sc-if>
+        <sc-if value="{{r.open}}" hint-placeholder-val="{{true}}">
+          <button type="button" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 72px; height: 44px; background: #FFB238; color: #0C0F14; border: 0; cursor: pointer"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500">{{r.cost}}</span><span style="font-size: 10px">{{r.time}}</span></button>
+        </sc-if>
+      </div>
+    </sc-for>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px dashed #9A9384">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #ECE6D8; flex-grow: 1">WONDER · DYSON SPHERE</div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #9A9384">Colony LV 20</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rows = [
+      { icon: '../art/7086c715151fb0500e83b582a3f74636.png', name: 'Research Lab · upgrade to LV 3', note: 'Study · unlocks new building designs', cost: '200', time: '6h', open: true },
+      { icon: '../art/60a3210093b573549153066d3b54b340.png', name: 'Defense Tower · LV 2', note: 'Fitness · blocks 1 storm hit a week', cost: '120', time: '4h', open: true },
+      { icon: '../art/d87c116e3245189550fc21b92f9c6428.png', name: 'Biodome · LV 3', note: 'Water · +2 population', cost: '100', time: '2h', open: true },
+      { icon: '../art/41326809df27d06e781b9363b010be29.png', name: 'Power Reactor · LV 2', note: 'Sleep · +1 Energy per check-in', cost: '150', time: '3h', open: true },
+      { icon: '../art/0cdb2907aa4a5d6ecaadeee5f0f71fdd.png', name: 'Observatory', note: 'Mind · reveals rare events', locked: true, lock: '6 / 10 mind\ncheck-ins' },
+      { icon: '../art/6c9b90961eec1ad3adbe5cbfe0e1d67d.png', name: 'Custom Module', note: 'Any habit · pick the look', cost: '80', time: '1h', open: true }
+    ];
+    return { rows: rows.map((r) => ({ ...r, op: r.locked ? 0.6 : 1 })) };
+  }
+}
+</script>
+</body>
+</html>

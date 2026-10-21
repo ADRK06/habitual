@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shop, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column">
+  <div style="flex-grow: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 16px">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <a href="PhoneHome.dc.html" aria-label="Back to colony" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid #2A3140; color: #ECE6D8; text-decoration: none"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 2 4 7l5 5"></path></svg></a>
+      <h1 style="margin: 0; flex-grow: 1; font-family: 'Silkscreen', monospace; font-size: 22px">SHOP</h1>
+      <div style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid #2A3140; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #FFB238"><svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><path d="M7 0 1 8h4l-1 6 6-8H6z" fill="#FFB238"></path></svg>340</div>
+    </div>
+
+    <div style="font-size: 12px; color: #9A9384">Cosmetics change how you look, never your score.</div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 12px">SHIELDS</div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: #141922; border: 1px solid #3E5A7A">
+        <img src="../art/79e56d4d28c9262a4f55a088dc37004e.png" alt="" style="width: 40px; height: 40px; image-rendering: pixelated">
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+          <div style="font-size: 14px; font-weight: 500">Shield · 1 day</div>
+          <div style="font-size: 12px; color: #9A9384">Protects streak and colony on a missed day. You own 2 · max 3.</div>
+        </div>
+        <button type="button" style="width: 64px; height: 44px; background: #FFB238; color: #0C0F14; border: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; cursor: pointer">80</button>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 12px">SUITS</div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{suits}}" as="s" hint-placeholder-count="6">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; background: #141922; border: 1px solid {{s.border}}">
+            <img src="{{s.img}}" alt="" style="width: 48px; height: 48px; image-rendering: pixelated">
+            <div style="font-size: 12px">{{s.name}}</div>
+            <div style="font-family: 'Silkscreen', monospace; font-size: 10px; color: {{s.color}}">{{s.price}}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 12px">SHIPS</div>
+      <sc-for list="{{ships}}" as="s" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 10px; background: #141922; border: 1px solid {{s.border}}">
+          <img src="{{s.img}}" alt="" style="width: 64px; height: 40px; image-rendering: pixelated">
+          <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1"><div style="font-size: 14px">{{s.name}}</div><div style="font-size: 11px; color: #9A9384">{{s.note}}</div></div>
+          <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: {{s.color}}">{{s.price}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 12px">PLANET SKINS</div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border: 1px solid #2A3140"><img src="../art/a11f3f0cac003d310f29b745eec375e8.png" alt="" style="width: 56px; height: 56px; image-rendering: pixelated"><span style="font-size: 12px">Ice world</span><span style="font-family: 'Silkscreen', monospace; font-size: 10px; color: #9A9384">30-DAY STREAK</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border: 1px solid #2A3140"><img src="../art/93df6d126fa5db88f6a484ba662a35e6.png" alt="" style="width: 56px; height: 56px; image-rendering: pixelated"><span style="font-size: 12px">Lava world</span><span style="font-family: 'Silkscreen', monospace; font-size: 10px; color: #FFB238">400</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border: 1px solid #2A3140"><img src="../art/10722e334b81662e8e390429f06572d1.png" alt="" style="width: 56px; height: 56px; image-rendering: pixelated"><span style="font-size: 12px">Ringed giant</span><span style="font-family: 'Silkscreen', monospace; font-size: 10px; color: #9A9384">SEASON 1</span></div>
+      </div>
+    </div>
+  </div>
+  <dc-import name="PhoneNav" active="colony" hint-size="390px,64px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = (price) => price === 'EQUIPPED' ? { color: '#8BD7A0', border: '#8BD7A0' } : price === 'OWNED' ? { color: '#9A9384', border: '#2A3140' } : price.indexOf('TOP') === 0 ? { color: '#9A9384', border: '#2A3140' } : { color: '#FFB238', border: '#2A3140' };
+    const suits = [
+      { img: '../art/fda5c80c9eef2e7a17d948ec9e53f848.png', name: 'Phosphor', price: 'EQUIPPED' },
+      { img: '../art/b952f2499d95c8435f81b81fab41aecb.png', name: 'Steel', price: 'OWNED' },
+      { img: '../art/f7bb44468497b64667e7ba1e084c84c8.png', name: 'Signal', price: '150' },
+      { img: '../art/30d11df90e5e41179d7bf18a6cc46d74.png', name: 'Rust', price: '150' },
+      { img: '../art/2be38c0f38ebc9ca1c8ebf5014baa243.png', name: 'Bone', price: '220' },
+      { img: '../art/71ae5d774fe290d83a4680a2d0a98632.png', name: 'Admiral', price: 'TOP 3 ONLY' }
+    ].map((s) => ({ ...s, ...st(s.price) }));
+    const ships = [
+      { img: '../art/a7cff84bb42a345d21472332f425e369.png', name: 'Scout', note: 'Starter ship', price: 'EQUIPPED' },
+      { img: '../art/6c7e87e22824fabafda64297bb7491b3.png', name: 'Hauler', note: 'Shows when you send Energy', price: '180' },
+      { img: '../art/f52a95d0bece393d18b6ae7b3736e389.png', name: 'Lancer', note: 'Leads boss raids', price: '260' }
+    ].map((s) => ({ ...s, ...st(s.price) }));
+    return { suits, ships };
+  }
+}
+</script>
+</body>
+</html>

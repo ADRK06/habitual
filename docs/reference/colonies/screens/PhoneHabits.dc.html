@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Habits, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column">
+  <div style="flex-grow: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 16px 16px 16px">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 22px">HABITS</h1>
+      <button type="button" style="height: 44px; padding: 0 14px; background: #FFB238; color: #0C0F14; border: 0; font-family: 'Silkscreen', monospace; font-size: 12px; cursor: pointer">+ NEW HABIT</button>
+    </div>
+
+    <div style="display: flex; gap: 6px; flex-wrap: wrap">
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="6">
+        <button type="button" style="height: 32px; padding: 0 10px; background: {{f.bg}}; color: {{f.color}}; border: 1px solid {{f.border}}; font-family: 'Silkscreen', monospace; font-size: 11px; cursor: pointer">{{f.label}}</button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; gap: 10px; padding: 10px 12px; border: 1px solid #3E5A7A; background: #141922">
+      <img src="../art/79e56d4d28c9262a4f55a088dc37004e.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">
+      <div style="font-size: 12px; line-height: 1.45; color: #9A9384"><span style="color: #ECE6D8">Habits lock every Monday.</span> New habits start counting toward your sector score next week. You have 2 shields.</div>
+    </div>
+
+    <sc-for list="{{habits}}" as="h" hint-placeholder-count="5">
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px; background: #141922; border: 1px solid #2A3140">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <img src="{{h.icon}}" alt="" style="width: 28px; height: 28px; image-rendering: pixelated">
+          <div style="display: flex; flex-direction: column; flex-grow: 1; gap: 2px">
+            <div style="font-size: 15px; font-weight: 500">{{h.name}}</div>
+            <div style="font-size: 12px; color: #9A9384">{{h.meta}}</div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: #E2603A">{{h.streak}}</div>
+            <div style="font-size: 11px; color: #9A9384">streak</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px">
+          <sc-for list="{{h.week}}" as="d" hint-placeholder-count="7">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; flex-grow: 1">
+              <div style="width: 100%; height: 10px; background: {{d.bg}}; border: 1px solid {{d.border}}; box-sizing: border-box"></div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #9A9384">{{d.l}}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #9A9384"><span>{{h.tiny}}</span><span style="font-family: 'Silkscreen', monospace; font-size: 11px; color: {{h.tagColor}}">{{h.tag}}</span></div>
+      </div>
+    </sc-for>
+
+    <div style="display: flex; gap: 12px; font-size: 11px; color: #9A9384">
+      <span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; background: #8BD7A0; display: inline-block"></span>Done</span>
+      <span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; background: #3E5A7A; display: inline-block"></span>Shielded</span>
+      <span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; border: 1px solid #E2603A; box-sizing: border-box; display: inline-block"></span>Missed</span>
+      <span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; border: 1px solid #2A3140; box-sizing: border-box; display: inline-block"></span>Not scheduled</span>
+    </div>
+  </div>
+  <dc-import name="PhoneNav" active="habits" hint-size="390px,64px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const S = { y: ['#8BD7A0', '#8BD7A0'], f: ['#3E5A7A', '#3E5A7A'], m: ['transparent', '#E2603A'], o: ['transparent', '#2A3140'], t: ['#FFB238', '#FFB238'] };
+    const L = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const wk = (s) => s.split('').map((c, i) => ({ bg: S[c][0], border: S[c][1], l: L[i] }));
+    const B = {
+      tower: '../art/60a3210093b573549153066d3b54b340.png', lab: '../art/7086c715151fb0500e83b582a3f74636.png',
+      dome: '../art/d87c116e3245189550fc21b92f9c6428.png', reactor: '../art/41326809df27d06e781b9363b010be29.png',
+      obs: '../art/0cdb2907aa4a5d6ecaadeee5f0f71fdd.png'
+    };
+    const habits = [
+      { icon: B.tower, name: 'Morning run', meta: 'Fitness · Defense Tower · 4× a week', streak: '9w', week: wk('yoyoyoo'), tiny: 'Tiny: 5 min walk', tag: 'SOLO', tagColor: '#9A9384' },
+      { icon: B.lab, name: 'Read 20 pages', meta: 'Study · Research Lab · daily', streak: '14d', week: wk('yyfyyyt'), tiny: 'Tiny: 1 page', tag: 'FLEET · NIGHT OWLS', tagColor: '#FFB238' },
+      { icon: B.dome, name: 'Drink 8 glasses', meta: 'Water · Biodome · daily', streak: '6d', week: wk('myyyyyt'), tiny: 'Tiny: 1 glass', tag: 'SOLO', tagColor: '#9A9384' },
+      { icon: B.reactor, name: 'Sleep by 11:30', meta: 'Sleep · Power Reactor · daily', streak: '3d', week: wk('ymmyyyt'), tiny: 'Tiny: phone away at 11', tag: 'SOLO', tagColor: '#9A9384' },
+      { icon: B.obs, name: '10 min meditation', meta: 'Mind · Observatory · Mon, Wed, Fri', streak: '5w', week: wk('yoyoyoo'), tiny: 'Tiny: 3 breaths', tag: 'COUNTS NEXT WEEK', tagColor: '#8BD7A0' }
+    ];
+    const fl = ['ALL', 'FITNESS', 'STUDY', 'SLEEP', 'WATER', 'MIND'];
+    return { habits, filters: fl.map((l, i) => ({ label: l, bg: i === 0 ? '#ECE6D8' : 'transparent', color: i === 0 ? '#0C0F14' : '#9A9384', border: i === 0 ? '#ECE6D8' : '#2A3140' })) };
+  }
+}
+</script>
+</body>
+</html>

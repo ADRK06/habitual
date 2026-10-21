@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sector rankings, web</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; overflow: hidden; display: flex; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif">
+  <div style="flex: 0 0 240px; border-right: 1px solid #2A3140"><dc-import name="Sidebar" active="sector" hint-size="240px,900px"></dc-import></div>
+  <main style="flex-grow: 1; min-width: 0; height: 900px; overflow-y: auto; box-sizing: border-box; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">SECTOR · GROUP 12 · WEEK OF 19 OCT</div>
+        <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 26px">NEBULA</h1>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #2A3140"><span style="font-size: 12px; color: #9A9384">Settles Monday 00:00 in</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 15px">2d 06h 14m</span></div>
+    </div>
+
+    <div style="display: flex; gap: 24px; align-items: flex-start">
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; border: 1px solid #2A3140">
+        <div style="display: grid; grid-template-columns: 48px minmax(0, 1fr) 110px 90px 90px 80px; gap: 8px; align-items: center; height: 36px; padding: 0 14px; border-bottom: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 10px; color: #9A9384"><span>RANK</span><span>COMMANDER</span><span>CONSISTENCY</span><span>PERFECT</span><span>VOUCHED</span><span style="text-align: right">SCORE</span></div>
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="14">
+          <sc-if value="{{r.divider}}" hint-placeholder-val="{{false}}">
+            <div style="display: flex; align-items: center; gap: 10px; height: 28px; padding: 0 14px; font-family: 'Silkscreen', monospace; font-size: 10px; color: {{r.color}}; background: #0C0F14"><div style="width: 24px; height: 1px; background: {{r.color}}"></div>{{r.label}}<div style="flex-grow: 1; height: 1px; background: {{r.color}}"></div></div>
+          </sc-if>
+          <sc-if value="{{r.row}}" hint-placeholder-val="{{true}}">
+            <div style="display: grid; grid-template-columns: 48px minmax(0, 1fr) 110px 90px 90px 80px; gap: 8px; align-items: center; height: 48px; padding: 0 14px; border-top: 1px solid #141922; background: {{r.bg}}; outline: 1px solid {{r.outline}}">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #9A9384">{{r.rank}}</span>
+              <span style="display: flex; align-items: center; gap: 10px; min-width: 0"><img src="{{r.planet}}" alt="" style="width: 28px; height: 28px; image-rendering: pixelated"><span style="font-size: 14px">{{r.name}}</span></span>
+              <span style="display: flex; align-items: center; gap: 8px"><span style="width: 50px; height: 4px; background: #2A3140; display: block"><span style="display: block; height: 4px; width: {{r.cw}}; background: #8BD7A0"></span></span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">{{r.c}}</span></span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #9A9384">{{r.p}}</span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #9A9384">{{r.v}}</span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; text-align: right">{{r.score}}</span>
+            </div>
+          </sc-if>
+        </sc-for>
+      </div>
+
+      <aside style="flex: 0 0 320px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: #141922; border: 1px solid #FFB238">
+          <div style="display: flex; align-items: baseline; justify-content: space-between"><span style="font-family: 'Silkscreen', monospace; font-size: 12px">YOUR SCORE</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 32px; color: #FFB238">850</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #9A9384">Consistency 78% × 1000</span><span style="font-family: 'IBM Plex Mono', monospace">780</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #9A9384">Perfect days 3 × 20</span><span style="font-family: 'IBM Plex Mono', monospace">60</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #9A9384">Vouched 2 × 5 (max 20)</span><span style="font-family: 'IBM Plex Mono', monospace">10</span></div>
+          <div style="padding-top: 8px; border-top: 1px solid #2A3140; font-size: 12px; color: #8BD7A0">2 more perfect days likely puts you in the top 3</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid #2A3140">
+          <span style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">TIERS</span>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9A9384"><span>Deep Space</span><span>6</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9A9384"><span>Core Systems</span><span>5</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9A9384"><span>Star Cluster</span><span>4 · next</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #FFB238; padding: 4px 6px; margin: 0 -6px; background: #141922"><span>Nebula · you</span><span>3</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9A9384"><span>Moon Orbit</span><span>2</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9A9384"><span>Asteroid Belt</span><span>1</span></div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid #2A3140">
+          <span style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">REWARDS</span>
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><img src="../art/bbaaf9fb712684cd9db1c3f9cb4f74bd.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">Top 3 · 100 Energy, rare suit, trophy</div>
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><img src="../art/36def7fece835ab90b181af91fba641d.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">Top 5 · warp to Star Cluster</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid #2A3140">
+          <span style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">LAST WEEKS</span>
+          <div style="display: flex; justify-content: space-between; font-size: 13px"><span>12 Oct · Moon Orbit</span><span style="font-family: 'IBM Plex Mono', monospace; color: #8BD7A0">#2 ↑</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px"><span>5 Oct · Moon Orbit</span><span style="font-family: 'IBM Plex Mono', monospace; color: #9A9384">#9</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px"><span>28 Sep · Asteroid Belt</span><span style="font-family: 'IBM Plex Mono', monospace; color: #8BD7A0">#4 ↑</span></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = { r: '../art/93037739eedb431e18db41628feb2b0b.png', i: '../art/a11f3f0cac003d310f29b745eec375e8.png', l: '../art/93df6d126fa5db88f6a484ba662a35e6.png', v: '../art/02dbdb774a0f77db580c7e678aaf164b.png', g: '../art/10722e334b81662e8e390429f06572d1.png', d: '../art/97acf132fff58afa09530844b64b8406.png', x: '../art/5ae65cb379d9a07fb21b6604cac4ed9c.png' };
+    const row = (rank, p, name, c, pd, v, score, you) => ({ row: true, rank, planet: P[p], name, c: c + '%', cw: c + '%', p: pd, v, score, bg: you ? '#141922' : 'transparent', outline: you ? '#FFB238' : 'transparent' });
+    const rows = [
+      { divider: true, label: 'PROMOTION ZONE · TOP 5', color: '#8BD7A0' },
+      row('1', 'v', 'Cmdr. Meera · Verdant Prime', 88, 4, 8, '962'),
+      row('2', 'i', 'Cmdr. Sol · Halden', 86, 3, 7, '921'),
+      row('3', 'g', 'Cmdr. Ash · Tethys', 81, 3, 4, '874'),
+      row('4', 'r', 'You · Kepler-9', 78, 3, 2, '850', true),
+      row('5', 'l', 'Cmdr. Vex · Ember', 77, 2, 5, '833'),
+      { divider: true, label: 'SAFE · 6–25', color: '#2A3140' },
+      row('6', 'd', 'Cmdr. Orin · Dunehold', 76, 2, 2, '812'),
+      row('7', 'r', 'Cmdr. Juno · Rubra', 74, 2, 2, '790'),
+      row('8', 'i', 'Cmdr. Tal · Frostmere', 71, 2, 3, '765'),
+      { divider: true, label: 'DROP ZONE · 26–30', color: '#E2603A' },
+      row('28', 'd', 'Cmdr. Rhea · Sablo', 22, 0, 0, '220'),
+      row('29', 'x', 'Cmdr. Pell · inactive', 12, 0, 0, '120'),
+      row('30', 'x', 'Cmdr. Rook · inactive', 0, 0, 0, '0')
+    ];
+    return { rows };
+  }
+}
+</script>
+</body>
+</html>

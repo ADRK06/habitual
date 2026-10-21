@@ -1,0 +1,351 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Globe.dc.html": {
+      "h": 844,
+      "title": "A · Round globe (chosen)",
+      "w": 390,
+      "x": 840,
+      "y": 0
+    },
+    "Isometric.dc.html": {
+      "h": 844,
+      "title": "B · Isometric base",
+      "w": 390,
+      "x": 1310,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "h": 844,
+      "title": "Style direction",
+      "w": 760,
+      "x": 0,
+      "y": 0
+    },
+    "PhoneBuild.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Build menu",
+      "w": 390,
+      "x": 1880,
+      "y": 1360
+    },
+    "PhoneCheckIn.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Check-in moment",
+      "w": 390,
+      "x": 940,
+      "y": 1360
+    },
+    "PhoneFleet.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Fleet (scrolls)",
+      "w": 390,
+      "x": 2820,
+      "y": 1360
+    },
+    "PhoneGalaxy.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Galaxy map",
+      "w": 390,
+      "x": 3760,
+      "y": 1360
+    },
+    "PhoneHabits.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Habits (scrolls)",
+      "w": 390,
+      "x": 1410,
+      "y": 1360
+    },
+    "PhoneHome.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Colony home",
+      "w": 390,
+      "x": 470,
+      "y": 1360
+    },
+    "PhoneHud.dc.html": {
+      "h": 74,
+      "is_interactive": true,
+      "title": "Component · Phone commander bar",
+      "w": 358,
+      "x": 320,
+      "y": 5144
+    },
+    "PhoneLanding.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Landing",
+      "w": 390,
+      "x": 0,
+      "y": 1360
+    },
+    "PhoneNav.dc.html": {
+      "h": 64,
+      "is_interactive": true,
+      "title": "Component · Phone tab bar",
+      "w": 390,
+      "x": 758,
+      "y": 5144
+    },
+    "PhoneProfile.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Commander profile (scrolls)",
+      "w": 390,
+      "x": 5170,
+      "y": 1360
+    },
+    "PhoneSector.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Sector rankings (scrolls)",
+      "w": 390,
+      "x": 3290,
+      "y": 1360
+    },
+    "PhoneShop.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Shop (scrolls)",
+      "w": 390,
+      "x": 4700,
+      "y": 1360
+    },
+    "PhoneStorm.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Storm and repair",
+      "w": 390,
+      "x": 2350,
+      "y": 1360
+    },
+    "PhoneVisit.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone 390×844 · Visit a planet",
+      "w": 390,
+      "x": 4230,
+      "y": 1360
+    },
+    "SideView.dc.html": {
+      "h": 844,
+      "title": "C · Side view",
+      "w": 390,
+      "x": 1780,
+      "y": 0
+    },
+    "Sidebar.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Component · Web sidebar",
+      "w": 240,
+      "x": 0,
+      "y": 5144
+    },
+    "WebFleet.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Web 1440×900 · Fleet",
+      "w": 1440,
+      "x": 4560,
+      "y": 2584
+    },
+    "WebGalaxy.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Web 1440×900 · Galaxy map",
+      "w": 1440,
+      "x": 1520,
+      "y": 3864
+    },
+    "WebHabits.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Web 1440×900 · Habits",
+      "w": 1440,
+      "x": 3040,
+      "y": 2584
+    },
+    "WebHome.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Web 1440×900 · Colony home",
+      "w": 1440,
+      "x": 1520,
+      "y": 2584
+    },
+    "WebLanding.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Web 1440×900 · Landing (scrolls)",
+      "w": 1440,
+      "x": 0,
+      "y": 2584
+    },
+    "WebProfile.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Web 1440×900 · Commander profile",
+      "w": 1440,
+      "x": 4560,
+      "y": 3864
+    },
+    "WebSector.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Web 1440×900 · Sector rankings",
+      "w": 1440,
+      "x": 0,
+      "y": 3864
+    },
+    "WebShop.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "Web 1440×900 · Shop",
+      "w": 1440,
+      "x": 3040,
+      "y": 3864
+    },
+    "PhoneAvatar.dc.html": {
+      "x": 0,
+      "y": 6424,
+      "w": 390,
+      "h": 844,
+      "title": "Phone 390×844 · Create your commander (try it)",
+      "is_interactive": true
+    },
+    "PhonePlanet.dc.html": {
+      "x": 470,
+      "y": 6424,
+      "w": 390,
+      "h": 844,
+      "title": "Phone 390×844 · Customize your planet (try it)",
+      "is_interactive": true
+    },
+    "WebAvatar.dc.html": {
+      "x": 940,
+      "y": 6424,
+      "w": 1440,
+      "h": 900,
+      "title": "Web 1440×900 · Commander locker (try it)",
+      "is_interactive": true
+    },
+    "WebPlanet.dc.html": {
+      "x": 2460,
+      "y": 6424,
+      "w": 1440,
+      "h": 900,
+      "title": "Web 1440×900 · Planet customizer (try it)",
+      "is_interactive": true
+    },
+    "CustomizeFlow.dc.html": {
+      "x": 3980,
+      "y": 6424,
+      "w": 1440,
+      "h": 900,
+      "title": "How customization works"
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-19T10:45:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "heading": {
+      "kind": "title1",
+      "maxW": 2170,
+      "text": "Habitual Colonies — style and planet view",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    },
+    "parts": {
+      "kind": "title1",
+      "maxW": 1200,
+      "text": "Shared parts",
+      "w": 240,
+      "x": 0,
+      "y": 4884
+    },
+    "phone": {
+      "kind": "title1",
+      "maxW": 5560,
+      "text": "Phone · 390×844 · press Play and tap through",
+      "w": 240,
+      "x": 0,
+      "y": 1100
+    },
+    "web": {
+      "kind": "title1",
+      "maxW": 6000,
+      "text": "Web · 1440×900 · core pages",
+      "w": 240,
+      "x": 0,
+      "y": 2324
+    },
+    "web2": {
+      "kind": "title1",
+      "maxW": 6000,
+      "text": "Web · 1440×900 · competition, shop and profile",
+      "w": 240,
+      "x": 0,
+      "y": 3604
+    },
+    "custom": {
+      "x": 0,
+      "y": 6164,
+      "text": "Avatar and planet customization · press Play and click the options",
+      "kind": "title1",
+      "maxW": 5420,
+      "w": 240
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Globe.dc.html",
+    "Isometric.dc.html",
+    "SideView.dc.html",
+    "PhoneLanding.dc.html",
+    "PhoneHome.dc.html",
+    "PhoneCheckIn.dc.html",
+    "PhoneHabits.dc.html",
+    "PhoneBuild.dc.html",
+    "PhoneStorm.dc.html",
+    "PhoneFleet.dc.html",
+    "PhoneSector.dc.html",
+    "PhoneGalaxy.dc.html",
+    "PhoneVisit.dc.html",
+    "PhoneShop.dc.html",
+    "PhoneProfile.dc.html",
+    "WebLanding.dc.html",
+    "WebHome.dc.html",
+    "WebHabits.dc.html",
+    "WebFleet.dc.html",
+    "WebSector.dc.html",
+    "WebGalaxy.dc.html",
+    "WebShop.dc.html",
+    "WebProfile.dc.html",
+    "Sidebar.dc.html",
+    "PhoneHud.dc.html",
+    "PhoneNav.dc.html",
+    "PhoneAvatar.dc.html",
+    "PhonePlanet.dc.html",
+    "WebAvatar.dc.html",
+    "WebPlanet.dc.html",
+    "CustomizeFlow.dc.html"
+  ],
+  "pages": [],
+  "title": "Habitual Colonies — Planet Views"
+}

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Colony home, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column">
+  <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0">
+    <dc-import name="PhoneHud" hint-size="358px,74px"></dc-import>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 12px; background: #141922; border: 1px solid #2A3140">
+      <img src="../art/36def7fece835ab90b181af91fba641d.png" alt="" style="width: 32px; height: 32px; image-rendering: pixelated">
+      <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #FFB238">DAILY SUPPLY DROP</div>
+        <div style="font-size: 12px; color: #9A9384">Day 4 of 7 · crate grows each day</div>
+      </div>
+      <button type="button" style="height: 44px; padding: 0 14px; background: #FFB238; color: #0C0F14; border: 0; font-family: 'Silkscreen', monospace; font-size: 12px; cursor: pointer">OPEN</button>
+    </div>
+
+    <div style="position: relative; width: 358px; height: 310px; border: 1px solid #2A3140; box-sizing: border-box">
+      <img src="../art/11daf5aa9d7ea8282bb0028766db8332.png" alt="Your pixel planet Kepler-9 with six buildings, an orbit ring with your fleet station, and a moon" style="display: block; width: 356px; height: 308px; image-rendering: pixelated">
+      <div style="position: absolute; left: 8px; top: 8px; padding: 4px 8px; background: #0C0F14; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 11px">KEPLER-9 · LV 7</div>
+      <div style="position: absolute; left: 8px; top: 36px; padding: 4px 8px; background: #0C0F14; border: 1px solid #2A3140; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #9A9384">Observatory · 2h 14m</div>
+      <div style="position: absolute; left: 8px; bottom: 8px; padding: 4px 8px; background: #0C0F14; border: 1px solid #8BD7A0; font-family: 'Silkscreen', monospace; font-size: 11px; color: #8BD7A0">SHIELD UP</div>
+      <a href="PhoneBuild.dc.html" style="position: absolute; right: 8px; bottom: 8px; display: flex; align-items: center; height: 44px; padding: 0 14px; background: #0C0F14; border: 1px solid #FFB238; color: #FFB238; text-decoration: none; font-family: 'Silkscreen', monospace; font-size: 12px">BUILD</a>
+    </div>
+
+    <a href="PhoneSector.dc.html" style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border: 1px solid #2A3140; text-decoration: none; color: #ECE6D8">
+      <span style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">NEBULA SECTOR</span>
+      <span style="flex-grow: 1; font-family: 'IBM Plex Mono', monospace; font-size: 13px">#4 of 30</span>
+      <span style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #8BD7A0">PROMOTION ZONE</span>
+    </a>
+
+    <div style="display: flex; justify-content: space-between; align-items: baseline">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 12px">TODAY</div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9384">2 / 3 done · 1 left</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px; background: #141922; border: 1px solid #2A3140">
+        <img src="../art/60a3210093b573549153066d3b54b340.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">
+        <div style="display: flex; flex-direction: column; flex-grow: 1"><div style="font-size: 14px; color: #9A9384; text-decoration: line-through">Morning run</div><div style="font-size: 11px; color: #9A9384">Defense Tower</div></div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8BD7A0">+5</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px; background: #141922; border: 1px solid #2A3140">
+        <img src="../art/7086c715151fb0500e83b582a3f74636.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">
+        <div style="display: flex; flex-direction: column; flex-grow: 1"><div style="font-size: 14px; color: #9A9384; text-decoration: line-through">Read 20 pages</div><div style="font-size: 11px; color: #9A9384">Research Lab · vouched by Meera</div></div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8BD7A0">+7</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 2px 0 12px; background: #141922; border: 1px solid #FFB238">
+        <img src="../art/d87c116e3245189550fc21b92f9c6428.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">
+        <div style="display: flex; flex-direction: column; flex-grow: 1"><div style="font-size: 14px; font-weight: 500">Drink 8 glasses</div><div style="font-size: 11px; color: #9A9384">Biodome · tiny: 1 glass</div></div>
+        <a href="PhoneCheckIn.dc.html" style="display: flex; align-items: center; height: 42px; padding: 0 12px; background: #FFB238; color: #0C0F14; text-decoration: none; font-family: 'Silkscreen', monospace; font-size: 12px">CHECK IN</a>
+      </div>
+    </div>
+  </div>
+  <dc-import name="PhoneNav" active="colony" hint-size="390px,64px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

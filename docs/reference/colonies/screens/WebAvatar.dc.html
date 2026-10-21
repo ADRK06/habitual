@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Commander locker, web</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; overflow: hidden; display: flex; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif">
+  <div style="flex: 0 0 240px; border-right: 1px solid #2A3140"><dc-import name="Sidebar" active="profile" hint-size="240px,900px"></dc-import></div>
+  <main style="flex-grow: 1; min-width: 0; height: 900px; overflow-y: auto; box-sizing: border-box; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">COMMANDER › LOCKER</div>
+        <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 26px">CUSTOMIZE YOUR COMMANDER</h1>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border: 1px solid #2A3140; font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: #FFB238"><svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><path d="M7 0 1 8h4l-1 6 6-8H6z" fill="#FFB238"></path></svg>{{energy}}</div>
+        <button type="button" onClick="{{save}}" style="height: 44px; padding: 0 18px; background: {{saveBg}}; color: {{saveColor}}; border: 1px solid {{saveBorder}}; font-family: 'Silkscreen', monospace; font-size: 12px; cursor: pointer">{{saveLabel}}</button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 28px; align-items: flex-start">
+      <div style="flex: 0 0 360px; display: flex; flex-direction: column; gap: 14px">
+        <div style="position: relative; width: 360px; height: 360px; background: #141922; border: 1px solid #FFB238">
+          <sc-for list="{{layers}}" as="l" hint-placeholder-count="6">
+            <img src="{{l.src}}" alt="" style="position: absolute; left: 0; top: 0; width: 360px; height: 360px; image-rendering: pixelated">
+          </sc-for>
+          <div style="position: absolute; left: 10px; bottom: 10px; padding: 4px 8px; background: #0C0F14; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 12px">CMDR. NOVA · CAPTAIN</div>
+        </div>
+        <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">HOW OTHERS SEE YOU</div>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #2A3140">
+          <span style="position: relative; display: block; width: 36px; height: 36px; flex: 0 0 36px"><sc-for list="{{layers}}" as="l" hint-placeholder-count="6"><img src="{{l.src}}" alt="" style="position: absolute; left: 0; top: 0; width: 36px; height: 36px; image-rendering: pixelated"></sc-for></span>
+          <span style="flex-grow: 1; font-size: 13px">Fleet crew list</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9384">198 pts</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #2A3140">
+          <span style="position: relative; display: block; width: 36px; height: 36px; flex: 0 0 36px"><sc-for list="{{layers}}" as="l" hint-placeholder-count="6"><img src="{{l.src}}" alt="" style="position: absolute; left: 0; top: 0; width: 36px; height: 36px; image-rendering: pixelated"></sc-for></span>
+          <span style="flex-grow: 1; font-size: 13px">Galaxy map card · Sector table</span><span style="font-family: 'Silkscreen', monospace; font-size: 10px; color: #8BD7A0">#4 NEBULA</span>
+        </div>
+      </div>
+
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap">
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="7">
+            <button type="button" onClick="{{t.pick}}" style="height: 38px; padding: 0 14px; background: {{t.bg}}; color: {{t.color}}; border: 1px solid {{t.border}}; font-family: 'Silkscreen', monospace; font-size: 11px; cursor: pointer">{{t.label}}</button>
+          </sc-for>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px">
+          <sc-for list="{{opts}}" as="o" hint-placeholder-count="6">
+            <button type="button" onClick="{{o.pick}}" aria-label="{{o.name}}" style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; background: #141922; border: 2px solid {{o.border}}; color: #ECE6D8; cursor: pointer; font-family: inherit">
+              <span style="position: relative; display: block; width: 84px; height: 84px; opacity: {{o.op}}">
+                <sc-for list="{{o.thumb}}" as="l" hint-placeholder-count="5">
+                  <img src="{{l.src}}" alt="" style="position: absolute; left: 0; top: 0; width: 84px; height: 84px; image-rendering: pixelated">
+                </sc-for>
+              </span>
+              <span style="font-size: 13px">{{o.name}}</span>
+              <span style="font-family: 'Silkscreen', monospace; font-size: 10px; color: {{o.badgeColor}}">{{o.badge}}</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: #141922; border: 1px solid {{detailBorder}}">
+          <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1">
+            <span style="font-family: 'Silkscreen', monospace; font-size: 13px">{{detailName}}</span>
+            <span style="font-size: 13px; color: #9A9384">{{detailText}}</span>
+            <sc-if value="{{detailHasProgress}}" hint-placeholder-val="{{false}}">
+              <span style="width: 280px; height: 6px; background: #2A3140; display: block; margin-top: 4px"><span style="display: block; height: 6px; width: {{detailProgress}}; background: #8BD7A0"></span></span>
+            </sc-if>
+          </div>
+          <sc-if value="{{detailCanBuy}}" hint-placeholder-val="{{false}}">
+            <button type="button" onClick="{{buy}}" style="height: 44px; padding: 0 18px; background: #FFB238; color: #0C0F14; border: 0; font-family: 'Silkscreen', monospace; font-size: 12px; cursor: pointer">{{buyLabel}}</button>
+          </sc-if>
+        </div>
+
+        <div style="font-size: 12px; color: #9A9384">Looks never change your score. Equip anything you own for free, as often as you like. Locked items can be tried on so you know what you're working toward.</div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'suit', energy: 340, saved: true,
+      sel: { helmet: 'round', visor: 'amber', face: '3', hair: 'dark', suit: 'phosphor', gear: 'antenna', emblem: 'star' },
+      owned: { 'suit:steel': true, 'gear:lights': true }
+    };
+  }
+  renderVals() {
+    const b = (id) => '../art/' + id;
+    const B = {
+      hel_round: b('298555d524aba6902f97d2c4a2a58659'), hel_crest: b('1e2e9540656ad1457862546a15a49ae8'), hel_box: b('dc95025ff87e47e448588afb1dc62b14'),
+      vis_amber: b('ddbb09d12bad5326962e0f00afa7965f'), vis_steel: b('be71b5ddb2529eaf18e90727318d3f40'), vis_signal: b('2672b4085bc1fcbfd158512e350f24a8'), vis_rust: b('f271c681c59843dadf8671f85e529162'), vis_mirror: b('f8ab377810ed9880ab9e9ce31ea480b0'),
+      face_1: b('11f0eec12d484e79f789516b33535718'), face_2: b('de6e443848ae54303110acc720d90c2f'), face_3: b('ae60e6d9ea2a0512ed25744ce1785732'), face_4: b('c4860f60abb4f71879b4f183fd75594f'), face_5: b('b12e2c7e5fac8fffaf78fff031708aac'),
+      hair_dark: b('4c5e10db8669c8059784d445cf039584'), hair_brown: b('d0a2fc6b3fae6078ff34a477486cd36d'), hair_silver: b('67b48b54adece8d0fb6cab429b885ac4'),
+      suit_phosphor: b('93402df64f2c97ed352a6561c722ac2d'), suit_steel: b('2538c776edc28cec59ec00fd00ec7e67'), suit_signal: b('289c5fc29cb8b515285b0bfee0e05397'), suit_bone: b('f2caa9ab50aef03355f99c2e25688da8'), suit_admiral: b('a1f2e3fc19eefca69d0fcbfa02c10bc6'),
+      emb_star: b('60fb4991e971e63f41226a9cf9dd23a8'), emb_bolt: b('03365443777eff054045b5d9dac735d5'), emb_planet: b('6261b648dbf40a50180c2fcaa97c6ae0'),
+      acc_antenna: b('bb09e50a7fa4013431420c12b99d4a05'), acc_jetpack: b('f041a441b0216fc56652e90008dd6066'), acc_lights: b('2ea50d01c4a051b24d2d2ed395eee6b2'), acc_scarf: b('14731d8dd44af7d5dddc283de3c64dff')
+    };
+    const CAT = {
+      helmet: { label: 'HELMET', opts: [{ k: 'round', name: 'Round' }, { k: 'box', name: 'Boxy' }, { k: 'crest', name: 'Crest', lock: 'Reach Captain rank', done: true }] },
+      visor: { label: 'VISOR', opts: [{ k: 'open', name: 'Open' }, { k: 'amber', name: 'Amber' }, { k: 'steel', name: 'Steel' }, { k: 'rust', name: 'Rust' }, { k: 'signal', name: 'Signal', price: 60 }, { k: 'mirror', name: 'Mirror', lock: '30-day streak on any habit', prog: 14, of: 30 }] },
+      face: { label: 'SKIN', opts: [{ k: '1', name: 'Tone 1' }, { k: '2', name: 'Tone 2' }, { k: '3', name: 'Tone 3' }, { k: '4', name: 'Tone 4' }, { k: '5', name: 'Tone 5' }] },
+      hair: { label: 'HAIR', opts: [{ k: 'none', name: 'Covered' }, { k: 'dark', name: 'Dark' }, { k: 'brown', name: 'Brown' }, { k: 'silver', name: 'Silver' }] },
+      suit: { label: 'SUIT', opts: [{ k: 'phosphor', name: 'Phosphor' }, { k: 'steel', name: 'Steel', price: 150 }, { k: 'signal', name: 'Signal', price: 150 }, { k: 'bone', name: 'Bone', price: 220 }, { k: 'admiral', name: 'Admiral', lock: 'Finish top 3 in a sector', prog: 4, of: 3, rank: true }] },
+      gear: { label: 'GEAR', opts: [{ k: 'none', name: 'None' }, { k: 'antenna', name: 'Antenna' }, { k: 'lights', name: 'Lights', price: 90 }, { k: 'jetpack', name: 'Jetpack', price: 200 }, { k: 'scarf', name: 'Scarf', lock: 'Beat a fleet boss', prog: 74, of: 120, boss: true }] },
+      emblem: { label: 'BADGE', opts: [{ k: 'none', name: 'None' }, { k: 'star', name: 'Star' }, { k: 'bolt', name: 'Bolt' }, { k: 'planet', name: 'Planet', lock: 'Colony LV 10', prog: 7, of: 10 }] }
+    };
+    const order = ['helmet', 'visor', 'face', 'hair', 'suit', 'gear', 'emblem'];
+    const st = this.state, sel = st.sel, tab = st.tab;
+    const has = (cat, o) => !o.price && (!o.lock || o.done) || !!st.owned[cat + ':' + o.k];
+    const layersFor = (s) => {
+      const out = [];
+      if (s.gear === 'jetpack') out.push(B.acc_jetpack);
+      out.push(B['suit_' + s.suit]);
+      if (s.emblem !== 'none') out.push(B['emb_' + s.emblem]);
+      out.push(B['hel_' + s.helmet]);
+      if (s.visor === 'open') { out.push(B['face_' + s.face]); if (s.hair !== 'none') out.push(B['hair_' + s.hair]); }
+      else out.push(B['vis_' + s.visor]);
+      if (s.gear === 'antenna' || s.gear === 'lights' || s.gear === 'scarf') out.push(B['acc_' + s.gear]);
+      return out.map((src) => ({ src }));
+    };
+    const withOpt = (k, v) => { const s2 = Object.assign({}, sel); s2[k] = v; if (k === 'face' || k === 'hair') s2.visor = 'open'; return s2; };
+    const tabs = order.map((k) => ({ label: CAT[k].label, pick: () => this.setState({ tab: k }), bg: k === tab ? '#ECE6D8' : 'transparent', color: k === tab ? '#0C0F14' : '#9A9384', border: k === tab ? '#ECE6D8' : '#2A3140' }));
+    const opts = CAT[tab].opts.map((o) => {
+      const own = has(tab, o), on = sel[tab] === o.k;
+      return {
+        name: o.name, thumb: layersFor(withOpt(tab, o.k)), pick: () => this.setState({ sel: withOpt(tab, o.k), saved: false }),
+        border: on ? '#FFB238' : '#2A3140', op: own || o.price ? 1 : 0.55,
+        badge: on && own ? 'EQUIPPED' : own ? 'OWNED' : o.price ? o.price + ' ENERGY' : 'LOCKED',
+        badgeColor: on && own ? '#8BD7A0' : own ? '#9A9384' : o.price ? '#FFB238' : '#9A9384'
+      };
+    });
+    const cur = CAT[tab].opts.find((o) => o.k === sel[tab]);
+    const curOwn = has(tab, cur);
+    let detailText = 'Owned · equipped on your commander.';
+    let detailHasProgress = false, detailProgress = '0%';
+    if (!curOwn && cur.price) detailText = 'Shop item · ' + cur.price + ' Energy. You have ' + st.energy + '.';
+    if (!curOwn && cur.lock) {
+      detailHasProgress = true;
+      if (cur.rank) { detailText = 'Locked · ' + cur.lock + '. Your best finish so far is #4.'; detailProgress = '70%'; }
+      else if (cur.boss) { detailText = 'Locked · ' + cur.lock + '. Night Owls have dealt ' + cur.prog + ' of ' + cur.of + ' damage this week.'; detailProgress = Math.round(cur.prog / cur.of * 100) + '%'; }
+      else { detailText = 'Locked · ' + cur.lock + '. Progress ' + cur.prog + ' / ' + cur.of + '.'; detailProgress = Math.round(cur.prog / cur.of * 100) + '%'; }
+    }
+    if (curOwn && cur.lock) detailText = 'Unlocked by: ' + cur.lock + '. Equipped.';
+    const canBuy = !curOwn && !!cur.price && st.energy >= cur.price;
+    const buy = () => {
+      const owned = Object.assign({}, st.owned); owned[tab + ':' + cur.k] = true;
+      this.setState({ owned, energy: st.energy - cur.price, saved: false });
+    };
+    const notOwned = order.filter((k) => !has(k, CAT[k].opts.find((o) => o.k === sel[k])));
+    const canSave = notOwned.length === 0;
+    const save = () => { if (canSave) this.setState({ saved: true }); };
+    return {
+      layers: layersFor(sel), tabs, opts, energy: st.energy,
+      detailName: cur.name.toUpperCase() + ' · ' + CAT[tab].label, detailText, detailHasProgress, detailProgress,
+      detailBorder: curOwn ? '#2A3140' : cur.price ? '#FFB238' : '#9A9384',
+      detailCanBuy: canBuy, buy, buyLabel: 'BUY · ' + (cur.price || 0),
+      save, saveLabel: st.saved ? 'SAVED' : canSave ? 'SAVE LOOK' : 'UNLOCK ' + notOwned.length + ' ITEM' + (notOwned.length > 1 ? 'S' : '') + ' TO SAVE',
+      saveBg: st.saved ? 'transparent' : canSave ? '#FFB238' : 'transparent', saveColor: st.saved ? '#8BD7A0' : canSave ? '#0C0F14' : '#9A9384', saveBorder: st.saved ? '#8BD7A0' : canSave ? '#FFB238' : '#2A3140'
+    };
+  }
+}
+</script>
+</body>
+</html>

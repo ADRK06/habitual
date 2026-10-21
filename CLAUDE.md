@@ -232,6 +232,12 @@ password checklist, show/hide password.
 
 ---
 
+## Design
+
+UI source of truth: docs/reference/colonies/ (read README.md there). Match screens exactly; never restyle.
+
+---
+
 ## Design direction
 
 - **Mood**: gamified but professional - esports/game-UI energy, not a toy. Bold color, confident type,

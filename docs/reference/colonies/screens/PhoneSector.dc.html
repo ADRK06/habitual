@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sector rankings, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column">
+  <div style="flex-grow: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 16px">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">SECTOR · GROUP 12</div>
+        <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 22px">NEBULA</h1>
+      </div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9384">Resets in 2d 6h</div>
+    </div>
+
+    <div style="display: flex; gap: 3px">
+      <sc-for list="{{tiers}}" as="t" hint-placeholder-count="6">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+          <div style="height: 6px; background: {{t.bg}}"></div>
+          <div style="font-family: 'Silkscreen', monospace; font-size: 9px; color: {{t.color}}">{{t.label}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px; background: #141922; border: 1px solid #FFB238">
+      <div style="display: flex; align-items: baseline; justify-content: space-between">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 12px">YOUR WEEKLY SCORE</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 26px; color: #FFB238">850</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px">
+        <div style="display: flex; justify-content: space-between"><span style="color: #9A9384">Consistency 78% × 1000</span><span style="font-family: 'IBM Plex Mono', monospace">780</span></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #9A9384">Perfect days 3 × 20</span><span style="font-family: 'IBM Plex Mono', monospace">60</span></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #9A9384">Vouched check-ins 2 × 5</span><span style="font-family: 'IBM Plex Mono', monospace">10</span></div>
+      </div>
+      <div style="font-size: 12px; color: #8BD7A0">#4 · 2 perfect days keeps you in the promotion zone</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+        <sc-if value="{{r.divider}}" hint-placeholder-val="{{false}}">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0; font-family: 'Silkscreen', monospace; font-size: 10px; color: {{r.color}}"><div style="flex-grow: 1; height: 1px; background: {{r.color}}"></div>{{r.label}}<div style="flex-grow: 1; height: 1px; background: {{r.color}}"></div></div>
+        </sc-if>
+        <sc-if value="{{r.row}}" hint-placeholder-val="{{true}}">
+          <div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px; background: {{r.bg}}; border: 1px solid {{r.border}}">
+            <div style="width: 22px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9384">{{r.rank}}</div>
+            <img src="{{r.planet}}" alt="" style="width: 28px; height: 28px; image-rendering: pixelated">
+            <div style="flex-grow: 1; font-size: 13px">{{r.name}}</div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px">{{r.score}}</div>
+          </div>
+        </sc-if>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #2A3140">
+      <img src="../art/bbaaf9fb712684cd9db1c3f9cb4f74bd.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">
+      <div style="font-size: 12px; color: #9A9384">Top 3 win Energy, a rare suit and a trophy for their planet. Top 5 warp to Star Cluster.</div>
+    </div>
+  </div>
+  <dc-import name="PhoneNav" active="ranks" hint-size="390px,64px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = { r: '../art/93037739eedb431e18db41628feb2b0b.png', i: '../art/a11f3f0cac003d310f29b745eec375e8.png', l: '../art/93df6d126fa5db88f6a484ba662a35e6.png', v: '../art/02dbdb774a0f77db580c7e678aaf164b.png', g: '../art/10722e334b81662e8e390429f06572d1.png', d: '../art/97acf132fff58afa09530844b64b8406.png', x: '../art/5ae65cb379d9a07fb21b6604cac4ed9c.png' };
+    const row = (rank, p, name, score, you) => ({ row: true, rank, planet: P[p], name, score, bg: you ? '#141922' : 'transparent', border: you ? '#FFB238' : '#2A3140' });
+    const rows = [
+      { divider: true, label: 'PROMOTION ZONE', color: '#8BD7A0' },
+      row('1', 'v', 'Cmdr. Meera · Verdant Prime', '962'),
+      row('2', 'i', 'Cmdr. Sol · Halden', '921'),
+      row('3', 'g', 'Cmdr. Ash · Tethys', '874'),
+      row('4', 'r', 'You · Kepler-9', '850', true),
+      row('5', 'l', 'Cmdr. Vex · Ember', '833'),
+      { divider: true, label: 'SAFE', color: '#2A3140' },
+      row('6', 'd', 'Cmdr. Orin · Dunehold', '812'),
+      row('7', 'r', 'Cmdr. Juno · Rubra', '790'),
+      { divider: true, label: 'DROP ZONE · 26–30', color: '#E2603A' },
+      row('29', 'x', 'Cmdr. Pell · inactive', '120'),
+      row('30', 'x', 'Cmdr. Rook · inactive', '0')
+    ];
+    const names = ['ASTEROID', 'MOON', 'NEBULA', 'CLUSTER', 'CORE', 'DEEP'];
+    const tiers = names.map((label, i) => ({ label, bg: i < 2 ? '#9A9384' : i === 2 ? '#FFB238' : '#2A3140', color: i === 2 ? '#FFB238' : '#9A9384' }));
+    return { rows, tiers };
+  }
+}
+</script>
+</body>
+</html>

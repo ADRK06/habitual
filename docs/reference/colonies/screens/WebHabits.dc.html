@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Habits, web</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; overflow: hidden; display: flex; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif">
+  <div style="flex: 0 0 240px; border-right: 1px solid #2A3140"><dc-import name="Sidebar" active="habits" hint-size="240px,900px"></dc-import></div>
+  <main style="flex-grow: 1; min-width: 0; height: 900px; overflow-y: auto; box-sizing: border-box; padding: 28px 32px; display: flex; gap: 24px; align-items: flex-start">
+    <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 26px">HABITS</h1>
+        <div style="display: flex; gap: 6px">
+          <sc-for list="{{filters}}" as="f" hint-placeholder-count="6">
+            <button type="button" style="height: 34px; padding: 0 12px; background: {{f.bg}}; color: {{f.color}}; border: 1px solid {{f.border}}; font-family: 'Silkscreen', monospace; font-size: 11px; cursor: pointer">{{f.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{habits}}" as="h" hint-placeholder-count="6">
+          <div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; background: #141922; border: 1px solid #2A3140">
+            <div style="display: flex; align-items: center; gap: 12px">
+              <img src="{{h.icon}}" alt="" style="width: 36px; height: 36px; image-rendering: pixelated">
+              <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0">
+                <div style="font-size: 16px; font-weight: 500">{{h.name}}</div>
+                <div style="font-size: 12px; color: #9A9384">{{h.meta}}</div>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 18px; color: #E2603A">{{h.streak}}</div>
+                <div style="font-size: 11px; color: #9A9384">best {{h.best}}</div>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 3px">
+              <sc-for list="{{h.days}}" as="d" hint-placeholder-count="14">
+                <div style="height: 14px; background: {{d.bg}}; border: 1px solid {{d.border}}; box-sizing: border-box"></div>
+              </sc-for>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #9A9384">
+              <span>{{h.tiny}} · {{h.pts}} Energy earned</span>
+              <span style="font-family: 'Silkscreen', monospace; font-size: 10px; color: {{h.tagColor}}">{{h.tag}}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; gap: 16px; font-size: 12px; color: #9A9384">
+        <span>Last 14 days:</span>
+        <span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; background: #8BD7A0; display: inline-block"></span>Done</span>
+        <span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; background: #3E5A7A; display: inline-block"></span>Shielded</span>
+        <span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; border: 1px solid #E2603A; box-sizing: border-box; display: inline-block"></span>Missed</span>
+        <span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; border: 1px solid #2A3140; box-sizing: border-box; display: inline-block"></span>Not scheduled</span>
+      </div>
+    </div>
+
+    <aside style="flex: 0 0 320px; display: flex; flex-direction: column; gap: 14px">
+      <form style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid #FFB238; background: #141922">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 13px">NEW HABIT</div>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #9A9384">Name<input type="text" value="Stretch for 10 minutes" style="height: 40px; padding: 0 10px; background: #0C0F14; border: 1px solid #2A3140; color: #ECE6D8; font-family: inherit; font-size: 14px"></label>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #9A9384">Category · powers this building
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+            <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; background: #0C0F14; border: 1px solid #FFB238; color: #ECE6D8; font-size: 11px; cursor: pointer"><img src="../art/60a3210093b573549153066d3b54b340.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">Fitness</button>
+            <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; background: #0C0F14; border: 1px solid #2A3140; color: #9A9384; font-size: 11px; cursor: pointer"><img src="../art/7086c715151fb0500e83b582a3f74636.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">Study</button>
+            <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; background: #0C0F14; border: 1px solid #2A3140; color: #9A9384; font-size: 11px; cursor: pointer"><img src="../art/41326809df27d06e781b9363b010be29.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">Sleep</button>
+            <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; background: #0C0F14; border: 1px solid #2A3140; color: #9A9384; font-size: 11px; cursor: pointer"><img src="../art/d87c116e3245189550fc21b92f9c6428.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">Water</button>
+            <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; background: #0C0F14; border: 1px solid #2A3140; color: #9A9384; font-size: 11px; cursor: pointer"><img src="../art/0cdb2907aa4a5d6ecaadeee5f0f71fdd.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">Mind</button>
+            <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; background: #0C0F14; border: 1px solid #2A3140; color: #9A9384; font-size: 11px; cursor: pointer"><img src="../art/6c9b90961eec1ad3adbe5cbfe0e1d67d.png" alt="" style="width: 24px; height: 24px; image-rendering: pixelated">Other</button>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #9A9384">How often
+          <div style="display: flex; gap: 6px">
+            <button type="button" style="flex-grow: 1; height: 36px; background: #ECE6D8; color: #0C0F14; border: 0; font-size: 12px">Daily</button>
+            <button type="button" style="flex-grow: 1; height: 36px; background: transparent; color: #9A9384; border: 1px solid #2A3140; font-size: 12px">Some days</button>
+            <button type="button" style="flex-grow: 1; height: 36px; background: transparent; color: #9A9384; border: 1px solid #2A3140; font-size: 12px">X a week</button>
+          </div>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #9A9384">Tiny version · keeps the streak on bad days<input type="text" value="1 stretch" style="height: 40px; padding: 0 10px; background: #0C0F14; border: 1px solid #2A3140; color: #ECE6D8; font-family: inherit; font-size: 14px"></label>
+        <div style="font-size: 12px; color: #8BD7A0">Counts toward your sector score from next Monday</div>
+        <button type="button" style="height: 44px; background: #FFB238; color: #0C0F14; border: 0; font-family: 'Silkscreen', monospace; font-size: 12px; cursor: pointer">ADD HABIT</button>
+      </form>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #3E5A7A">
+        <img src="../art/79e56d4d28c9262a4f55a088dc37004e.png" alt="" style="width: 32px; height: 32px; image-rendering: pixelated">
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1"><span style="font-size: 14px">2 shields ready</span><span style="font-size: 12px; color: #9A9384">Used automatically on a missed day</span></div>
+        <a href="WebShop.dc.html" style="color: #FFB238; font-family: 'Silkscreen', monospace; font-size: 11px">BUY</a>
+      </div>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const S = { y: ['#8BD7A0', '#8BD7A0'], f: ['#3E5A7A', '#3E5A7A'], m: ['transparent', '#E2603A'], o: ['transparent', '#2A3140'], t: ['#FFB238', '#FFB238'] };
+    const dd = (s) => s.split('').map((c) => ({ bg: S[c][0], border: S[c][1] }));
+    const habits = [
+      { icon: '../art/60a3210093b573549153066d3b54b340.png', name: 'Morning run', meta: 'Fitness · Defense Tower · 4× a week', streak: '9w', best: '9w', days: dd('yoyoyooyoyoyoo'), tiny: 'Tiny: 5 min walk', pts: 260, tag: 'SOLO', tagColor: '#9A9384' },
+      { icon: '../art/7086c715151fb0500e83b582a3f74636.png', name: 'Read 20 pages', meta: 'Study · Research Lab · daily', streak: '14d', best: '31d', days: dd('yyyyyyyyyfyyyt'), tiny: 'Tiny: 1 page', pts: 420, tag: 'FLEET · NIGHT OWLS', tagColor: '#FFB238' },
+      { icon: '../art/d87c116e3245189550fc21b92f9c6428.png', name: 'Drink 8 glasses', meta: 'Water · Biodome · daily', streak: '6d', best: '18d', days: dd('yyyyyyymyyyyyt'), tiny: 'Tiny: 1 glass', pts: 205, tag: 'SOLO', tagColor: '#9A9384' },
+      { icon: '../art/41326809df27d06e781b9363b010be29.png', name: 'Sleep by 11:30', meta: 'Sleep · Power Reactor · daily', streak: '3d', best: '12d', days: dd('yymyyyyymmyyyt'), tiny: 'Tiny: phone away at 11', pts: 115, tag: 'SOLO', tagColor: '#9A9384' },
+      { icon: '../art/0cdb2907aa4a5d6ecaadeee5f0f71fdd.png', name: '10 min meditation', meta: 'Mind · Observatory · Mon, Wed, Fri', streak: '5w', best: '5w', days: dd('yoyoyooyoyoyoo'), tiny: 'Tiny: 3 breaths', pts: 60, tag: 'COUNTS NEXT WEEK', tagColor: '#8BD7A0' },
+      { icon: '../art/6c9b90961eec1ad3adbe5cbfe0e1d67d.png', name: 'No phone at dinner', meta: 'Other · Custom Module · daily', streak: '2d', best: '9d', days: dd('yyyymyyyyyymyt'), tiny: 'Tiny: first 10 min', pts: 90, tag: 'SOLO', tagColor: '#9A9384' }
+    ];
+    const fl = ['ALL', 'FITNESS', 'STUDY', 'SLEEP', 'WATER', 'MIND'];
+    return { habits, filters: fl.map((l, i) => ({ label: l, bg: i === 0 ? '#ECE6D8' : 'transparent', color: i === 0 ? '#0C0F14' : '#9A9384', border: i === 0 ? '#ECE6D8' : '#2A3140' })) };
+  }
+}
+</script>
+</body>
+</html>

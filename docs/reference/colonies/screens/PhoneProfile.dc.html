@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Commander profile, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column">
+  <div style="flex-grow: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <a href="PhoneHome.dc.html" aria-label="Back to colony" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid #2A3140; color: #ECE6D8; text-decoration: none"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 2 4 7l5 5"></path></svg></a>
+      <div style="flex-grow: 1; font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">COMMANDER FILE</div>
+      <a href="PhoneShop.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 12px; border: 1px solid #2A3140; color: #ECE6D8; text-decoration: none; font-family: 'Silkscreen', monospace; font-size: 11px">CHANGE SUIT</a>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 16px">
+      <img src="../art/fda5c80c9eef2e7a17d948ec9e53f848.png" alt="Your commander avatar" style="width: 96px; height: 96px; image-rendering: pixelated; border: 1px solid #FFB238">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 20px">CMDR. NOVA</div>
+        <div style="font-size: 13px; color: #9A9384">Captain · Scientist class</div>
+        <div style="font-size: 12px; color: #9A9384">Kepler-9 · since Sep 2026</div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="display: flex; gap: 3px">
+        <div style="flex-grow: 1; height: 6px; background: #9A9384"></div><div style="flex-grow: 1; height: 6px; background: #9A9384"></div><div style="flex-grow: 1; height: 6px; background: #FFB238"></div><div style="flex-grow: 1; height: 6px; background: #2A3140"></div><div style="flex-grow: 1; height: 6px; background: #2A3140"></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-family: 'Silkscreen', monospace; font-size: 9px; color: #9A9384"><span>CADET</span><span>PILOT</span><span style="color: #FFB238">CAPTAIN</span><span>COMMANDER</span><span>ADMIRAL</span></div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9384">760 XP to Commander</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <div style="display: flex; flex-direction: column; gap: 2px; padding: 10px; border: 1px solid #2A3140"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; color: #E2603A">31d</span><span style="font-size: 12px; color: #9A9384">Longest streak</span></div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding: 10px; border: 1px solid #2A3140"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 20px">212</span><span style="font-size: 12px; color: #9A9384">Total check-ins</span></div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding: 10px; border: 1px solid #2A3140"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 20px">LV 7</span><span style="font-size: 12px; color: #9A9384">Colony · 9 buildings</span></div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding: 10px; border: 1px solid #2A3140"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; color: #8BD7A0">#2</span><span style="font-size: 12px; color: #9A9384">Best sector finish</span></div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">CLASS · CHECK-INS BY CATEGORY</div>
+      <sc-for list="{{cats}}" as="c" hint-placeholder-count="5">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <div style="width: 70px; font-size: 12px">{{c.name}}</div>
+          <div style="flex-grow: 1; height: 8px; background: #2A3140"><div style="width: {{c.w}}; height: 8px; background: {{c.color}}"></div></div>
+          <div style="width: 28px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9384">{{c.n}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">TITLES</div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap">
+        <span style="padding: 6px 8px; border: 1px solid #FFB238; font-family: 'Silkscreen', monospace; font-size: 10px; color: #FFB238">NIGHT READER</span>
+        <span style="padding: 6px 8px; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 10px">30-DAY CREW</span>
+        <span style="padding: 6px 8px; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 10px">STORM SURVIVOR</span>
+        <span style="padding: 6px 8px; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 10px">BOSS SLAYER ×3</span>
+        <span style="padding: 6px 8px; border: 1px dashed #2A3140; font-family: 'Silkscreen', monospace; font-size: 10px; color: #9A9384">100-DAY MONK · LOCKED</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; border: 1px solid #2A3140">
+      <a href="#" style="display: flex; justify-content: space-between; align-items: center; height: 48px; padding: 0 12px; border-bottom: 1px solid #2A3140; color: #ECE6D8; text-decoration: none; font-size: 14px">Reminders<span style="color: #9A9384; font-size: 12px">Story style · 9 PM</span></a>
+      <a href="#" style="display: flex; justify-content: space-between; align-items: center; height: 48px; padding: 0 12px; border-bottom: 1px solid #2A3140; color: #ECE6D8; text-decoration: none; font-size: 14px">Planned break<span style="color: #9A9384; font-size: 12px">Pause storms</span></a>
+      <a href="#" style="display: flex; justify-content: space-between; align-items: center; height: 48px; padding: 0 12px; color: #ECE6D8; text-decoration: none; font-size: 14px">Account and privacy<span style="color: #9A9384; font-size: 12px">Galaxy: public</span></a>
+    </div>
+  </div>
+  <dc-import name="PhoneNav" active="colony" hint-size="390px,64px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const cats = [
+      { name: 'Study', n: 84, color: '#FFB238' },
+      { name: 'Fitness', n: 52, color: '#E2603A' },
+      { name: 'Water', n: 41, color: '#3E5A7A' },
+      { name: 'Sleep', n: 23, color: '#9A9384' },
+      { name: 'Mind', n: 12, color: '#8BD7A0' }
+    ];
+    return { cats: cats.map((c) => ({ ...c, w: Math.round(c.n / 84 * 100) + '%' })) };
+  }
+}
+</script>
+</body>
+</html>

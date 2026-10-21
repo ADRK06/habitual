@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Galaxy map, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column">
+  <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 22px">GALAXY</h1>
+      <label style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; border: 1px solid #2A3140; color: #9A9384; font-size: 13px"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="4.5"></circle><path d="m9.5 9.5 3 3"></path></svg><input type="text" placeholder="Find a commander" style="width: 130px; background: transparent; border: 0; color: #ECE6D8; font-family: inherit; font-size: 13px; outline: none"></label>
+    </div>
+
+    <div style="display: flex; gap: 6px">
+      <button type="button" style="height: 32px; padding: 0 10px; background: #ECE6D8; color: #0C0F14; border: 1px solid #ECE6D8; font-family: 'Silkscreen', monospace; font-size: 11px">EVERYONE</button>
+      <button type="button" style="height: 32px; padding: 0 10px; background: transparent; color: #9A9384; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 11px">FRIENDS</button>
+      <button type="button" style="height: 32px; padding: 0 10px; background: transparent; color: #9A9384; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 11px">MY FLEET</button>
+      <button type="button" style="height: 32px; padding: 0 10px; background: transparent; color: #9A9384; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 11px">MY SECTOR</button>
+    </div>
+
+    <div style="position: relative; width: 358px; height: 215px; border: 1px solid #2A3140; box-sizing: border-box">
+      <img src="../art/8ea52548bcc030ffac88d685d779441f.png" alt="Galaxy map of commanders' planets on a faint sector grid, with dotted lines linking your fleet's planets and two dim inactive planets" style="display: block; width: 356px; height: 213px; image-rendering: pixelated">
+      <div style="position: absolute; left: 160px; top: 140px; padding: 2px 6px; background: #0C0F14; border: 1px solid #FFB238; font-family: 'Silkscreen', monospace; font-size: 10px; color: #FFB238">YOU</div>
+      <div style="position: absolute; left: 248px; top: 46px; width: 28px; height: 28px; border: 2px solid #ECE6D8; box-sizing: border-box"></div>
+    </div>
+
+    <div style="display: flex; gap: 12px; font-size: 11px; color: #9A9384">
+      <span style="display: flex; align-items: center; gap: 4px"><span style="width: 8px; height: 8px; background: #E2603A; display: inline-block"></span>Active this week</span>
+      <span style="display: flex; align-items: center; gap: 4px"><span style="width: 8px; height: 8px; background: #2A3140; display: inline-block"></span>Inactive, dimming</span>
+      <span style="display: flex; align-items: center; gap: 4px"><span style="width: 8px; height: 2px; background: #FFB238; display: inline-block"></span>Fleet route</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: #141922; border: 1px solid #ECE6D8">
+      <img src="../art/02dbdb774a0f77db580c7e678aaf164b.png" alt="" style="width: 48px; height: 48px; image-rendering: pixelated">
+      <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 12px">VERDANT PRIME</div>
+        <div style="font-size: 12px; color: #9A9384">Cmdr. Meera · LV 11 · 22d streak</div>
+        <div style="font-size: 11px; color: #8BD7A0">Star Cluster · fleet Night Owls</div>
+      </div>
+      <a href="PhoneVisit.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 14px; background: #FFB238; color: #0C0F14; text-decoration: none; font-family: 'Silkscreen', monospace; font-size: 12px">VISIT</a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">TOP FLEETS · AVERAGE SCORE</div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #2A3140"><span>1 · Dawn Patrol <span style="color: #9A9384">(6)</span></span><span style="font-family: 'IBM Plex Mono', monospace">912</span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #2A3140"><span style="color: #FFB238">2 · Night Owls <span style="color: #9A9384">(5)</span></span><span style="font-family: 'IBM Plex Mono', monospace; color: #FFB238">874</span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0"><span>3 · Gym Rats <span style="color: #9A9384">(9)</span></span><span style="font-family: 'IBM Plex Mono', monospace">861</span></div>
+    </div>
+  </div>
+  <dc-import name="PhoneNav" active="galaxy" hint-size="390px,64px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

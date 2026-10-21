@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Customize your planet, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column">
+  <div style="flex-grow: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 16px">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <a href="PhoneAvatar.dc.html" aria-label="Back" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid #2A3140; color: #ECE6D8; text-decoration: none"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 2 4 7l5 5"></path></svg></a>
+      <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">STEP 2 OF 3 · OR FROM COLONY › EDIT</div>
+        <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 20px">YOUR PLANET</h1>
+      </div>
+    </div>
+
+    <div style="position: relative; width: 358px; height: 310px; border: 1px solid #2A3140; box-sizing: border-box; overflow: hidden">
+      <sc-for list="{{layers}}" as="l" hint-placeholder-count="5">
+        <img src="{{l.src}}" alt="" style="position: absolute; left: 0; top: 0; width: 356px; height: 308px; image-rendering: pixelated">
+      </sc-for>
+      <sc-for list="{{slotView}}" as="s" hint-placeholder-count="6">
+        <button type="button" onClick="{{s.pick}}" aria-label="{{s.label}}" style="position: absolute; left: {{s.x}}px; top: {{s.y}}px; width: 44px; height: 44px; padding: 0; background: transparent; border: {{s.border}}; transform: rotate({{s.a}}deg); cursor: pointer">
+          <sc-if value="{{s.has}}" hint-placeholder-val="{{true}}"><img src="{{s.icon}}" alt="" style="display: block; width: 40px; height: 40px; margin: 0 auto; image-rendering: pixelated"></sc-if>
+        </button>
+      </sc-for>
+      <sc-for list="{{slotBadges}}" as="s" hint-placeholder-count="6">
+        <div style="position: absolute; left: {{s.bx}}px; top: {{s.by}}px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; background: {{s.bg}}; color: #0C0F14; font-family: 'IBM Plex Mono', monospace; font-size: 11px">{{s.n}}</div>
+      </sc-for>
+      <label style="position: absolute; left: 8px; top: 8px; display: flex; align-items: center; gap: 6px; padding: 0 8px; height: 32px; background: #0C0F14; border: 1px solid #2A3140">
+        <span style="font-family: 'Silkscreen', monospace; font-size: 10px; color: #9A9384">NAME</span>
+        <input type="text" value="Kepler-9" style="width: 96px; background: transparent; border: 0; color: #ECE6D8; font-family: 'Silkscreen', monospace; font-size: 12px; outline: none">
+      </label>
+    </div>
+
+    <div style="display: flex; gap: 4px; flex-wrap: wrap">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+        <button type="button" onClick="{{t.pick}}" style="height: 34px; padding: 0 10px; background: {{t.bg}}; color: {{t.color}}; border: 1px solid {{t.border}}; font-family: 'Silkscreen', monospace; font-size: 10px; cursor: pointer">{{t.label}}</button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{isLayout}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="font-size: 12px; color: #9A9384">Tap a numbered slot on the planet, then pick what goes there. Moving buildings is free.</div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{tray}}" as="o" hint-placeholder-count="7">
+            <button type="button" onClick="{{o.pick}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px; background: #141922; border: 2px solid {{o.border}}; color: #ECE6D8; cursor: pointer; font-family: inherit">
+              <span style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px">
+                <sc-if value="{{o.icon}}" hint-placeholder-val="{{true}}"><img src="{{o.icon}}" alt="" style="width: 40px; height: 40px; image-rendering: pixelated"></sc-if>
+              </span>
+              <span style="font-size: 11px">{{o.name}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isLook}}" hint-placeholder-val="{{true}}">
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{opts}}" as="o" hint-placeholder-count="6">
+          <button type="button" onClick="{{o.pick}}" aria-label="{{o.name}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px; background: #141922; border: 2px solid {{o.border}}; color: #ECE6D8; cursor: pointer; font-family: inherit">
+            <span style="position: relative; display: block; width: 96px; height: 83px; opacity: {{o.op}}">
+              <sc-for list="{{o.thumb}}" as="l" hint-placeholder-count="4">
+                <img src="{{l.src}}" alt="" style="position: absolute; left: 0; top: 0; width: 96px; height: 83px; image-rendering: pixelated">
+              </sc-for>
+            </span>
+            <span style="font-size: 11px">{{o.name}}</span>
+            <span style="font-family: 'Silkscreen', monospace; font-size: 9px; color: {{o.badgeColor}}">{{o.badge}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <div style="padding: 10px 12px; border: 1px solid {{noteBorder}}; font-size: 12px; line-height: 1.45; color: {{noteColor}}">{{note}}</div>
+
+    <div style="display: flex; gap: 8px">
+      <sc-if value="{{blocked}}" hint-placeholder-val="{{false}}">
+        <button type="button" onClick="{{useFree}}" style="flex-grow: 1; height: 52px; background: transparent; color: #FFB238; border: 1px solid #FFB238; font-family: 'Silkscreen', monospace; font-size: 12px; cursor: pointer">USE UNLOCKED ONLY</button>
+      </sc-if>
+      <sc-if value="{{ready}}" hint-placeholder-val="{{true}}">
+        <a href="PhoneHome.dc.html" style="flex-grow: 1; display: flex; align-items: center; justify-content: center; height: 52px; background: #FFB238; color: #0C0F14; text-decoration: none; font-family: 'Silkscreen', monospace; font-size: 13px">SAVE PLANET</a>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'world', slot: 2, sel: { world: 'rust', air: 'steel', ring: 'off', moons: '1' }, slots: ['reactor', 'lab', 'tower', 'dome', 'obs', 'custom'] };
+  }
+  renderVals() {
+    const b = (id) => '../art/' + id;
+    const P = {
+      stars: b('bf01f9dcb3281707e0f38a15c42e7656'), ringBack: b('f571fa0d6ce756b259e0ead2ba74c9b8'), ringFront: b('a49c8be4f123caf1241570b87ad85534'),
+      moon1: b('3e907169335ccd71aac4cf55104041ae'), moon2: b('4d588aa9c02b7c0e2c3c866ccb44702b'),
+      rust: b('760890681407fd130e89f534c2172ee1'), dust: b('ca34c774ae955365dba0e5415ed7f321'), verdant: b('d459bd90b32dc1a43a5c382c723b224d'),
+      ice: b('c6bf7d33b90715c0e84c3efdd9627d16'), lava: b('a4246740bde6b380895b7266d5d6466c'), gas: b('48a95d329198f9ce6ab40073e37f56c6'),
+      steel: b('7b857b3fc6c3bd250ba08b75d04f35ce'), amber: b('4223c94e73e4e4dac74903a0d8c8d629'), signal: b('c1169d1e9288fa06a86a82ffe472ea7a')
+    };
+    const BLD = {
+      reactor: { name: 'Reactor', icon: b('6efbd6f23459283465d454ef1462c333') }, lab: { name: 'Lab', icon: b('3f89991e301e8f2318496819a501707e') },
+      tower: { name: 'Tower', icon: b('8c8d464038b047da68fb3c6139d2cede') }, dome: { name: 'Biodome', icon: b('626fe13583f9a1beb6007ffbda45f638') },
+      obs: { name: 'Observatory', icon: b('bf8d74b260d1e8e0c2a502a37dae9605') }, custom: { name: 'Module', icon: b('7cd110ccc7734053d1495017f80ff716') }
+    };
+    const CAT = {
+      world: { label: 'WORLD', opts: [{ k: 'rust', name: 'Rust' }, { k: 'dust', name: 'Dust' }, { k: 'verdant', name: 'Verdant' }, { k: 'ice', name: 'Ice', lock: '30-day streak' }, { k: 'lava', name: 'Lava', price: 400 }, { k: 'gas', name: 'Ringed giant', lock: 'Season 1 reward' }] },
+      air: { label: 'ATMOSPHERE', opts: [{ k: 'steel', name: 'Steel' }, { k: 'amber', name: 'Amber', price: 100 }, { k: 'signal', name: 'Signal', lock: 'Observatory LV 1' }] },
+      ring: { label: 'RING', opts: [{ k: 'off', name: 'No ring' }, { k: 'on', name: 'Ring', lock: 'Colony LV 10' }] },
+      moons: { label: 'MOONS', opts: [{ k: '0', name: 'None' }, { k: '1', name: 'One moon' }, { k: '2', name: 'Two moons', lock: 'Observatory LV 2' }] }
+    };
+    const order = ['world', 'air', 'ring', 'moons'];
+    const layersFor = (s, bg) => {
+      const out = [];
+      if (bg) out.push(P.stars);
+      if (s.ring === 'on') out.push(P.ringBack);
+      out.push(P[s.world]); out.push(P[s.air]);
+      if (s.ring === 'on') out.push(P.ringFront);
+      if (s.moons !== '0') out.push(P.moon1);
+      if (s.moons === '2') out.push(P.moon2);
+      return out.map((src) => ({ src }));
+    };
+    const st = this.state, sel = st.sel, tab = st.tab;
+    const tabs = order.concat(['layout']).map((k) => ({ label: k === 'layout' ? 'LAYOUT' : CAT[k].label, pick: () => this.setState({ tab: k }), bg: k === tab ? '#ECE6D8' : 'transparent', color: k === tab ? '#0C0F14' : '#9A9384', border: k === tab ? '#ECE6D8' : '#2A3140' }));
+    const isLayout = tab === 'layout';
+    const opts = isLayout ? [] : CAT[tab].opts.map((o) => {
+      const s2 = Object.assign({}, sel); s2[tab] = o.k;
+      const on = sel[tab] === o.k;
+      return { name: o.name, thumb: layersFor(s2, false), pick: () => this.setState({ sel: s2 }), border: on ? '#FFB238' : '#2A3140', op: o.lock ? 0.55 : 1,
+        badge: o.lock ? 'LOCKED' : o.price ? o.price + ' ENERGY' : 'UNLOCKED', badgeColor: o.lock ? '#9A9384' : o.price ? '#FFB238' : '#8BD7A0' };
+    });
+    const sc = 356 / 120, cx = 60 * sc, cy = 66 * sc, rr = 31 * sc + 18;
+    const angles = [-60, -36, -12, 12, 36, 60];
+    const slotView = angles.map((a, i) => {
+      const r = a * Math.PI / 180, x = cx + Math.sin(r) * rr, y = cy - Math.cos(r) * rr;
+      const k = st.slots[i];
+      return { x: Math.round(x - 22), y: Math.round(y - 22), a, has: !!k, icon: k ? BLD[k].icon : '', label: 'Slot ' + (i + 1) + (k ? ', ' + BLD[k].name : ', empty'),
+        border: isLayout ? (i === st.slot ? '2px solid #FFB238' : '1px dashed #9A9384') : '0', pick: () => this.setState({ tab: 'layout', slot: i }) };
+    });
+    const slotBadges = isLayout ? angles.map((a, i) => {
+      const r = a * Math.PI / 180, x = cx + Math.sin(r) * (rr + 34), y = cy - Math.cos(r) * (rr + 34);
+      return { n: String(i + 1), bx: Math.round(x - 9), by: Math.round(y - 9), bg: i === st.slot ? '#FFB238' : '#9A9384' };
+    }) : [];
+    const keys = ['reactor', 'lab', 'tower', 'dome', 'obs', 'custom', ''];
+    const tray = keys.map((k) => ({
+      name: k ? BLD[k].name : 'Empty', icon: k ? BLD[k].icon : '', border: st.slots[st.slot] === k ? '#FFB238' : '#2A3140',
+      pick: () => {
+        const slots = st.slots.slice();
+        const from = k ? slots.indexOf(k) : -1;
+        if (from >= 0) slots[from] = slots[st.slot];
+        slots[st.slot] = k;
+        this.setState({ slots });
+      }
+    }));
+    const picked = order.map((k) => Object.assign({ cat: k }, CAT[k].opts.find((o) => o.k === sel[k])));
+    const blockers = picked.filter((o) => o.lock || o.price);
+    const note = blockers.length
+      ? 'Previewing: ' + blockers.map((o) => o.name + (o.lock ? ' (' + o.lock + ')' : ' (' + o.price + ' Energy)')).join(', ') + '. Locked looks can be tried on but not saved yet.'
+      : isLayout ? 'Slot ' + (st.slot + 1) + ' selected. Your buildings keep their levels wherever you put them.' : 'Changing your world or sky never touches your buildings or progress.';
+    const useFree = () => {
+      const s2 = Object.assign({}, sel);
+      blockers.forEach((o) => { s2[o.cat] = CAT[o.cat].opts.find((x) => !x.lock && !x.price).k; });
+      this.setState({ sel: s2 });
+    };
+    return {
+      layers: layersFor(sel, true), tabs, opts, isLayout, isLook: !isLayout, slotView, slotBadges, tray, note, useFree,
+      blocked: blockers.length > 0, ready: blockers.length === 0,
+      noteBorder: blockers.length ? '#FFB238' : '#2A3140', noteColor: blockers.length ? '#ECE6D8' : '#9A9384'
+    };
+  }
+}
+</script>
+</body>
+</html>

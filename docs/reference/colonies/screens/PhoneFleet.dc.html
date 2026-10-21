@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fleet, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column">
+  <div style="flex-grow: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 16px">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">FLEET</div>
+        <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 22px">NIGHT OWLS</h1>
+      </div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9384">Mission day 18 / 30</div>
+    </div>
+
+    <div style="position: relative; width: 358px; height: 188px; border: 1px solid #2A3140; box-sizing: border-box">
+      <img src="../art/81ef5c02121224f3c7346f4e45f4957b.png" alt="Your fleet's space station under a green shield, with three member ships firing at a rust-red alien mothership" style="display: block; width: 356px; height: 186px; image-rendering: pixelated">
+      <div style="position: absolute; left: 8px; top: 8px; padding: 4px 8px; background: #0C0F14; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 11px">STATION LV 4</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="display: flex; justify-content: space-between; font-size: 12px"><span>Next module: Comms Tower</span><span style="font-family: 'IBM Plex Mono', monospace; color: #9A9384">68 / 100</span></div>
+      <div style="height: 6px; background: #2A3140"><div style="width: 68%; height: 6px; background: #FFB238"></div></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <div style="display: flex; flex-direction: column; gap: 4px; padding: 10px; border: 1px solid #8BD7A0">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #8BD7A0">SHIELD UP</div>
+        <div style="font-size: 12px; color: #9A9384">Room streak 9 days</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid #2A3140">
+        <div style="display: flex; justify-content: space-between"><span style="font-family: 'Silkscreen', monospace; font-size: 11px">POWER</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #9A9384">3 / 5 today</span></div>
+        <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px"><div style="height: 8px; background: #FFB238"></div><div style="height: 8px; background: #FFB238"></div><div style="height: 8px; background: #FFB238"></div><div style="height: 8px; background: #2A3140"></div><div style="height: 8px; background: #2A3140"></div></div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #141922; border: 1px solid #E2603A">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <div style="font-family: 'Silkscreen', monospace; font-size: 12px; color: #E2603A">WEEKLY BOSS · MOTHERSHIP VX-3</div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12px"><span>HP 46 / 120</span><span style="color: #9A9384">ends in 3d 4h</span></div>
+      <div style="height: 8px; background: #2A3140"><div style="width: 38%; height: 8px; background: #E2603A"></div></div>
+      <div style="font-size: 12px; color: #9A9384">Each check-in by any member deals 1 damage. Win: 60 Energy each and the VX-3 hull skin.</div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: baseline">
+      <div style="font-family: 'Silkscreen', monospace; font-size: 12px">CREW TODAY</div>
+      <div style="font-size: 11px; color: #9A9384">Ranked by fleet points</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <sc-for list="{{crew}}" as="c" hint-placeholder-count="5">
+        <div style="display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 6px 0 10px; background: #141922; border: 1px solid {{c.border}}">
+          <div style="width: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9384">{{c.rank}}</div>
+          <img src="{{c.av}}" alt="" style="width: 32px; height: 32px; image-rendering: pixelated">
+          <div style="display: flex; flex-direction: column; flex-grow: 1; gap: 2px; min-width: 0">
+            <div style="font-size: 14px; font-weight: 500">{{c.name}}</div>
+            <div style="font-size: 11px; color: {{c.statusColor}}">{{c.status}}</div>
+          </div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9384">{{c.pts}}</div>
+          <sc-if value="{{c.canNudge}}" hint-placeholder-val="{{false}}">
+            <button type="button" style="height: 40px; padding: 0 10px; background: transparent; color: #FFB238; border: 1px solid #FFB238; font-family: 'Silkscreen', monospace; font-size: 11px; cursor: pointer">NUDGE</button>
+          </sc-if>
+          <sc-if value="{{c.canVouch}}" hint-placeholder-val="{{false}}">
+            <button type="button" style="height: 40px; padding: 0 10px; background: transparent; color: #8BD7A0; border: 1px solid #8BD7A0; font-family: 'Silkscreen', monospace; font-size: 11px; cursor: pointer">VOUCH</button>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px dashed #2A3140">
+      <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+        <div style="font-size: 12px; color: #9A9384">Join code</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 16px; letter-spacing: 2px">7KQ2-NX</div>
+      </div>
+      <button type="button" style="height: 44px; padding: 0 14px; background: transparent; color: #ECE6D8; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 12px; cursor: pointer">SHARE INVITE</button>
+    </div>
+  </div>
+  <dc-import name="PhoneNav" active="fleet" hint-size="390px,64px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const crew = [
+      { rank: '1', av: '../art/2be38c0f38ebc9ca1c8ebf5014baa243.png', name: 'Riya · flagship today', status: 'Checked in 6:12 AM · first', statusColor: '#FFB238', pts: '212', canVouch: true, border: '#FFB238' },
+      { rank: '2', av: '../art/fda5c80c9eef2e7a17d948ec9e53f848.png', name: 'You', status: 'Checked in · 2 vouches', statusColor: '#8BD7A0', pts: '198', border: '#2A3140' },
+      { rank: '3', av: '../art/f7bb44468497b64667e7ba1e084c84c8.png', name: 'Meera', status: 'Checked in 9:40 AM', statusColor: '#8BD7A0', pts: '187', canVouch: true, border: '#2A3140' },
+      { rank: '4', av: '../art/b952f2499d95c8435f81b81fab41aecb.png', name: 'Arjun', status: 'Not yet today', statusColor: '#9A9384', pts: '160', canNudge: true, border: '#2A3140' },
+      { rank: '5', av: '../art/30d11df90e5e41179d7bf18a6cc46d74.png', name: 'Kabir', status: 'Not yet · nudged by Riya', statusColor: '#9A9384', pts: '141', border: '#2A3140' }
+    ];
+    return { crew };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create your commander, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; background: #0C0F14; color: #ECE6D8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column">
+  <div style="flex-grow: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 16px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="display: flex; gap: 4px"><div style="flex-grow: 1; height: 3px; background: #FFB238"></div><div style="flex-grow: 1; height: 3px; background: #2A3140"></div><div style="flex-grow: 1; height: 3px; background: #2A3140"></div></div>
+      <div style="font-family: 'Silkscreen', monospace; font-size: 11px; color: #9A9384">STEP 1 OF 3 · COMMANDER</div>
+      <h1 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 22px">CREATE YOUR COMMANDER</h1>
+    </div>
+
+    <div style="display: flex; gap: 14px; align-items: center">
+      <div style="position: relative; flex: 0 0 168px; width: 168px; height: 168px; background: #141922; border: 1px solid #FFB238">
+        <sc-for list="{{layers}}" as="l" hint-placeholder-count="6">
+          <img src="{{l.src}}" alt="" style="position: absolute; left: 0; top: 0; width: 168px; height: 168px; image-rendering: pixelated">
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1; min-width: 0">
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #9A9384">Call sign<input type="text" value="Nova" style="height: 40px; padding: 0 10px; background: #0C0F14; border: 1px solid #2A3140; color: #ECE6D8; font-family: 'Silkscreen', monospace; font-size: 14px; min-width: 0"></label>
+        <div style="font-size: 12px; line-height: 1.4; color: #9A9384">Your class (Scientist, Guardian…) is set later by the habits you do most.</div>
+        <button type="button" onClick="{{randomize}}" style="height: 40px; background: transparent; color: #ECE6D8; border: 1px solid #2A3140; font-family: 'Silkscreen', monospace; font-size: 11px; cursor: pointer">SHUFFLE</button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 4px; flex-wrap: wrap">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="7">
+        <button type="button" onClick="{{t.pick}}" style="height: 34px; padding: 0 9px; background: {{t.bg}}; color: {{t.color}}; border: 1px solid {{t.border}}; font-family: 'Silkscreen', monospace; font-size: 10px; cursor: pointer">{{t.label}}</button>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+      <sc-for list="{{opts}}" as="o" hint-placeholder-count="6">
+        <button type="button" onClick="{{o.pick}}" aria-label="{{o.name}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px; background: #141922; border: 2px solid {{o.border}}; color: #ECE6D8; cursor: pointer; font-family: inherit">
+          <span style="position: relative; display: block; width: 56px; height: 56px; opacity: {{o.op}}">
+            <sc-for list="{{o.thumb}}" as="l" hint-placeholder-count="5">
+              <img src="{{l.src}}" alt="" style="position: absolute; left: 0; top: 0; width: 56px; height: 56px; image-rendering: pixelated">
+            </sc-for>
+          </span>
+          <span style="font-size: 11px">{{o.name}}</span>
+          <span style="font-family: 'Silkscreen', monospace; font-size: 9px; color: {{o.badgeColor}}">{{o.badge}}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="padding: 10px 12px; border: 1px solid {{noteBorder}}; font-size: 12px; line-height: 1.45; color: {{noteColor}}">{{note}}</div>
+
+    <div style="display: flex; gap: 8px">
+      <sc-if value="{{blocked}}" hint-placeholder-val="{{false}}">
+        <button type="button" onClick="{{useFree}}" style="flex-grow: 1; height: 52px; background: transparent; color: #FFB238; border: 1px solid #FFB238; font-family: 'Silkscreen', monospace; font-size: 12px; cursor: pointer">USE FREE PARTS</button>
+      </sc-if>
+      <sc-if value="{{ready}}" hint-placeholder-val="{{true}}">
+        <a href="PhonePlanet.dc.html" style="flex-grow: 1; display: flex; align-items: center; justify-content: center; height: 52px; background: #FFB238; color: #0C0F14; text-decoration: none; font-family: 'Silkscreen', monospace; font-size: 13px">NEXT: YOUR PLANET</a>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'helmet', sel: { helmet: 'round', visor: 'open', face: '3', hair: 'dark', suit: 'phosphor', gear: 'none', emblem: 'star' } };
+  }
+  renderVals() {
+    const b = (id) => '../art/' + id;
+    const B = {
+      hel_round: b('298555d524aba6902f97d2c4a2a58659'), hel_crest: b('1e2e9540656ad1457862546a15a49ae8'), hel_box: b('dc95025ff87e47e448588afb1dc62b14'),
+      vis_amber: b('ddbb09d12bad5326962e0f00afa7965f'), vis_steel: b('be71b5ddb2529eaf18e90727318d3f40'), vis_signal: b('2672b4085bc1fcbfd158512e350f24a8'), vis_rust: b('f271c681c59843dadf8671f85e529162'), vis_mirror: b('f8ab377810ed9880ab9e9ce31ea480b0'),
+      face_1: b('11f0eec12d484e79f789516b33535718'), face_2: b('de6e443848ae54303110acc720d90c2f'), face_3: b('ae60e6d9ea2a0512ed25744ce1785732'), face_4: b('c4860f60abb4f71879b4f183fd75594f'), face_5: b('b12e2c7e5fac8fffaf78fff031708aac'),
+      hair_dark: b('4c5e10db8669c8059784d445cf039584'), hair_brown: b('d0a2fc6b3fae6078ff34a477486cd36d'), hair_silver: b('67b48b54adece8d0fb6cab429b885ac4'),
+      suit_phosphor: b('93402df64f2c97ed352a6561c722ac2d'), suit_steel: b('2538c776edc28cec59ec00fd00ec7e67'), suit_signal: b('289c5fc29cb8b515285b0bfee0e05397'), suit_bone: b('f2caa9ab50aef03355f99c2e25688da8'), suit_admiral: b('a1f2e3fc19eefca69d0fcbfa02c10bc6'),
+      emb_star: b('60fb4991e971e63f41226a9cf9dd23a8'), emb_bolt: b('03365443777eff054045b5d9dac735d5'), emb_planet: b('6261b648dbf40a50180c2fcaa97c6ae0'),
+      acc_antenna: b('bb09e50a7fa4013431420c12b99d4a05'), acc_jetpack: b('f041a441b0216fc56652e90008dd6066'), acc_lights: b('2ea50d01c4a051b24d2d2ed395eee6b2'), acc_scarf: b('14731d8dd44af7d5dddc283de3c64dff')
+    };
+    const CAT = {
+      helmet: { label: 'HELMET', opts: [{ k: 'round', name: 'Round' }, { k: 'box', name: 'Boxy' }, { k: 'crest', name: 'Crest', lock: 'Reach Captain rank' }] },
+      visor: { label: 'VISOR', opts: [{ k: 'open', name: 'Open' }, { k: 'amber', name: 'Amber' }, { k: 'steel', name: 'Steel' }, { k: 'rust', name: 'Rust' }, { k: 'signal', name: 'Signal', price: 60 }, { k: 'mirror', name: 'Mirror', lock: '30-day streak' }] },
+      face: { label: 'SKIN', opts: [{ k: '1', name: 'Tone 1' }, { k: '2', name: 'Tone 2' }, { k: '3', name: 'Tone 3' }, { k: '4', name: 'Tone 4' }, { k: '5', name: 'Tone 5' }] },
+      hair: { label: 'HAIR', opts: [{ k: 'none', name: 'Covered' }, { k: 'dark', name: 'Dark' }, { k: 'brown', name: 'Brown' }, { k: 'silver', name: 'Silver' }] },
+      suit: { label: 'SUIT', opts: [{ k: 'phosphor', name: 'Phosphor' }, { k: 'steel', name: 'Steel', price: 150 }, { k: 'signal', name: 'Signal', price: 150 }, { k: 'bone', name: 'Bone', price: 220 }, { k: 'admiral', name: 'Admiral', lock: 'Top 3 in a sector' }] },
+      gear: { label: 'GEAR', opts: [{ k: 'none', name: 'None' }, { k: 'antenna', name: 'Antenna' }, { k: 'lights', name: 'Lights', price: 90 }, { k: 'jetpack', name: 'Jetpack', price: 200 }, { k: 'scarf', name: 'Scarf', lock: 'Beat a fleet boss' }] },
+      emblem: { label: 'BADGE', opts: [{ k: 'none', name: 'None' }, { k: 'star', name: 'Star' }, { k: 'bolt', name: 'Bolt' }, { k: 'planet', name: 'Planet', lock: 'Colony LV 10' }] }
+    };
+    const order = ['helmet', 'visor', 'face', 'hair', 'suit', 'gear', 'emblem'];
+    const layersFor = (s) => {
+      const out = [];
+      if (s.gear === 'jetpack') out.push(B.acc_jetpack);
+      out.push(B['suit_' + s.suit]);
+      if (s.emblem !== 'none') out.push(B['emb_' + s.emblem]);
+      out.push(B['hel_' + s.helmet]);
+      if (s.visor === 'open') { out.push(B['face_' + s.face]); if (s.hair !== 'none') out.push(B['hair_' + s.hair]); }
+      else out.push(B['vis_' + s.visor]);
+      if (s.gear === 'antenna' || s.gear === 'lights' || s.gear === 'scarf') out.push(B['acc_' + s.gear]);
+      return out.map((src) => ({ src }));
+    };
+    const sel = this.state.sel, tab = this.state.tab;
+    const withOpt = (k, v) => { const s2 = Object.assign({}, sel); s2[k] = v; if (k === 'face' || k === 'hair') s2.visor = 'open'; return s2; };
+    const tabs = order.map((k) => ({ label: CAT[k].label, pick: () => this.setState({ tab: k }), bg: k === tab ? '#ECE6D8' : 'transparent', color: k === tab ? '#0C0F14' : '#9A9384', border: k === tab ? '#ECE6D8' : '#2A3140' }));
+    const opts = CAT[tab].opts.map((o) => {
+      const s2 = withOpt(tab, o.k);
+      const on = sel[tab] === o.k;
+      return {
+        name: o.name, thumb: layersFor(s2), pick: () => this.setState({ sel: s2 }),
+        border: on ? '#FFB238' : '#2A3140', op: o.lock ? 0.55 : 1,
+        badge: o.lock ? 'LOCKED' : o.price ? o.price + ' ENERGY' : 'FREE',
+        badgeColor: o.lock ? '#9A9384' : o.price ? '#FFB238' : '#8BD7A0'
+      };
+    });
+    const picked = order.map((k) => Object.assign({ cat: k }, CAT[k].opts.find((o) => o.k === sel[k])));
+    const blockers = picked.filter((o) => o.lock || o.price);
+    const note = blockers.length
+      ? 'Trying on: ' + blockers.map((o) => o.name + (o.lock ? ' (' + o.lock + ')' : ' (' + o.price + ' Energy in the shop)')).join(', ') + '. You start with free parts and unlock these later.'
+      : 'Everything you picked is free to start. You can change your look any time from your profile.';
+    const useFree = () => {
+      const s2 = Object.assign({}, sel);
+      blockers.forEach((o) => { s2[o.cat] = CAT[o.cat].opts[0].k; });
+      this.setState({ sel: s2 });
+    };
+    const randomize = () => {
+      const s2 = {};
+      order.forEach((k) => { const free = CAT[k].opts.filter((o) => !o.lock && !o.price); s2[k] = free[Math.floor(Math.random() * free.length)].k; });
+      this.setState({ sel: s2 });
+    };
+    return {
+      layers: layersFor(sel), tabs, opts, note, useFree, randomize,
+      blocked: blockers.length > 0, ready: blockers.length === 0,
+      noteBorder: blockers.length ? '#FFB238' : '#2A3140', noteColor: blockers.length ? '#ECE6D8' : '#9A9384'
+    };
+  }
+}
+</script>
+</body>
+</html>
