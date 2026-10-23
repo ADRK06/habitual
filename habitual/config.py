@@ -33,6 +33,24 @@ class Config:
     # never be set on Vercel; see .env.example.
     HABITUAL_DEV = bool(os.environ.get("HABITUAL_DEV"))
 
+    # Which top-level nav sections (Sidebar.dc.html / PhoneNav.dc.html
+    # items) actually exist yet. Only "habits", "fleet" and "profile" are
+    # real pages in Phase 1 - the rest (colony, sector, galaxy, shop) are
+    # later-phase game features with no backing data model yet (see
+    # CLAUDE.md's roadmap). base.html/app_base.html render the shell as
+    # if every item were real, just skipping the ones flagged off - no
+    # empty slots. Flip a flag on once its phase actually lands; nothing
+    # else about the shell's layout changes.
+    NAV_FEATURES = {
+        "colony": False,
+        "habits": True,
+        "fleet": True,
+        "sector": False,
+        "galaxy": False,
+        "shop": False,
+        "profile": True,
+    }
+
 
 class TestConfig(Config):
     TESTING = True

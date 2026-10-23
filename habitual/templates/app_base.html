@@ -1,7 +1,27 @@
 {% extends "base.html" %}
 
+{#
+  Persistent app shell (Phase 1c, group 1) - Sidebar.dc.html on desktop,
+  PhoneHud.dc.html + PhoneNav.dc.html on mobile. Every page that extends
+  this template (dashboard, habit detail, room detail, account security,
+  the dev styleguide) gets it; landing/auth/error/join pages extend
+  base.html directly instead and never show it, logged-out visitors
+  included.
+#}
 {% block content %}
-<div class="w-full px-6 sm:px-8 lg:px-12 xl:px-16 2xl:px-24">
-  {% block app_content %}{% endblock %}
+<div class="lg:flex lg:min-h-screen">
+  {% include "partials/nav/sidebar.html" %}
+
+  <div class="flex-grow min-w-0 flex flex-col pb-16 lg:pb-0">
+    <div class="px-4 pt-4 lg:hidden">
+      {% include "partials/nav/phone_hud.html" %}
+    </div>
+
+    <div class="flex-grow min-w-0 w-full px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24">
+      {% block app_content %}{% endblock %}
+    </div>
+  </div>
+
+  {% include "partials/nav/phone_nav.html" %}
 </div>
 {% endblock %}

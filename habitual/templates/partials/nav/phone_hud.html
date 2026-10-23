@@ -1,0 +1,41 @@
+{#
+  Phone commander bar - docs/reference/colonies/screens/PhoneHud.dc.html,
+  ported 1:1 except:
+  - width is fluid (the page's own mobile padding), not a literal 358px
+    mock-frame width.
+  - no XP/level row, no "Captain · Scientist" line - same Phase 1
+    decision as sidebar.html (see its comment for why).
+  - the avatar is a bordered placeholder, not Commander avatar art - see
+    sidebar.html.
+  - the Energy pill links to Shop only once NAV_FEATURES.shop is on
+    (there's nowhere for it to go yet) - until then it's a plain,
+    non-interactive display of the real balance.
+  Shown only below the lg breakpoint - the sidebar takes over there.
+#}
+{% if current_user.is_authenticated %}
+<div class="lg:hidden flex items-center gap-3 text-bone font-body">
+  {% set profile_on = config.NAV_FEATURES.profile %}
+  {% set shop_on = config.NAV_FEATURES.shop %}
+  <a
+    {% if profile_on %}href="{{ url_for('auth.account_security') }}" aria-label="Open commander profile"{% endif %}
+    class="flex items-center gap-3 flex-grow min-w-0 no-underline text-bone"
+  >
+    <span class="w-11 h-11 border border-accent bg-void shrink-0"></span>
+    <span class="flex flex-col gap-0.5 min-w-0">
+      <span class="font-display text-xs truncate">{{ current_user.name }}</span>
+      <span class="font-mono text-xs text-dust truncate">@{{ current_user.username }}</span>
+    </span>
+  </a>
+  {% set energy_classes = "flex items-center gap-1.5 h-8 px-2.5 bg-surface border border-border font-mono text-sm text-phosphor" %}
+  {% if shop_on %}
+  <a href="#" aria-label="{{ nav_balance }} Energy, open shop" class="{{ energy_classes }} no-underline">
+  {% else %}
+  <div aria-label="{{ nav_balance }} Energy" class="{{ energy_classes }}">
+  {% endif %}
+    <svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><path d="M7 0 1 8h4l-1 6 6-8H6z" fill="currentColor"></path></svg>{{ nav_balance }}
+  {% if shop_on %}</a>{% else %}</div>{% endif %}
+  <div aria-label="{{ nav_streak.value }} {{ 'week' if nav_streak.unit == 'w' else 'day' }} best streak" class="flex items-center gap-1.5 h-8 px-2.5 bg-surface border border-border font-mono text-sm text-rust">
+    <svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 0c1 3 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-8z" fill="currentColor"></path></svg>{{ nav_streak.value }}{{ nav_streak.unit }}
+  </div>
+</div>
+{% endif %}

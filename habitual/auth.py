@@ -13,6 +13,7 @@ from wtforms import HiddenField, PasswordField, StringField
 from wtforms.validators import DataRequired, EqualTo, ValidationError
 
 from habitual import db, mailer
+from habitual.habits import nav_shell_context
 from habitual.models import (
     Badge, EmailToken, Freeze, Habit, PointTransaction, RateLimit, Room, RoomCrown, RoomMember, User, Vouch,
 )
@@ -580,6 +581,7 @@ def account_security():
         "auth/account_security.html",
         password_form=ChangePasswordForm(), email_form=ChangeEmailForm(), resend_form=CSRFOnlyForm(),
         delete_form=DeleteAccountForm(),
+        **nav_shell_context(current_user),
     )
 
 
@@ -613,6 +615,7 @@ def change_email():
         "auth/account_security.html",
         password_form=ChangePasswordForm(), email_form=form, resend_form=CSRFOnlyForm(),
         delete_form=DeleteAccountForm(),
+        **nav_shell_context(current_user),
     ), 400
 
 
@@ -644,6 +647,7 @@ def change_password():
         "auth/account_security.html",
         password_form=form, email_form=ChangeEmailForm(), resend_form=CSRFOnlyForm(),
         delete_form=DeleteAccountForm(),
+        **nav_shell_context(current_user),
     ), 400
 
 
@@ -684,6 +688,7 @@ def delete_account():
         "auth/account_security.html",
         password_form=ChangePasswordForm(), email_form=ChangeEmailForm(), resend_form=CSRFOnlyForm(),
         delete_form=form,
+        **nav_shell_context(current_user),
     ), 400
 
 

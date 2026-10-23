@@ -17,21 +17,38 @@
   {# Palette #}
   <section class="flex flex-col gap-4">
     <h2 class="font-display text-xs tracking-widest text-text-muted">PALETTE</h2>
+    {#
+      Each swatch below must use a literal, complete `bg-*` class (not a
+      dynamically built one, and not an inline `style="...var(--color-X)"`)
+      - Tailwind's v4 CLI only emits a @theme CSS variable into the
+      compiled stylesheet when it sees a real utility class referencing
+      it somewhere in the scanned template source. A class built from a
+      Jinja variable (`bg-{{ var }}`) never matches, because the scanner
+      reads raw file bytes looking for complete class-shaped tokens, and
+      `{{`/`}}` breaks the token before the suffix - so neither "bg-" nor
+      the bare word "steel" register as a used class on their own. Steel
+      and Regolith had no other `bg-steel`/`bg-regolith` usage anywhere
+      in the app, so they were the only two tokens with no path to being
+      emitted, and rendered as empty (unset custom property) swatches.
+      Listing the full class name as a literal string in this loop's
+      data (even inside a Jinja `{% for %}` list literal) is enough -
+      the scanner matches on raw text, not on Jinja/HTML structure.
+    #}
     <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-      {% for name, var, hex, role in [
-        ("Void", "bg", "#0C0F14", "ground"),
-        ("Hull", "surface", "#141922", "panels"),
-        ("Bulkhead", "border", "#2A3140", "1px lines"),
-        ("Bone", "text", "#ECE6D8", "text"),
-        ("Dust", "text-muted", "#9A9384", "quiet text"),
-        ("Phosphor", "accent", "#FFB238", "Energy, primary actions"),
-        ("Rust", "danger", "#E2603A", "alerts, damage"),
-        ("Signal", "success", "#8BD7A0", "done, healthy"),
-        ("Steel", "steel", "#3E5A7A", "secondary fill"),
-        ("Regolith", "regolith", "#C9A27A", "planet art"),
+      {% for name, bg_class, hex, role in [
+        ("Void", "bg-void", "#0C0F14", "ground"),
+        ("Hull", "bg-hull", "#141922", "panels"),
+        ("Bulkhead", "bg-bulkhead", "#2A3140", "1px lines"),
+        ("Bone", "bg-bone", "#ECE6D8", "text"),
+        ("Dust", "bg-dust", "#9A9384", "quiet text"),
+        ("Phosphor", "bg-phosphor", "#FFB238", "Energy, primary actions"),
+        ("Rust", "bg-rust", "#E2603A", "alerts, damage"),
+        ("Signal", "bg-signal", "#8BD7A0", "done, healthy"),
+        ("Steel", "bg-steel", "#3E5A7A", "secondary fill"),
+        ("Regolith", "bg-regolith", "#C9A27A", "planet art"),
       ] %}
       <div class="flex flex-col gap-2">
-        <div class="h-14 border border-border" style="background: var(--color-{{ var }})"></div>
+        <div class="h-14 border border-border {{ bg_class }}"></div>
         <div class="font-body text-sm font-medium text-text">{{ name }}</div>
         <div class="font-mono text-xs text-text-muted">{{ hex }} · {{ role }}</div>
       </div>

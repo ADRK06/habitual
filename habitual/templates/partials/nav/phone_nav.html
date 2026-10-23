@@ -1,0 +1,43 @@
+{#
+  Phone tab bar - docs/reference/colonies/screens/PhoneNav.dc.html,
+  ported 1:1 (64px tall, 10px Silkscreen labels, 2px active border-top)
+  except:
+  - fixed to the bottom of the real viewport (the mock's bar is just the
+    last flex child inside an artificially fixed-height 844px frame;
+    real pages scroll past an arbitrary length, so this has to stay put
+    the same way any mobile tab bar does). Content gets matching bottom
+    padding so nothing sits underneath it - see app_base.html.
+  - grid-template-columns divides by however many items are actually on
+    (NAV_FEATURES), not always 5 - "no empty slots" per the brief, so
+    the visible tabs fill the full width evenly instead of leaving dead
+    space where an off item would have sat.
+  - PhoneNav never has Shop or Commander tabs at all (label_phone is
+    None for both in _items.html) - those are reached from PhoneHud
+    instead, matching the mock exactly.
+  Shown only below the lg breakpoint - the sidebar takes over there.
+#}
+{% from "partials/nav/_items.html" import NAV_ITEMS %}
+{% set ns = namespace(items=[]) %}
+{% for item in NAV_ITEMS %}
+  {% if item.label_phone and config.NAV_FEATURES[item.key] %}
+    {% set ns.items = ns.items + [item] %}
+  {% endif %}
+{% endfor %}
+{% if ns.items %}
+<nav
+  aria-label="Main"
+  class="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-16 grid border-t border-border bg-void font-display text-dust"
+  style="grid-template-columns: repeat({{ ns.items|length }}, minmax(0, 1fr))"
+>
+  {% for item in ns.items %}
+    {% set is_active = request.endpoint == item.endpoint or request.endpoint in item.also_active %}
+    <a
+      href="{{ url_for(item.endpoint) if item.endpoint else '#' }}"
+      class="flex flex-col items-center justify-center gap-1 no-underline text-[10px] border-t-2 {{ 'text-accent border-accent' if is_active else 'text-dust border-transparent' }}"
+    >
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="{{ item.d }}"></path></svg>
+      {{ item.label_phone }}
+    </a>
+  {% endfor %}
+</nav>
+{% endif %}

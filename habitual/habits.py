@@ -248,6 +248,53 @@ def _header_stats(user):
     }
 
 
+def _best_current_streak(habit_rows, today):
+    """Value+unit for the persistent nav shell's streak pill (the
+    Colonies sidebar/commander-bar - see nav_shell_context below) - the
+    same "best current streak across every habit" idea as
+    analytics.overview_summary's best_streak, trimmed to just the number
+    and its unit (no title/emoji) since the shell only ever shows a bare
+    "14d" (or "3w", for a habit whose best streak happens to be a Weekly
+    one) figure."""
+    best_value, best_unit = 0, "d"
+    for h in habit_rows:
+        completed = {c.date for c in h.checkins}
+        effective_start = _effective_start(h)
+        if h.frequency_type == "weekly":
+            floor = points.week_start(effective_start)
+            streak = points.weekly_streak(completed, h.frequency_target or 1, today, floor=floor)
+            unit = "w"
+        else:
+            frozen = {f.used_on for f in h.freezes if f.used_on is not None}
+            bridge = frozen | _not_scheduled_for(h, effective_start, today)
+            streak = points.current_streak(completed, bridge, today, effective_start)
+            unit = "d"
+        if streak > best_value:
+            best_value, best_unit = streak, unit
+    return {"value": best_value, "unit": best_unit}
+
+
+def nav_shell_context(user):
+    """Data the persistent sidebar (web) / commander bar (phone) shell -
+    app_base.html, Sidebar.dc.html, PhoneHud.dc.html - needs on every
+    page that shows it: the Energy (balance) and streak pills. No level/
+    XP bar - CLAUDE.md's "no fake levels" rule still applies in Phase 1.
+
+    Callers that already have this user's habits/header loaded (right
+    now, just habits.dashboard) should read nav_balance/nav_freezes_held
+    off their existing _header_stats() result and nav_streak off their
+    existing best_streak instead of calling this, to avoid loading the
+    habit list twice in one request."""
+    header = _header_stats(user)
+    today = local_today(user)
+    habit_rows = _user_habits(user)
+    return {
+        "nav_balance": header["balance"],
+        "nav_freezes_held": header["freezes_held"],
+        "nav_streak": _best_current_streak(habit_rows, today),
+    }
+
+
 def _user_habits(user):
     # Eager-load the three relationships every dashboard card/overview stat
     # reads (checkins, freezes, point_transactions) in one query apiece
@@ -403,6 +450,12 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
     if habit_rows:
         context.update(_overview_context(habit_rows, today))
     context.update(_day_status_context(current_user, today, habit_rows, context.get("habits_remaining")))
+    # Nav shell (sidebar/commander-bar) pills, derived from data already
+    # computed above - see nav_shell_context's docstring for why this
+    # route doesn't just call that helper (it would reload habit_rows).
+    context["nav_balance"] = context["balance"]
+    context["nav_freezes_held"] = context["freezes_held"]
+    context["nav_streak"] = _best_current_streak(habit_rows, today)
     return context
 
 
@@ -675,6 +728,7 @@ def habit_detail(habit_id):
             frequency_type=habit.frequency_type, frequency_days=habit.frequency_days,
             frequency_target=habit.frequency_target,
         ),
+        **nav_shell_context(current_user),
     }
     return render_template("habits/detail.html", **context)
 

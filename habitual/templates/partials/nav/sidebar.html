@@ -1,0 +1,65 @@
+{#
+  Web sidebar - docs/reference/colonies/screens/Sidebar.dc.html, ported
+  1:1 (240px, 24px/16px padding, 24px gap between sections) except:
+  - height is min-h-screen, not a literal 900px - this is a real,
+    variable-height page, not a fixed mock frame.
+  - no XP/level bar, no "Captain · LV 12" line (Phase 1 decision: no
+    fake levels yet - CLAUDE.md's "no fake levels or XP" rule still
+    applies) - the real @username takes that line's place instead.
+  - the avatar is a plain bordered placeholder, not Commander avatar art
+    - no avatar sprite is in habitual/static/art/ yet (avatar
+    customization is a later-phase game feature).
+  - the "THIS WEEK · sector" widget at the bottom is omitted - it needs
+    real sector-rank data, which doesn't exist until NAV_FEATURES.sector
+    does (showing a fake rank/countdown would repeat the same mistake
+    the no-fake-levels rule exists to prevent).
+  Hidden below the lg breakpoint - PhoneHud + PhoneNav take over there.
+#}
+{% from "partials/nav/_items.html" import NAV_ITEMS %}
+<aside class="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:gap-6 lg:p-6 lg:min-h-screen lg:border-r lg:border-border bg-void text-bone font-body">
+  <a href="{{ url_for('home') }}" class="flex items-center gap-2.5 no-underline text-bone">
+    <img src="{{ url_for('static', filename='art/logo-mark.png') }}" alt="" class="w-8 h-8" style="image-rendering: pixelated">
+    <span class="font-display text-base tracking-wide">HABITUAL</span>
+  </a>
+
+  {% if current_user.is_authenticated %}
+  {% set profile_on = config.NAV_FEATURES.profile %}
+  <a
+    {% if profile_on %}href="{{ url_for('auth.account_security') }}"{% endif %}
+    class="flex flex-col gap-2.5 p-3 bg-surface border border-border no-underline text-bone"
+  >
+    <span class="flex items-center gap-2.5">
+      <span class="w-10 h-10 border border-accent bg-void shrink-0"></span>
+      <span class="flex flex-col gap-0.5 min-w-0">
+        <span class="font-display text-xs truncate">{{ current_user.name }}</span>
+        <span class="font-mono text-[11px] text-dust truncate">@{{ current_user.username }}</span>
+      </span>
+    </span>
+    <span class="flex gap-2">
+      <span class="flex items-center gap-1.5 flex-grow h-7 px-2 border border-border font-mono text-xs text-phosphor">
+        <svg width="10" height="12" viewBox="0 0 12 14" aria-hidden="true"><path d="M7 0 1 8h4l-1 6 6-8H6z" fill="currentColor"></path></svg>
+        {{ nav_balance }}
+      </span>
+      <span class="flex items-center gap-1.5 flex-grow h-7 px-2 border border-border font-mono text-xs text-rust">
+        <svg width="10" height="12" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 0c1 3 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-8z" fill="currentColor"></path></svg>
+        {{ nav_streak.value }}{{ nav_streak.unit }}
+      </span>
+    </span>
+  </a>
+  {% endif %}
+
+  <nav aria-label="Main" class="flex flex-col gap-0.5">
+    {% for item in NAV_ITEMS %}
+      {% if config.NAV_FEATURES[item.key] %}
+        {% set is_active = request.endpoint == item.endpoint or request.endpoint in item.also_active %}
+        <a
+          href="{{ url_for(item.endpoint) if item.endpoint else '#' }}"
+          class="flex items-center gap-3 h-11 px-3 no-underline font-display text-xs border-l-2 {{ 'text-accent bg-surface border-accent' if is_active else 'text-dust border-transparent' }}"
+        >
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="{{ item.d }}"></path></svg>
+          {{ item.label_web }}
+        </a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+</aside>

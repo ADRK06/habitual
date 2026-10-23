@@ -23,6 +23,7 @@ from habitual.habits import (
     _validate_frequency_target,
     _validate_frequency_type,
     _validate_title,
+    nav_shell_context,
 )
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, Room, RoomCrown, RoomMember, User, Vouch
 from habitual.utils.time import local_now, local_today
@@ -820,6 +821,25 @@ def join_room(token):
     return redirect(url_for("rooms.room_detail", room_id=room.id))
 
 
+@rooms.get("/fleet")
+@login_required
+def fleet_index():
+    """Nav entry point for the "FLEET" sidebar/tab-bar item (Sidebar.dc.html,
+    PhoneNav.dc.html) - there's no multi-fleet switcher screen in the
+    Colonies mocks, so this just sends the member straight to their own
+    room page, picking the most recently joined one if they're in more
+    than one. A member of none lands on the dashboard, where "create a
+    room" / "join a room" already live."""
+    membership = (
+        RoomMember.query.filter_by(user_id=current_user.id)
+        .order_by(RoomMember.joined_on.desc())
+        .first()
+    )
+    if membership is None:
+        return redirect(url_for("habits.dashboard"))
+    return redirect(url_for("rooms.room_detail", room_id=membership.room_id))
+
+
 @rooms.get("/rooms/<int:room_id>")
 @login_required
 def room_detail(room_id):
@@ -860,6 +880,7 @@ def room_detail(room_id):
         invite_message=_invite_message(room),
         newly_awarded_badges=newly_awarded_badges,
         **_personal_stats(viewer_habit, current_user),
+        **nav_shell_context(current_user),
     )
 
 
