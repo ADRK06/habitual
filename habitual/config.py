@@ -28,6 +28,11 @@ class Config:
     # over https; only plain local dev should skip the Secure flag.
     SESSION_COOKIE_SECURE = bool(os.environ.get("VERCEL"))
 
+    # Gates /dev/styleguide (habitual/dev.py) - a token/component reference
+    # page for the Colonies restyle, never meant to exist in prod. Must
+    # never be set on Vercel; see .env.example.
+    HABITUAL_DEV = bool(os.environ.get("HABITUAL_DEV"))
+
 
 class TestConfig(Config):
     TESTING = True

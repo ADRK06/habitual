@@ -32,6 +32,11 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(habits_blueprint)
     app.register_blueprint(rooms_blueprint)
+
+    if app.config.get("HABITUAL_DEV"):
+        from habitual.dev import dev as dev_blueprint
+
+        app.register_blueprint(dev_blueprint)
     app.cli.add_command(dev_backdate)
     app.cli.add_command(admin_reset_password)
     app.cli.add_command(send_test_email)

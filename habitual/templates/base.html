@@ -9,10 +9,8 @@
 
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Exo+2:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
+  {# Fonts are self-hosted - see scripts/get-fonts.sh and the @font-face
+     rules in tailwind/input.css - no Google Fonts <link> needed. #}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 
   <script src="https://unpkg.com/htmx.org@2.0.10/dist/htmx.min.js"></script>

@@ -1,0 +1,189 @@
+{% extends "app_base.html" %}
+
+{% block title %}Style guide (dev) · Habitual{% endblock %}
+
+{% block app_content %}
+<div class="py-10 flex flex-col gap-12">
+
+  <header class="flex flex-col gap-2">
+    <div class="font-display text-xs tracking-widest text-accent">HABITUAL COLONIES</div>
+    <h1 class="font-display text-3xl text-text">STYLE GUIDE</h1>
+    <p class="font-body text-sm text-text-muted max-w-2xl">
+      Tokens and components from <code class="font-mono">docs/reference/colonies/screens/Main.dc.html</code>.
+      Dev-only - this route 404s unless <code class="font-mono">HABITUAL_DEV</code> is set.
+    </p>
+  </header>
+
+  {# Palette #}
+  <section class="flex flex-col gap-4">
+    <h2 class="font-display text-xs tracking-widest text-text-muted">PALETTE</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      {% for name, var, hex, role in [
+        ("Void", "bg", "#0C0F14", "ground"),
+        ("Hull", "surface", "#141922", "panels"),
+        ("Bulkhead", "border", "#2A3140", "1px lines"),
+        ("Bone", "text", "#ECE6D8", "text"),
+        ("Dust", "text-muted", "#9A9384", "quiet text"),
+        ("Phosphor", "accent", "#FFB238", "Energy, primary actions"),
+        ("Rust", "danger", "#E2603A", "alerts, damage"),
+        ("Signal", "success", "#8BD7A0", "done, healthy"),
+        ("Steel", "steel", "#3E5A7A", "secondary fill"),
+        ("Regolith", "regolith", "#C9A27A", "planet art"),
+      ] %}
+      <div class="flex flex-col gap-2">
+        <div class="h-14 border border-border" style="background: var(--color-{{ var }})"></div>
+        <div class="font-body text-sm font-medium text-text">{{ name }}</div>
+        <div class="font-mono text-xs text-text-muted">{{ hex }} · {{ role }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# Type #}
+  <section class="flex flex-col gap-4">
+    <h2 class="font-display text-xs tracking-widest text-text-muted">TYPE</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div class="flex flex-col gap-2">
+        <div class="font-display text-xl text-text">COLONY LV 7</div>
+        <div class="font-body text-xs text-text-muted">Silkscreen · titles, labels, buttons, nav</div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <div class="font-body text-base font-medium text-text">Read 20 pages before bed</div>
+        <div class="font-body text-xs text-text-muted">IBM Plex Sans · body, user-entered text</div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <div class="font-mono text-xl text-accent">+340 · 14d · 87%</div>
+        <div class="font-body text-xs text-text-muted">IBM Plex Mono · every number</div>
+      </div>
+    </div>
+  </section>
+
+  {# Buttons #}
+  <section class="flex flex-col gap-4">
+    <h2 class="font-display text-xs tracking-widest text-text-muted">BUTTONS</h2>
+    <div class="flex flex-wrap gap-3">
+      <button type="button" class="min-h-11 px-5 bg-accent text-bg font-display text-xs">CHECK IN +5</button>
+      <button type="button" class="min-h-11 px-5 border border-border text-text font-display text-xs">VISIT</button>
+      <button type="button" disabled class="min-h-11 px-5 border border-border text-text-muted font-display text-xs">DISABLED</button>
+      <button type="button" class="min-h-11 px-5 border border-danger text-danger font-display text-xs">DELETE</button>
+    </div>
+  </section>
+
+  {# Chips #}
+  <section class="flex flex-col gap-4">
+    <h2 class="font-display text-xs tracking-widest text-text-muted">CHIPS</h2>
+    <div class="flex flex-wrap gap-2">
+      <span class="px-2 py-1.5 border border-border font-display text-[10px] text-text-muted">SOLO</span>
+      <span class="px-2 py-1.5 border border-accent font-display text-[10px] text-accent">FLEET · NIGHT OWLS</span>
+      <span class="px-2 py-1.5 border border-dashed border-border font-display text-[10px] text-text-muted">LOCKED</span>
+      <span class="px-2 py-1.5 border border-success font-display text-[10px] text-success">EQUIPPED</span>
+    </div>
+  </section>
+
+  {# Cards #}
+  <section class="flex flex-col gap-4">
+    <h2 class="font-display text-xs tracking-widest text-text-muted">CARDS</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="flex flex-col gap-3 p-4 bg-surface border border-border">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 border border-border bg-bg"></div>
+          <div class="flex flex-col gap-0.5 flex-grow min-w-0">
+            <div class="font-body text-base font-medium text-text">Morning run</div>
+            <div class="font-body text-xs text-text-muted">Fitness · 4× a week</div>
+          </div>
+          <div class="flex flex-col items-end">
+            <div class="font-mono text-lg text-danger">9w</div>
+            <div class="font-body text-[11px] text-text-muted">best 9w</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3 p-4 bg-surface border border-border">
+        <div class="flex items-center justify-between">
+          <span class="font-display text-[11px] text-text-muted">FLEET · NIGHT OWLS</span>
+          <span class="font-display text-[11px] text-success">SHIELD UP</span>
+        </div>
+        <div class="font-body text-sm text-text">5 commanders · mission day 18 / 30</div>
+      </div>
+    </div>
+  </section>
+
+  {# Progress bars #}
+  <section class="flex flex-col gap-4">
+    <h2 class="font-display text-xs tracking-widest text-text-muted">PROGRESS</h2>
+    <div class="flex flex-col gap-4 max-w-sm">
+      <div class="h-1.5 bg-border"><div class="h-1.5 bg-accent" style="width: 62%"></div></div>
+      <div class="flex gap-1 h-1.5">
+        <div class="flex-grow bg-success"></div>
+        <div class="flex-grow bg-success"></div>
+        <div class="flex-grow bg-accent"></div>
+        <div class="flex-grow bg-border"></div>
+        <div class="flex-grow bg-border"></div>
+      </div>
+    </div>
+  </section>
+
+  {# Inputs #}
+  <section class="flex flex-col gap-4">
+    <h2 class="font-display text-xs tracking-widest text-text-muted">INPUTS</h2>
+    <div class="flex flex-col gap-4 max-w-sm">
+      <label class="flex flex-col gap-1.5 font-body text-xs text-text-muted">
+        Name
+        <input type="text" value="Stretch for 10 minutes" class="h-10 px-2.5 bg-bg border border-border text-text font-body text-sm">
+      </label>
+      <div class="flex flex-col gap-1.5 font-body text-xs text-text-muted">
+        How often
+        <div class="flex gap-1.5">
+          <button type="button" class="flex-grow h-9 bg-bone text-bg font-body text-xs">Daily</button>
+          <button type="button" class="flex-grow h-9 border border-border text-text-muted font-body text-xs">Some days</button>
+          <button type="button" class="flex-grow h-9 border border-border text-text-muted font-body text-xs">X a week</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5 font-body text-xs text-text-muted">
+        Category
+        <div class="grid grid-cols-3 gap-1.5">
+          {% for label, on in [("Fitness", true), ("Study", false), ("Sleep", false)] %}
+          <button type="button" class="flex flex-col items-center gap-1 p-1.5 bg-bg border {{ 'border-accent text-text' if on else 'border-border text-text-muted' }} font-body text-[11px]">
+            <span class="w-6 h-6 border border-border"></span>{{ label }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# Table row #}
+  <section class="flex flex-col gap-4">
+    <h2 class="font-display text-xs tracking-widest text-text-muted">TABLE ROW</h2>
+    <div class="flex flex-col border border-border max-w-xl">
+      <div class="grid grid-cols-[32px_minmax(0,1fr)_70px_96px] gap-2 items-center h-9 px-3 border-b border-border font-display text-[10px] text-text-muted">
+        <span>#</span><span>COMMANDER</span><span>POINTS</span><span></span>
+      </div>
+      <div class="grid grid-cols-[32px_minmax(0,1fr)_70px_96px] gap-2 items-center h-15 px-3">
+        <span class="font-mono text-sm text-text-muted">1</span>
+        <span class="flex items-center gap-2.5 min-w-0">
+          <span class="w-8 h-8 border border-border"></span>
+          <span class="font-body text-sm text-text">Riya</span>
+        </span>
+        <span class="font-mono text-sm text-text">212</span>
+        <span class="flex justify-end">
+          <button type="button" class="h-9 px-3 border border-success text-success font-display text-[11px]">VOUCH</button>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  {# Modal #}
+  <section class="flex flex-col gap-4">
+    <h2 class="font-display text-xs tracking-widest text-text-muted">MODAL</h2>
+    <div class="max-w-sm flex flex-col gap-4 p-5 bg-surface border border-accent">
+      <div class="font-display text-sm text-text">DELETE THIS HABIT?</div>
+      <p class="font-body text-sm text-text-muted">This removes 260 Energy. This can't be undone.</p>
+      <div class="flex gap-2">
+        <button type="button" class="flex-grow h-11 border border-border text-text font-display text-xs">CANCEL</button>
+        <button type="button" class="flex-grow h-11 border border-danger text-danger font-display text-xs">DELETE</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
