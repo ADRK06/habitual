@@ -6,9 +6,10 @@
   - no XP/level bar, no "Captain · LV 12" line (Phase 1 decision: no
     fake levels yet - CLAUDE.md's "no fake levels or XP" rule still
     applies) - the real @username takes that line's place instead.
-  - the avatar is a plain bordered placeholder, not Commander avatar art
-    - no avatar sprite is in habitual/static/art/ yet (avatar
-    customization is a later-phase game feature).
+  - the avatar is the user's first initial (Silkscreen, Phosphor) inside
+    a bordered placeholder, not Commander avatar art - no avatar sprite
+    is in habitual/static/art/ yet (avatar customization is a
+    later-phase game feature).
   - the "THIS WEEK · sector" widget at the bottom is omitted - it needs
     real sector-rank data, which doesn't exist until NAV_FEATURES.sector
     does (showing a fake rank/countdown would repeat the same mistake
@@ -29,7 +30,7 @@
     class="flex flex-col gap-2.5 p-3 bg-surface border border-border no-underline text-bone"
   >
     <span class="flex items-center gap-2.5">
-      <span class="w-10 h-10 border border-accent bg-void shrink-0"></span>
+      <span class="w-10 h-10 border border-accent bg-void shrink-0 flex items-center justify-center font-display text-sm text-accent">{{ current_user.name[0]|upper }}</span>
       <span class="flex flex-col gap-0.5 min-w-0">
         <span class="font-display text-xs truncate">{{ current_user.name }}</span>
         <span class="font-mono text-[11px] text-dust truncate">@{{ current_user.username }}</span>

@@ -5,8 +5,8 @@
     mock-frame width.
   - no XP/level row, no "Captain · Scientist" line - same Phase 1
     decision as sidebar.html (see its comment for why).
-  - the avatar is a bordered placeholder, not Commander avatar art - see
-    sidebar.html.
+  - the avatar is the user's first initial (Silkscreen, Phosphor) inside
+    a bordered placeholder, not Commander avatar art - see sidebar.html.
   - the Energy pill links to Shop only once NAV_FEATURES.shop is on
     (there's nowhere for it to go yet) - until then it's a plain,
     non-interactive display of the real balance.
@@ -20,7 +20,7 @@
     {% if profile_on %}href="{{ url_for('auth.account_security') }}" aria-label="Open commander profile"{% endif %}
     class="flex items-center gap-3 flex-grow min-w-0 no-underline text-bone"
   >
-    <span class="w-11 h-11 border border-accent bg-void shrink-0"></span>
+    <span class="w-11 h-11 border border-accent bg-void shrink-0 flex items-center justify-center font-display text-base text-accent">{{ current_user.name[0]|upper }}</span>
     <span class="flex flex-col gap-0.5 min-w-0">
       <span class="font-display text-xs truncate">{{ current_user.name }}</span>
       <span class="font-mono text-xs text-dust truncate">@{{ current_user.username }}</span>
