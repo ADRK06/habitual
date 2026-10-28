@@ -1,5 +1,6 @@
 import re
 from datetime import datetime, timedelta, timezone as dt_timezone
+from html.parser import HTMLParser
 
 from habitual.models import EmailToken, RateLimit, User, load_user
 
@@ -29,6 +30,28 @@ def _last_token(client):
     match = LINK_RE.search(client.sent_emails[-1]["text"])
     assert match is not None, f"no link found in {client.sent_emails[-1]['text']!r}"
     return match.group(1)
+
+
+def _has_real_csrf_input(html):
+    # A plain substring search for 'name="csrf_token"' isn't enough: an
+    # unclosed <form ...> tag earlier in the markup makes a lenient parser
+    # (same tokenizer behavior a real browser uses) fold the rendered
+    # csrf_token <input> into the <form> tag's own bogus attribute list
+    # instead of emitting it as a real element - the text is still in the
+    # response, but no <input> tag actually exists in the DOM. Parsing
+    # catches that; grepping doesn't.
+    class _Collector(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.found = False
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "input" and dict(attrs).get("name") == "csrf_token":
+                self.found = True
+
+    collector = _Collector()
+    collector.feed(html)
+    return collector.found
 
 
 # -- signup requires + validates email ----------------------------------------
@@ -276,6 +299,23 @@ def test_reset_password_page_sets_no_referrer_header_on_valid_token_too(client, 
     token = _last_token(client)
     response = client.get(f"/reset-password/{token}")
     assert response.headers["Referrer-Policy"] == "no-referrer"
+
+
+def test_reset_password_page_renders_a_real_csrf_token_input(app, client, db):
+    _create_user(db, email="verified@example.com", verified=True)
+    client.post("/forgot-password", data={"email": "verified@example.com"})
+    token = _last_token(client)
+
+    # CSRF is off in TestConfig (every other test relies on that to post
+    # plain dicts) so the form's csrf_token field doesn't render at all
+    # unless it's turned on here - this test is specifically about whether
+    # that field, once enabled, lands in the page as a real <input>. Only
+    # the page render below needs it on; the POST above must stay
+    # CSRF-free or it never issues a token to begin with.
+    app.config["WTF_CSRF_ENABLED"] = True
+    html = client.get(f"/reset-password/{token}").get_data(as_text=True)
+
+    assert _has_real_csrf_input(html)
 
 
 def test_reset_password_expired_token_rejected(client, db):
