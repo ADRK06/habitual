@@ -3,25 +3,30 @@
 {% block title %}{{ "Email verified" if ok else "Link invalid" }} · Habitual{% endblock %}
 
 {% block content %}
-<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
-  <div class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 text-center shadow-2xl shadow-black/20">
+<div class="relative flex min-h-screen flex-col items-center justify-center gap-10 px-4 py-12">
+  <a href="{{ url_for('home') }}" class="flex items-center gap-2.5 no-underline text-text">
+    <img src="{{ url_for('static', filename='art/logo-mark.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
+    <span class="font-display text-lg uppercase tracking-wide">Habitual</span>
+  </a>
+
+  <div class="relative w-full max-w-[420px] border border-border bg-surface p-8 text-center">
     {% if ok %}
-    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/15 text-2xl">✅</div>
-    <h1 class="mt-4 font-heading text-xl font-semibold text-text">Email verified</h1>
+    <div class="mx-auto flex h-12 w-12 items-center justify-center border border-success text-2xl">✅</div>
+    <h1 class="mt-4 font-display text-xl uppercase tracking-wide text-text">Email verified</h1>
     <p class="mt-2 text-sm text-text-muted">You're all set - this email can now be used to recover your account.</p>
     <a
       href="{{ url_for('habits.dashboard') if already_logged_in else url_for('auth.login') }}"
-      class="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-bg transition hover:opacity-90"
+      class="mt-6 flex min-h-11 w-full items-center justify-center bg-accent px-4 font-display text-sm uppercase tracking-wide text-bg transition hover:opacity-90"
     >
       {{ "Go to dashboard" if already_logged_in else "Log in" }}
     </a>
     {% else %}
-    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger/15 text-2xl">⚠️</div>
-    <h1 class="mt-4 font-heading text-xl font-semibold text-text">This link is invalid or has expired</h1>
+    <div class="mx-auto flex h-12 w-12 items-center justify-center border border-danger text-2xl">⚠️</div>
+    <h1 class="mt-4 font-display text-xl uppercase tracking-wide text-text">This link is invalid or has expired</h1>
     <p class="mt-2 text-sm text-text-muted">Request a new one from Account security, or sign in and we'll take you there.</p>
     <a
       href="{{ url_for('auth.account_security') if already_logged_in else url_for('auth.login') }}"
-      class="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-bg transition hover:opacity-90"
+      class="mt-6 flex min-h-11 w-full items-center justify-center bg-accent px-4 font-display text-sm uppercase tracking-wide text-bg transition hover:opacity-90"
     >
       {{ "Account security" if already_logged_in else "Log in" }}
     </a>

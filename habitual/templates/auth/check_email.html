@@ -4,10 +4,15 @@
 {% block title %}Check your email · Habitual{% endblock %}
 
 {% block content %}
-<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
-  <div class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 text-center shadow-2xl shadow-black/20">
-    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-2xl">📧</div>
-    <h1 class="mt-4 font-heading text-xl font-semibold text-text">Check your email</h1>
+<div class="relative flex min-h-screen flex-col items-center justify-center gap-10 px-4 py-12">
+  <a href="{{ url_for('home') }}" class="flex items-center gap-2.5 no-underline text-text">
+    <img src="{{ url_for('static', filename='art/logo-mark.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
+    <span class="font-display text-lg uppercase tracking-wide">Habitual</span>
+  </a>
+
+  <div class="relative w-full max-w-[420px] border border-border bg-surface p-8 text-center">
+    <div class="mx-auto flex h-12 w-12 items-center justify-center border border-accent text-2xl">📧</div>
+    <h1 class="mt-4 font-display text-xl uppercase tracking-wide text-text">Check your email</h1>
     <p class="mt-2 text-sm text-text-muted">
       We sent a verification link to <span class="text-text">{{ email }}</span>. Click it to confirm your email -
       you can keep using Habitual in the meantime.
@@ -16,7 +21,7 @@
     <form method="post" action="{{ url_for('auth.resend_verification') }}" class="mt-6">
       {{ resend_form.csrf_token }}
       <input type="hidden" name="next" value="{{ url_for('auth.check_email') }}">
-      <button type="submit" class="relative w-full rounded-2xl border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" class="relative flex min-h-11 w-full items-center justify-center border border-border bg-transparent px-4 font-display text-sm uppercase tracking-wide text-text transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-60">
         <span class="btn-label">Resend email</span>
         {{ spinner() }}
       </button>

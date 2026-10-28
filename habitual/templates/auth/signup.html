@@ -4,12 +4,14 @@
 {% block title %}Sign up · Habitual{% endblock %}
 
 {% block content %}
-<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
-  <div data-glow="accent" class="pointer-events-none absolute -top-32 -left-24 h-80 w-80 rounded-full bg-accent/20 blur-3xl"></div>
-  <div data-glow="rooms" class="pointer-events-none absolute -bottom-32 -right-24 h-80 w-80 rounded-full bg-rooms/20 blur-3xl"></div>
+<div class="relative flex min-h-screen flex-col items-center justify-center gap-10 px-4 py-12">
+  <a href="{{ url_for('home') }}" class="flex items-center gap-2.5 no-underline text-text">
+    <img src="{{ url_for('static', filename='art/logo-mark.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
+    <span class="font-display text-lg uppercase tracking-wide">Habitual</span>
+  </a>
 
-  <div id="auth-card" class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 shadow-2xl shadow-black/20">
-    <h1 class="font-heading text-2xl font-semibold text-text mb-6">Create your account</h1>
+  <div id="auth-card" class="relative w-full max-w-[420px] border border-border bg-surface p-8">
+    <h1 class="mb-6 font-display text-2xl uppercase tracking-wide text-text">Create your account</h1>
 
     <form
       method="post"
@@ -25,7 +27,7 @@
         get matches() { return this.confirm.length > 0 && this.confirm === this.password },
         get score() { return [this.hasLength, this.hasUpper, this.hasLower, this.hasDigit, this.hasSpecial].filter(Boolean).length },
         get strengthLabel() { return ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'][this.score] },
-        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-rooms' : 'bg-accent' },
+        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-regolith' : 'bg-accent' },
       }"
       x-init="document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone"
       class="space-y-4"
@@ -35,27 +37,27 @@
       {{ form.timezone(id='timezone') }}
 
       <div>
-        <label for="name" class="block text-sm text-text-muted mb-1">Name</label>
-        {{ form.name(id='name', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent') }}
+        <label for="name" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Name</label>
+        {{ form.name(id='name', class_='w-full border border-border bg-void px-3 py-2.5 text-text transition-colors duration-200 focus:border-accent') }}
         {% for error in form.name.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
       </div>
 
       <div>
-        <label for="email" class="block text-sm text-text-muted mb-1">Email</label>
-        {{ form.email(id='email', class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', autocomplete='email') }}
+        <label for="email" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Email</label>
+        {{ form.email(id='email', class_='w-full border border-border bg-void px-3 py-2.5 text-text transition-colors duration-200 focus:border-accent', autocomplete='email') }}
         <p class="mt-1 text-xs text-text-muted">Used only to verify your account and let you reset your password - never shared.</p>
         {% for error in form.email.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
       </div>
 
       <div>
-        <label for="username" class="block text-sm text-text-muted mb-1">Username</label>
+        <label for="username" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Username</label>
         {{ form.username(
           id='username',
-          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
+          class_='w-full border border-border bg-void px-3 py-2.5 text-text transition-colors duration-200 focus:border-accent',
           autocomplete='off',
           autocapitalize='off',
           **{
@@ -71,16 +73,16 @@
           <span id="username-checking" class="htmx-indicator-text text-xs text-text-muted">Checking…</span>
         </div>
         {% for error in form.username.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
       </div>
 
       <div>
-        <label for="password" class="block text-sm text-text-muted mb-1">Password</label>
+        <label for="password" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Password</label>
         <div class="relative">
           {{ form.password(
             id='password',
-            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 pr-16 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
+            class_='w-full border border-border bg-void px-3 py-2.5 pr-16 text-text transition-colors duration-200 focus:border-accent',
             **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'password'}
           ) }}
           <button
@@ -92,8 +94,8 @@
           </button>
         </div>
 
-        <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
-          <div class="h-full rounded-full transition-all duration-300" :class="strengthColor" :style="`width: ${(score / 5) * 100}%`"></div>
+        <div class="mt-2 h-1.5 w-full overflow-hidden bg-border">
+          <div class="h-full transition-all duration-300" :class="strengthColor" :style="`width: ${(score / 5) * 100}%`"></div>
         </div>
         <p class="mt-1 text-xs text-text-muted" x-text="password.length ? strengthLabel : ''"></p>
 
@@ -105,24 +107,24 @@
           <li class="transition-colors duration-200" :class="{ 'text-success': hasSpecial }">Special character</li>
         </ul>
         {% for error in form.password.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
       </div>
 
       <div>
-        <label for="confirm_password" class="block text-sm text-text-muted mb-1">Confirm password</label>
+        <label for="confirm_password" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Confirm password</label>
         {{ form.confirm_password(
           id='confirm_password',
-          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
+          class_='w-full border border-border bg-void px-3 py-2.5 text-text transition-colors duration-200 focus:border-accent',
           **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'confirm'}
         ) }}
         <p class="mt-1 text-xs transition-colors duration-200" :class="matches ? 'text-success' : 'text-text-muted'" x-text="confirm.length ? (matches ? 'Passwords match' : 'Passwords do not match') : ''"></p>
         {% for error in form.confirm_password.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
+        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
         {% endfor %}
       </div>
 
-      <button type="submit" class="relative w-full rounded-2xl bg-accent px-4 py-2 font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100">
+      <button type="submit" class="relative flex min-h-11 w-full items-center justify-center bg-accent px-4 font-display text-sm uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100">
         <span class="btn-label">Create account</span>
         {{ spinner() }}
       </button>
@@ -148,8 +150,6 @@
     }
 
     gsap.fromTo(card, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" });
-    gsap.to('[data-glow="accent"]', { x: 30, y: 20, duration: 9, repeat: -1, yoyo: true, ease: "sine.inOut" });
-    gsap.to('[data-glow="rooms"]', { x: -25, y: -15, duration: 11, repeat: -1, yoyo: true, ease: "sine.inOut" });
   });
 </script>
 {% endblock %}
