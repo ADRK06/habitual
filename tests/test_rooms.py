@@ -18,6 +18,7 @@ from habitual.rooms import (
     normalize_join_code,
     room_streak_value,
 )
+from habitual.utils.time import local_today
 
 VALID_PASSWORD = "Sup3r$ecret"
 
@@ -95,7 +96,7 @@ def test_create_room_creates_membership_and_habit(client, db):
     habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
     assert habit is not None
     assert habit.title == "Run Club"
-    assert habit.created_on == date.today()
+    assert habit.created_on == local_today(user)
 
 
 def test_create_room_rejects_duration_outside_7_to_90(client, db):
@@ -279,7 +280,7 @@ def test_room_crown_skipped_on_a_non_scheduled_day(db):
 def test_weekly_room_streak_requires_every_member_to_hit_target_that_week(db):
     creator = _create_user(db, username="creator")
     joiner = _create_user(db, username="joiner")
-    today = date.today()
+    today = local_today(creator)
     this_week = week_start(today)
     last_week = this_week - timedelta(days=7)
     room = _create_room(db, creator, start_date=last_week, frequency_type="weekly", frequency_target=2)
@@ -483,9 +484,9 @@ def test_crown_is_fair_across_timezones(client, db):
 
 
 def test_crown_not_finalized_for_a_date_until_every_members_day_has_ended(client, db):
-    today = date.today()
     user_a = _login(client, db, username="a")
     user_b = _create_user(db, username="b")
+    today = local_today(user_a)
     room = _create_room(db, user_a, duration_days=30, start_date=today)
     _join_room_direct(db, room, user_b, joined_on=today)
 
@@ -581,9 +582,9 @@ def test_finalize_due_crowns_advances_finalized_through_past_a_crownless_date(cl
     # them ever being decided and would re-walk the whole range on every
     # single call forever. finalized_through must move past all of them
     # anyway.
-    today = date.today()
-    d0 = today - timedelta(days=3)
     user = _login(client, db, username="nobody_checked_in")
+    today = local_today(user)
+    d0 = today - timedelta(days=3)
     room = _create_room(db, user, duration_days=30, start_date=d0)
 
     finalize_due_crowns(room)
@@ -593,9 +594,9 @@ def test_finalize_due_crowns_advances_finalized_through_past_a_crownless_date(cl
 
 
 def test_finalize_due_crowns_never_reexamines_an_already_decided_date(client, db, monkeypatch):
-    today = date.today()
-    d0 = today - timedelta(days=3)
     user = _login(client, db, username="decided_once")
+    today = local_today(user)
+    d0 = today - timedelta(days=3)
     room = _create_room(db, user, duration_days=30, start_date=d0)
 
     finalize_due_crowns(room)
