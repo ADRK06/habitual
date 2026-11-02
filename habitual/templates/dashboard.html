@@ -1,50 +1,64 @@
 {% extends "app_base.html" %}
-{% from "_macros.html" import spinner %}
+{% from "_macros.html" import spinner, field_error %}
 
-{% block title %}Dashboard · Habitual{% endblock %}
+{% block title %}Habits · Habitual{% endblock %}
 
 {% block app_content %}
 <div x-data="{
   createOpen: {{ 'true' if form.errors else 'false' }},
   createRoomOpen: {{ 'true' if room_form.errors else 'false' }},
   joinRoomOpen: {{ 'true' if join_code_error else 'false' }},
+  filter: 'all',
 }">
-  <header class="flex flex-wrap items-start justify-between gap-6 pt-10 pb-6">
-    <div>
-      <h1 class="font-heading text-2xl font-semibold text-text">{{ current_user.name }}</h1>
-      <p class="text-sm text-text-muted">
-        @{{ current_user.username }}
-        · <a href="{{ url_for('auth.account_security') }}" class="hover:text-text hover:underline">Account security</a>
-      </p>
+  <header class="flex flex-wrap items-center justify-between gap-4 pt-8 pb-4">
+    <h1 class="font-display text-xl uppercase tracking-wide text-text lg:text-2xl">Habits</h1>
+    <button
+      type="button"
+      @click="createOpen = true"
+      class="flex h-11 items-center bg-accent px-4 font-display text-xs uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] lg:hidden"
+    >
+      + New habit
+    </button>
+    <div class="hidden flex-wrap gap-1.5 lg:flex">
+      <button type="button" @click="filter = 'all'" :class="filter === 'all' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">All</button>
+      <button type="button" @click="filter = 'solo'" :class="filter === 'solo' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">Solo</button>
+      <button type="button" @click="filter = 'fleet'" :class="filter === 'fleet' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">Fleet</button>
     </div>
-    {% include "partials/header_stats.html" %}
   </header>
 
+  {% include "partials/header_stats.html" %}
+
+  <div class="flex flex-wrap gap-1.5 pb-4 lg:hidden">
+    <button type="button" @click="filter = 'all'" :class="filter === 'all' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">All</button>
+    <button type="button" @click="filter = 'solo'" :class="filter === 'solo' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">Solo</button>
+    <button type="button" @click="filter = 'fleet'" :class="filter === 'fleet' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">Fleet</button>
+  </div>
+
   {% if not current_user.email %}
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-3 text-sm text-text">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3 border border-accent/40 bg-accent/5 px-4 py-3 font-body text-sm text-text">
     <span>📧 Add your email so you can recover your account if you ever forget your password.</span>
-    <a href="{{ url_for('auth.account_security') }}" class="shrink-0 rounded-xl border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10">
+    <a href="{{ url_for('auth.account_security') }}" class="shrink-0 border border-accent px-3 py-1.5 font-display text-[11px] uppercase text-accent transition hover:bg-accent/10">
       Add email
     </a>
   </div>
   {% elif current_user.pending_email %}
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-3 text-sm text-text">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3 border border-accent/40 bg-accent/5 px-4 py-3 font-body text-sm text-text">
     <span>📧 Confirm your new email ({{ current_user.pending_email }}) - check your inbox for the link.</span>
     <form method="post" action="{{ url_for('auth.resend_verification') }}" class="shrink-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="next" value="{{ request.path }}">
-      <button type="submit" class="rounded-xl border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10">
+      <button type="submit" class="border border-accent px-3 py-1.5 font-display text-[11px] uppercase text-accent transition hover:bg-accent/10">
         Resend
       </button>
     </form>
   </div>
   {% elif not current_user.email_verified_at %}
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-3 text-sm text-text">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3 border border-accent/40 bg-accent/5 px-4 py-3 font-body text-sm text-text">
     <span>📧 Verify your email ({{ current_user.email }}) so you can recover your account.</span>
     <form method="post" action="{{ url_for('auth.resend_verification') }}" class="shrink-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="next" value="{{ request.path }}">
-      <button type="submit" class="rounded-xl border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10">
+      <button type="submit" class="border border-accent px-3 py-1.5 font-display text-[11px] uppercase text-accent transition hover:bg-accent/10">
         Resend
       </button>
     </form>
@@ -54,62 +68,95 @@
   {% include "partials/day_status.html" %}
   {% include "partials/badges_row.html" %}
 
-  <div class="flex flex-wrap items-center justify-between gap-4 pb-6">
-    <div class="flex flex-wrap gap-3">
-      <button
-        type="button"
-        @click="createOpen = true"
-        class="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
-      >
-        + Create habit
-      </button>
-      <button
-        type="button"
-        @click="createRoomOpen = true"
-        class="rounded-2xl border border-rooms/30 bg-rooms/10 px-5 py-2.5 text-sm font-medium text-rooms transition-transform duration-150 hover:bg-rooms/15 hover:scale-[1.02] active:scale-[0.98]"
-      >
-        + Create room
-      </button>
-      <button
-        type="button"
-        @click="joinRoomOpen = true"
-        class="rounded-2xl border border-border bg-surface/60 px-5 py-2.5 text-sm font-medium text-text transition-transform duration-150 hover:bg-surface hover:scale-[1.02] active:scale-[0.98]"
-      >
-        Join room
-      </button>
-    </div>
-
-    <form method="post" action="{{ url_for('auth.logout') }}">
+  <div class="flex flex-wrap items-center gap-2 pb-6 lg:hidden">
+    <button type="button" @click="createRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">+ Create room</button>
+    <button type="button" @click="joinRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">Join room</button>
+    <form method="post" action="{{ url_for('auth.logout') }}" class="ml-auto">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="relative rounded-2xl border border-border bg-surface/60 backdrop-blur px-5 py-2 text-sm font-medium text-text transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" class="relative h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60">
         <span class="btn-label">Log out</span>
         {{ spinner() }}
       </button>
     </form>
   </div>
 
-  <main class="pb-20">
-    {% if habit_cards %}
-    {% include "partials/dashboard_overview.html" %}
-    <div id="habit-grid" class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
-      {% for card in habit_cards %}
-        {% with
-          habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak,
-          habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today,
-          can_save_streak=card.can_save_streak, has_freeze_to_use=card.has_freeze_to_use,
-          is_due_today=card.is_due_today, frequency_label=card.frequency_label,
-          frequency_badge_label=card.frequency_badge_label, streak_unit=card.streak_unit,
-          room=card.room, member_count=card.member_count, days_remaining=card.days_remaining,
-          viewer_ended=card.viewer_ended, health_pct=card.health_pct, leader_name=card.leader_name,
-          leader_is_viewer=card.leader_is_viewer, is_creator=card.is_creator
-        %}
-          {% include "partials/habit_card.html" %}
-        {% endwith %}
-      {% endfor %}
+  <main class="flex flex-col gap-6 pb-20 lg:flex-row lg:items-start">
+    <div class="min-w-0 flex-1">
+      {% if habit_cards %}
+      {% include "partials/dashboard_overview.html" %}
+      <div id="habit-grid" class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {% for card in habit_cards %}
+        <div class="contents" x-show="filter === 'all' || filter === '{{ 'fleet' if card.habit.room_id else 'solo' }}'">
+          {% with
+            habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak,
+            habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today,
+            can_save_streak=card.can_save_streak, has_freeze_to_use=card.has_freeze_to_use,
+            is_due_today=card.is_due_today, frequency_label=card.frequency_label,
+            frequency_badge_label=card.frequency_badge_label, streak_unit=card.streak_unit,
+            day_strip=card.day_strip,
+            room=card.room, member_count=card.member_count, days_remaining=card.days_remaining,
+            viewer_ended=card.viewer_ended, health_pct=card.health_pct, leader_name=card.leader_name,
+            leader_is_viewer=card.leader_is_viewer, is_creator=card.is_creator
+          %}
+            {% include "partials/habit_card.html" %}
+          {% endwith %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        {% include "partials/empty_state.html" %}
+      {% endif %}
     </div>
-    {% else %}
-      {% include "partials/empty_state.html" %}
-    {% endif %}
+
+    <aside class="flex shrink-0 flex-col gap-3 lg:w-[280px]">
+      <div class="hidden flex-col gap-3 border border-accent bg-surface p-4 lg:flex">
+        <span class="font-display text-xs uppercase tracking-wide text-text">New habit</span>
+        <button
+          type="button"
+          @click="createOpen = true"
+          class="h-11 bg-accent px-4 font-display text-xs uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+        >
+          + Add habit
+        </button>
+      </div>
+
+      <div class="flex items-center gap-3 border border-steel bg-surface p-3">
+        <span class="shrink-0 text-2xl" aria-hidden="true">🧊</span>
+        <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span class="font-body text-sm text-text"><span class="font-mono">{{ freezes_held }}</span>/2 shields ready</span>
+          <span class="truncate font-body text-xs text-text-muted">Used automatically on a missed day</span>
+        </div>
+        <button
+          type="button"
+          {% if can_buy_freeze %}
+          hx-post="{{ url_for('habits.buy_freeze') }}"
+          hx-target="#header-stats"
+          hx-swap="outerHTML"
+          hx-disabled-elt="this"
+          {% else %}
+          disabled title="{{ freeze_buy_disabled_reason }}"
+          {% endif %}
+          class="relative shrink-0 border border-border px-3 py-1.5 font-display text-[11px] uppercase text-accent transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <span class="btn-label">Buy</span>
+          {{ spinner(size='3') }}
+        </button>
+      </div>
+
+      <div class="hidden flex-col gap-2 border border-border bg-surface p-4 lg:flex">
+        <span class="font-display text-xs uppercase tracking-wide text-text-muted">Fleet</span>
+        <button type="button" @click="createRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">+ Create room</button>
+        <button type="button" @click="joinRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">Join room</button>
+      </div>
+
+      <form method="post" action="{{ url_for('auth.logout') }}" class="hidden lg:block">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="relative h-10 w-full border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60">
+          <span class="btn-label">Log out</span>
+          {{ spinner() }}
+        </button>
+      </form>
+    </aside>
   </main>
 
   <div
@@ -117,17 +164,17 @@
     x-trap="createOpen"
     x-cloak
     @keydown.escape.window="createOpen = false"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4"
   >
     <div
       @click.outside="createOpen = false"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-habit-heading"
-      class="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl"
+      class="w-full max-w-md border border-accent bg-surface p-6"
     >
-      <h2 id="create-habit-heading" class="font-heading text-xl font-semibold text-text">New habit</h2>
-      <p class="mt-1 text-sm text-text-muted">Teacher tip: make it tiny enough you could do it half-asleep. You can always do more.</p>
+      <h2 id="create-habit-heading" class="font-display text-lg uppercase tracking-wide text-text">New habit</h2>
+      <p class="mt-1 font-body text-sm text-text-muted">Teacher tip: make it tiny enough you could do it half-asleep. You can always do more.</p>
 
       <form
         method="post"
@@ -145,13 +192,13 @@
         {{ form.csrf_token }}
 
         <div>
-          <p class="mb-1.5 text-xs text-text-muted">Quick start</p>
+          <p class="mb-1.5 font-body text-xs text-text-muted">Quick start</p>
           <div class="flex flex-wrap gap-2">
             {% for t in habit_templates %}
             <button
               type="button"
               @click="title = {{ t.title|tojson|forceescape }}; emoji = {{ t.emoji|tojson|forceescape }}; tinyVersion = {{ t.tiny_version|tojson|forceescape }}"
-              class="rounded-full border border-border bg-bg/40 px-3 py-1.5 text-xs text-text transition hover:border-accent/50 hover:bg-accent/10"
+              class="border border-border bg-void px-3 py-1.5 font-body text-xs text-text transition hover:border-accent"
             >
               {{ t.emoji }} {{ t.title }}
             </button>
@@ -160,51 +207,47 @@
         </div>
 
         <div>
-          <label class="mb-1 block text-sm text-text-muted">Title</label>
-          {{ form.title(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Read 10 pages', maxlength=60, **{'x-model': 'title'}) }}
-          {% for error in form.title.errors %}
-          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
-          {% endfor %}
+          <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Title</label>
+          {{ form.title(class_='input', placeholder='Read 10 pages', maxlength=60, **{'x-model': 'title'}) }}
+          {% for error in form.title.errors %}{{ field_error(error) }}{% endfor %}
         </div>
 
         <div>
-          <label class="mb-1 block text-sm text-text-muted">Emoji</label>
-          <div class="grid grid-cols-8 gap-2">
+          <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Emoji</label>
+          <div class="grid grid-cols-8 gap-1.5">
             {% for e in emoji_choices %}
             <button
               type="button"
               @click="emoji = '{{ e }}'"
               :class="emoji === '{{ e }}' ? 'bg-accent/20 border-accent' : 'border-border hover:border-text-muted'"
-              class="flex h-9 items-center justify-center rounded-lg border text-lg transition-colors"
+              class="flex h-9 items-center justify-center border text-lg transition-colors"
             >{{ e }}</button>
             {% endfor %}
           </div>
           <input type="hidden" name="emoji" x-model="emoji">
-          {% for error in form.emoji.errors %}
-          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
-          {% endfor %}
+          {% for error in form.emoji.errors %}{{ field_error(error) }}{% endfor %}
         </div>
 
         <div>
-          <label class="mb-1 block text-sm text-text-muted">Frequency</label>
+          <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Frequency</label>
           <div class="grid grid-cols-3 gap-2">
             <button
               type="button"
               @click="frequencyType = 'daily'"
               :class="frequencyType === 'daily' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
-              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >Daily</button>
             <button
               type="button"
               @click="frequencyType = 'days'"
               :class="frequencyType === 'days' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
-              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >Specific days</button>
             <button
               type="button"
               @click="frequencyType = 'weekly'"
               :class="frequencyType === 'weekly' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
-              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >X times/week</button>
           </div>
           <div x-show="frequencyType === 'days'" x-cloak class="mt-2 grid grid-cols-7 gap-1.5">
@@ -214,7 +257,7 @@
               type="button"
               @click="frequencyDays = frequencyDays ^ {{ 2 ** loop.index0 }}"
               :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
-              class="rounded-lg border px-1 py-1.5 text-xs font-medium transition-colors"
+              class="border px-1 py-1.5 font-display text-[10px] uppercase transition-colors"
             >{{ label }}</button>
             {% endfor %}
           </div>
@@ -222,34 +265,32 @@
             <button
               type="button"
               @click="frequencyTarget = Math.max(1, frequencyTarget - 1)"
-              class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+              class="flex h-8 w-8 items-center justify-center border border-border text-text transition-colors hover:border-text-muted"
             >−</button>
-            <span class="w-24 text-center text-sm text-text" x-text="frequencyTarget + 'x per week'"></span>
+            <span class="w-24 text-center font-mono text-sm text-text" x-text="frequencyTarget + 'x per week'"></span>
             <button
               type="button"
               @click="frequencyTarget = Math.min(6, frequencyTarget + 1)"
-              class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+              class="flex h-8 w-8 items-center justify-center border border-border text-text transition-colors hover:border-text-muted"
             >+</button>
           </div>
           <input type="hidden" name="frequency_type" x-model="frequencyType">
           <input type="hidden" name="frequency_days" :value="frequencyDays">
           <input type="hidden" name="frequency_target" :value="frequencyTarget">
-          {% for error in form.frequency_type.errors + form.frequency_days.errors + form.frequency_target.errors %}
-          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
-          {% endfor %}
+          {% for error in form.frequency_type.errors + form.frequency_days.errors + form.frequency_target.errors %}{{ field_error(error) }}{% endfor %}
         </div>
 
         <div>
-          <label class="mb-1 block text-sm text-text-muted">Tiny version <span class="text-text-muted/70">(optional)</span></label>
-          {{ form.tiny_version(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent', placeholder='Just open the book', maxlength=120, **{'x-model': 'tinyVersion'}) }}
-          <p class="mt-1 text-xs text-text-muted">Teacher tip: the tiny version should feel almost too easy.</p>
+          <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Tiny version <span class="normal-case text-text-muted/70">(optional)</span></label>
+          {{ form.tiny_version(class_='input', placeholder='Just open the book', maxlength=120, **{'x-model': 'tinyVersion'}) }}
+          <p class="mt-1 font-body text-xs text-text-muted">Teacher tip: the tiny version should feel almost too easy.</p>
         </div>
 
         <div class="flex justify-end gap-3 pt-2">
-          <button type="button" @click="createOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+          <button type="button" @click="createOpen = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">
             Cancel
           </button>
-          <button type="submit" class="relative rounded-2xl bg-accent px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+          <button type="submit" class="relative bg-accent px-5 py-2 font-display text-xs uppercase text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
             <span class="btn-label">Create habit</span>
             {{ spinner() }}
           </button>
@@ -263,17 +304,17 @@
     x-trap="createRoomOpen"
     x-cloak
     @keydown.escape.window="createRoomOpen = false"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4"
   >
     <div
       @click.outside="createRoomOpen = false"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-room-heading"
-      class="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl"
+      class="w-full max-w-md border border-accent bg-surface p-6"
     >
-      <h2 id="create-room-heading" class="font-heading text-xl font-semibold text-text">New room</h2>
-      <p class="mt-1 text-sm text-text-muted">Invite friends to race the same habit together - everyone gets their own streak, points and a daily crown.</p>
+      <h2 id="create-room-heading" class="font-display text-lg uppercase tracking-wide text-text">New room</h2>
+      <p class="mt-1 font-body text-sm text-text-muted">Invite friends to race the same habit together - everyone gets their own streak, points and a daily crown.</p>
 
       <form
         method="post"
@@ -290,61 +331,55 @@
         {{ room_form.csrf_token }}
 
         <div>
-          <label class="mb-1 block text-sm text-text-muted">Title</label>
-          {{ room_form.title(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-rooms focus:ring-2 focus:ring-rooms', placeholder='30-Day Pushup Challenge', maxlength=60, **{'x-model': 'title'}) }}
-          {% for error in room_form.title.errors %}
-          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
-          {% endfor %}
+          <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Title</label>
+          {{ room_form.title(class_='input', placeholder='30-Day Pushup Challenge', maxlength=60, **{'x-model': 'title'}) }}
+          {% for error in room_form.title.errors %}{{ field_error(error) }}{% endfor %}
         </div>
 
         <div>
-          <label class="mb-1 block text-sm text-text-muted">Emoji</label>
-          <div class="grid grid-cols-8 gap-2">
+          <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Emoji</label>
+          <div class="grid grid-cols-8 gap-1.5">
             {% for e in emoji_choices %}
             <button
               type="button"
               @click="emoji = '{{ e }}'"
-              :class="emoji === '{{ e }}' ? 'bg-rooms/20 border-rooms' : 'border-border hover:border-text-muted'"
-              class="flex h-9 items-center justify-center rounded-lg border text-lg transition-colors"
+              :class="emoji === '{{ e }}' ? 'bg-accent/20 border-accent' : 'border-border hover:border-text-muted'"
+              class="flex h-9 items-center justify-center border text-lg transition-colors"
             >{{ e }}</button>
             {% endfor %}
           </div>
           <input type="hidden" name="emoji" x-model="emoji">
-          {% for error in room_form.emoji.errors %}
-          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
-          {% endfor %}
+          {% for error in room_form.emoji.errors %}{{ field_error(error) }}{% endfor %}
         </div>
 
         <div>
-          <label class="mb-1 block text-sm text-text-muted">Duration</label>
-          {{ room_form.duration_days(class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text focus:outline-none focus:border-rooms focus:ring-2 focus:ring-rooms', value=room_form.duration_days.data or 14, type='number', min=7, max=90) }}
-          <p class="mt-1 text-xs text-text-muted">7-90 days. Starts today for everyone who joins - their own final day is their own local timezone's.</p>
-          {% for error in room_form.duration_days.errors %}
-          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
-          {% endfor %}
+          <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Duration</label>
+          {{ room_form.duration_days(class_='input font-mono', value=room_form.duration_days.data or 14, type='number', min=7, max=90) }}
+          <p class="mt-1 font-body text-xs text-text-muted">7-90 days. Starts today for everyone who joins - their own final day is their own local timezone's.</p>
+          {% for error in room_form.duration_days.errors %}{{ field_error(error) }}{% endfor %}
         </div>
 
         <div>
-          <label class="mb-1 block text-sm text-text-muted">Frequency</label>
-          <p class="mb-1.5 text-xs text-text-muted">Same for every member - locked once the room is created.</p>
+          <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Frequency</label>
+          <p class="mb-1.5 font-body text-xs text-text-muted">Same for every member - locked once the room is created.</p>
           <div class="grid grid-cols-3 gap-2">
             <button
               type="button"
               @click="frequencyType = 'daily'"
-              :class="frequencyType === 'daily' ? 'bg-rooms/20 border-rooms text-text' : 'border-border text-text-muted hover:border-text-muted'"
-              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              :class="frequencyType === 'daily' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >Daily</button>
             <button
               type="button"
               @click="frequencyType = 'days'"
-              :class="frequencyType === 'days' ? 'bg-rooms/20 border-rooms text-text' : 'border-border text-text-muted hover:border-text-muted'"
-              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              :class="frequencyType === 'days' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >Specific days</button>
             <button
               type="button"
               @click="frequencyType = 'weekly'"
-              :class="frequencyType === 'weekly' ? 'bg-rooms/20 border-rooms text-text' : 'border-border text-text-muted hover:border-text-muted'"
-              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              :class="frequencyType === 'weekly' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >X times/week</button>
           </div>
           <div x-show="frequencyType === 'days'" x-cloak class="mt-2 grid grid-cols-7 gap-1.5">
@@ -353,8 +388,8 @@
             <button
               type="button"
               @click="frequencyDays = frequencyDays ^ {{ 2 ** loop.index0 }}"
-              :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-rooms/20 border-rooms text-text' : 'border-border text-text-muted hover:border-text-muted'"
-              class="rounded-lg border px-1 py-1.5 text-xs font-medium transition-colors"
+              :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              class="border px-1 py-1.5 font-display text-[10px] uppercase transition-colors"
             >{{ label }}</button>
             {% endfor %}
           </div>
@@ -362,28 +397,26 @@
             <button
               type="button"
               @click="frequencyTarget = Math.max(1, frequencyTarget - 1)"
-              class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+              class="flex h-8 w-8 items-center justify-center border border-border text-text transition-colors hover:border-text-muted"
             >−</button>
-            <span class="w-24 text-center text-sm text-text" x-text="frequencyTarget + 'x per week'"></span>
+            <span class="w-24 text-center font-mono text-sm text-text" x-text="frequencyTarget + 'x per week'"></span>
             <button
               type="button"
               @click="frequencyTarget = Math.min(6, frequencyTarget + 1)"
-              class="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text transition-colors hover:border-text-muted"
+              class="flex h-8 w-8 items-center justify-center border border-border text-text transition-colors hover:border-text-muted"
             >+</button>
           </div>
           <input type="hidden" name="frequency_type" x-model="frequencyType">
           <input type="hidden" name="frequency_days" :value="frequencyDays">
           <input type="hidden" name="frequency_target" :value="frequencyTarget">
-          {% for error in room_form.frequency_type.errors + room_form.frequency_days.errors + room_form.frequency_target.errors %}
-          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
-          {% endfor %}
+          {% for error in room_form.frequency_type.errors + room_form.frequency_days.errors + room_form.frequency_target.errors %}{{ field_error(error) }}{% endfor %}
         </div>
 
         <div class="flex justify-end gap-3 pt-2">
-          <button type="button" @click="createRoomOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+          <button type="button" @click="createRoomOpen = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">
             Cancel
           </button>
-          <button type="submit" class="relative rounded-2xl bg-rooms px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+          <button type="submit" class="relative bg-accent px-5 py-2 font-display text-xs uppercase text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
             <span class="btn-label">Create room</span>
             {{ spinner() }}
           </button>
@@ -397,40 +430,36 @@
     x-trap="joinRoomOpen"
     x-cloak
     @keydown.escape.window="joinRoomOpen = false"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4"
   >
     <div
       @click.outside="joinRoomOpen = false"
       role="dialog"
       aria-modal="true"
       aria-labelledby="join-room-heading"
-      class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl backdrop-blur-xl"
+      class="w-full max-w-sm border border-accent bg-surface p-6"
     >
-      <h2 id="join-room-heading" class="font-heading text-xl font-semibold text-text">Join a room</h2>
-      <p class="mt-1 text-sm text-text-muted">Enter the 6-character code a friend shared with you - this just shows you the room, it won't join you automatically.</p>
+      <h2 id="join-room-heading" class="font-display text-lg uppercase tracking-wide text-text">Join a room</h2>
+      <p class="mt-1 font-body text-sm text-text-muted">Enter the 6-character code a friend shared with you - this just shows you the room, it won't join you automatically.</p>
 
-      {% if join_code_error %}
-      <p class="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-text">⚠️ {{ join_code_error }}</p>
-      {% endif %}
+      {% if join_code_error %}{{ field_error(join_code_error) }}{% endif %}
 
       <form method="post" action="{{ url_for('rooms.find_by_code') }}" class="mt-4 space-y-4">
         {{ join_code_form.csrf_token }}
         <div>
           {{ join_code_form.code(
-            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-3 text-center font-heading text-2xl font-bold tracking-[0.4em] uppercase text-text focus:outline-none focus:border-rooms focus:ring-2 focus:ring-rooms',
+            class_='input text-center font-mono text-2xl font-bold tracking-[0.4em] uppercase',
             maxlength=8, placeholder='K7M4QX', autocomplete='off', autocapitalize='characters', autofocus=true,
             **{'x-on:input': "$el.value = $el.value.toUpperCase().replace(/[^A-Z0-9-]/g, '')"}
           ) }}
-          {% for error in join_code_form.code.errors %}
-          <p class="mt-1 text-sm text-text">⚠️ {{ error }}</p>
-          {% endfor %}
+          {% for error in join_code_form.code.errors %}{{ field_error(error) }}{% endfor %}
         </div>
 
         <div class="flex justify-end gap-3 pt-2">
-          <button type="button" @click="joinRoomOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+          <button type="button" @click="joinRoomOpen = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">
             Cancel
           </button>
-          <button type="submit" class="relative rounded-2xl bg-rooms px-5 py-2 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+          <button type="submit" class="relative bg-accent px-5 py-2 font-display text-xs uppercase text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
             <span class="btn-label">Find room</span>
             {{ spinner() }}
           </button>
@@ -622,16 +651,16 @@
       return;
     }
     if (habitsRemaining <= 0) {
-      textEl.className = "flex items-center gap-1.5 rounded-full border border-success/30 bg-success/15 px-3 py-1 text-sm font-medium text-success";
+      textEl.className = "flex items-center gap-1.5 border border-success/40 bg-success/15 px-3 py-1 font-body text-sm font-medium text-success";
       textEl.textContent = "All done today 🎉";
       return;
     }
     const hours = Math.floor(secondsLeft / 3600);
     const minutes = Math.floor((secondsLeft % 3600) / 60);
     const urgent = secondsLeft <= 3 * 3600;
-    textEl.className = "flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm "
-      + (urgent ? "animate-pulse border-danger/40 bg-danger/15" : "border-border bg-surface/60");
-    textEl.innerHTML = `<span class="font-heading font-bold tabular-nums ${urgent ? "text-streak" : "text-text"}">${hours}h ${minutes}m</span>`
+    textEl.className = "flex items-center gap-1.5 border px-3 py-1 font-body text-sm "
+      + (urgent ? "animate-pulse border-danger/40 bg-danger/15" : "border-border bg-surface");
+    textEl.innerHTML = `<span class="font-mono font-bold ${urgent ? "text-streak" : "text-text"}">${hours}h ${minutes}m</span>`
       + `<span class="text-text-muted">left today · ${habitsRemaining} habit${habitsRemaining !== 1 ? "s" : ""} left</span>`;
   }
 

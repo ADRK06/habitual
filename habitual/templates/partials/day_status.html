@@ -17,27 +17,27 @@
   data-midnight-ms="{{ midnight_epoch_ms }}"
   data-habits-remaining="{{ habits_remaining }}"
   {% endif %}
-  class="flex w-full flex-wrap items-center gap-2 {{ 'pb-6' if (habits_remaining is not none or weekly_progress) else '' }}"
+  class="flex w-full flex-wrap items-center gap-2 font-body {{ 'pb-6' if (habits_remaining is not none or weekly_progress) else '' }}"
 >
   {% if habits_remaining == 0 %}
-  <span id="day-status-text" class="flex items-center gap-1.5 rounded-full border border-success/30 bg-success/15 px-3 py-1 text-sm font-medium text-success">
+  <span id="day-status-text" class="flex items-center gap-1.5 border border-success/40 bg-success/15 px-3 py-1 text-sm font-medium text-success">
     All done today 🎉
   </span>
   {% elif habits_remaining is not none %}
   <span
     id="day-status-text"
-    class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm {{ 'animate-pulse border-danger/40 bg-danger/15' if is_urgent else 'border-border bg-surface/60' }}"
+    class="flex items-center gap-1.5 border px-3 py-1 text-sm {{ 'animate-pulse border-danger/40 bg-danger/15' if is_urgent else 'border-border bg-surface' }}"
   >
-    <span class="font-heading font-bold tabular-nums {{ 'text-streak' if is_urgent else 'text-text' }}">{{ hours_left }}h {{ minutes_left }}m</span>
+    <span class="font-mono font-bold tabular-nums {{ 'text-streak' if is_urgent else 'text-text' }}">{{ hours_left }}h {{ minutes_left }}m</span>
     <span class="text-text-muted">left today · {{ habits_remaining }} habit{{ "s" if habits_remaining != 1 else "" }} left</span>
   </span>
   {% endif %}
 
   {% for chip in weekly_progress %}
-  <span class="flex items-center gap-1.5 rounded-full border border-border bg-surface/60 px-3 py-1 text-sm">
+  <span class="flex items-center gap-1.5 border border-border bg-surface px-3 py-1 text-sm">
     <span>{{ chip.emoji }}</span>
     <span class="font-medium text-text">{{ chip.title }}</span>
-    <span class="tabular-nums {{ 'text-success' if chip.done_this_week >= chip.target else 'text-text-muted' }}">{{ chip.done_this_week }}/{{ chip.target }} this week</span>
+    <span class="font-mono tabular-nums {{ 'text-success' if chip.done_this_week >= chip.target else 'text-text-muted' }}">{{ chip.done_this_week }}/{{ chip.target }} this week</span>
   </span>
   {% endfor %}
 </div>

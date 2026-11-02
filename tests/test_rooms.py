@@ -992,7 +992,10 @@ def test_dashboard_shows_correct_leader_for_each_of_two_rooms_at_once(client, db
 
     def _card(habit):
         start = html.index(f'id="habit-card-{habit.id}"')
-        return html[start:start + 6000]
+        # Window generous enough to cover the Colonies card's trailing-14-day
+        # (desktop) + trailing-7-day (phone) strips - both render in the same
+        # markup, toggled by CSS breakpoint, not server-side.
+        return html[start:start + 14000]
 
     assert "You lead" not in _card(viewer_habit_a)
     assert f"{other_a.name} leads" in _card(viewer_habit_a)

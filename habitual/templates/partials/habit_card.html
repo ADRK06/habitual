@@ -1,7 +1,8 @@
 {% from "_macros.html" import spinner %}
+{% from "partials/colony_cells.html" import colony_heat_cell %}
 <div
   id="habit-card-{{ habit.id }}"
-  class="habit-card group relative flex h-full flex-col rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-accent/30 hover:shadow-xl"
+  class="habit-card group relative flex h-full flex-col gap-3 border border-border bg-surface p-3.5 transition-colors duration-200 hover:border-accent"
   data-habit-points="{{ habit_points }}"
   data-current-streak="{{ current_streak }}"
   data-checked-in-today="{{ 'true' if checked_in_today else 'false' }}"
@@ -15,7 +16,7 @@
      click/tap instead of the link beneath it. #}
   <a
     href="{{ url_for('rooms.room_detail', room_id=habit.room_id) if habit.room_id else url_for('habits.habit_detail', habit_id=habit.id) }}"
-    class="absolute inset-0 z-0 rounded-2xl"
+    class="absolute inset-0 z-0"
     aria-label="{{ 'Open room ' + habit.title if habit.room_id else 'View ' + habit.title }}"
   ></a>
 
@@ -26,11 +27,11 @@
   <button
     type="button"
     @click.stop="confirmOpen = true"
-    class="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-danger/20 hover:text-text"
+    class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
     title="Leave room"
     aria-label="Leave {{ habit.title }}"
   >
-    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
       <polyline points="16 17 21 12 16 7"/>
       <line x1="21" y1="12" x2="9" y2="12"/>
@@ -40,67 +41,77 @@
   <button
     type="button"
     @click.stop="confirmOpen = true"
-    class="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-danger/20 hover:text-text"
+    class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
     title="Delete habit"
     aria-label="Delete {{ habit.title }}"
   >&times;</button>
   {% endif %}
 
-  <div class="flex items-center gap-3 pr-8">
-    <span class="shrink-0 text-3xl">{{ habit.emoji }}</span>
-    <h3 class="min-w-0 truncate font-heading text-lg font-semibold text-text" title="{{ habit.title }}">{{ habit.title }}</h3>
-  </div>
-
-  {# One badges row, fixed height on every card (even with nothing to show)
-     so cards with/without a room or non-daily frequency still line up -
-     nowrap + overflow-hidden on the row, plus a shortened Specific-Days
-     label, keep this to one line no matter what. #}
-  <div class="mt-1.5 flex h-5 items-center gap-1.5 overflow-hidden">
-    {% if habit.room_id %}
-    <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-border bg-navy/25 px-2 py-0.5 text-[11px] font-medium text-text">
-      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="shrink-0">
-        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-      {% if leader_is_viewer %}<span class="text-accent">You lead 👑</span>
-      {% elif leader_name %}{{ leader_name }} leads 👑
-      {% else %}Room{% endif %}
-    </span>
-    {% endif %}
-    {% if frequency_badge_label and frequency_badge_label != 'Daily' %}
-    <span class="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-border/50 px-2 py-0.5 text-[11px] font-medium text-text-muted">
-      {{ frequency_badge_label }}
-    </span>
-    {% endif %}
-  </div>
-
-  <div class="mt-5 flex items-baseline gap-2">
-    <span class="text-2xl">🔥</span>
-    <span class="font-heading text-3xl font-bold tabular-nums text-streak">{{ current_streak }}</span>
-    <span class="text-xs text-text-muted">{{ streak_unit or 'day' }} streak</span>
-  </div>
-
-  <dl class="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-    <div class="rounded-xl bg-bg/40 py-2">
-      <dt class="text-text-muted">{{ "Days left" if habit.room_id else "Longest" }}</dt>
-      <dd class="mt-0.5 font-medium text-text">{{ days_remaining if habit.room_id else longest_streak }}</dd>
+  <div class="flex items-center gap-3 pr-7">
+    <span class="shrink-0 text-3xl" style="image-rendering: pixelated" aria-hidden="true">{{ habit.emoji }}</span>
+    <div class="min-w-0 flex-1">
+      <h3 class="truncate font-body text-base font-medium text-text" title="{{ habit.title }}">{{ habit.title }}</h3>
+      <p class="truncate font-body text-xs text-text-muted">{{ frequency_label }}</p>
     </div>
-    <div class="rounded-xl bg-bg/40 py-2">
-      <dt class="text-text-muted">Points</dt>
-      <dd class="mt-0.5 font-medium text-accent">{{ habit_points }}</dd>
+    <div class="flex shrink-0 flex-col items-end">
+      <span class="font-mono text-2xl font-bold text-streak tabular-nums">{{ current_streak }}{{ 'd' if streak_unit == 'day' else 'w' }}</span>
+      <span class="font-mono text-[11px] text-text-muted tabular-nums">best {{ longest_streak }}{{ 'd' if streak_unit == 'day' else 'w' }}</span>
     </div>
-    <div class="rounded-xl bg-bg/40 py-2">
-      <dt class="text-text-muted">{{ "Room health" if habit.room_id else "Success" }}</dt>
-      <dd class="mt-0.5 font-medium text-text">{{ health_pct if habit.room_id else success_rate }}%</dd>
+  </div>
+
+  {# 14-day trailing strip (desktop) / 7-day trailing strip with weekday
+     letters (phone) - same `day_strip` data (oldest..newest), phone just
+     takes the last 7. See WebHabits/PhoneHabits.dc.html's legend: Done =
+     Signal, Shielded = Steel, Missed = Rust outline, Not scheduled =
+     Bulkhead outline. #}
+  <div class="hidden lg:grid lg:grid-cols-[repeat(14,minmax(0,1fr))] lg:gap-[3px]">
+    {% for cell in day_strip %}
+    {{ colony_heat_cell(cell.state, size='h-3.5 w-full') }}
+    {% endfor %}
+  </div>
+  <div class="grid grid-cols-7 gap-1 lg:hidden">
+    {% for cell in day_strip[-7:] %}
+    <div class="flex flex-col items-center gap-0.5">
+      {{ colony_heat_cell(cell.state, size='h-2.5 w-full') }}
+      <span class="font-mono text-[10px] text-text-muted">{{ cell.date.strftime('%a')[0] }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <dl class="grid grid-cols-3 gap-2 text-center">
+    <div class="border border-border bg-void px-1 py-1.5">
+      <dt class="font-display text-[9px] uppercase tracking-wide text-text-muted">{{ "Days left" if habit.room_id else "Longest" }}</dt>
+      <dd class="mt-0.5 font-mono text-sm text-text tabular-nums">{{ days_remaining if habit.room_id else longest_streak }}</dd>
+    </div>
+    <div class="border border-border bg-void px-1 py-1.5">
+      <dt class="font-display text-[9px] uppercase tracking-wide text-text-muted">Points</dt>
+      <dd class="mt-0.5 font-mono text-sm text-accent tabular-nums">{{ habit_points }}</dd>
+    </div>
+    <div class="border border-border bg-void px-1 py-1.5">
+      <dt class="font-display text-[9px] uppercase tracking-wide text-text-muted">{{ "Room health" if habit.room_id else "Success" }}</dt>
+      <dd class="mt-0.5 font-mono text-sm text-text tabular-nums">{{ health_pct if habit.room_id else success_rate }}%</dd>
     </div>
   </dl>
+
+  <div class="flex items-center justify-between gap-2 font-body text-xs text-text-muted">
+    <span class="min-w-0 truncate">
+      {% if habit.tiny_version %}Tiny: {{ habit.tiny_version }} · {% endif %}<span class="font-mono text-accent">{{ habit_points }}</span> Energy earned
+    </span>
+    <span class="shrink-0 font-display text-[10px] uppercase {{ 'text-accent' if leader_is_viewer else 'text-text-muted' }}">
+      {% if habit.room_id %}
+        {% if leader_is_viewer %}You lead 👑{% elif leader_name %}{{ leader_name }} leads 👑{% else %}Room{% endif %}
+      {% else %}
+        Solo
+      {% endif %}
+    </span>
+  </div>
 
   {# Action area, pinned to the bottom of the card (mt-auto) regardless of
      how much is above it, so every card in a row bottoms out at the same
      place with no dangling empty space. The freeze button (when offered)
      sits beside the main action instead of stacked above it, as a compact
      square, so offering it never changes the card's height. #}
-  <div class="relative z-10 mt-auto flex items-stretch gap-2 pt-4">
+  <div class="relative z-10 mt-auto flex items-stretch gap-2">
     {% if can_save_streak %}
     <button
       type="button"
@@ -115,7 +126,7 @@
       {% endif %}
       title="{{ 'Save your streak with a freeze' if has_freeze_to_use else 'Buy a freeze in the header (50 balance) to save this streak.' }}"
       aria-label="Save your streak with a freeze"
-      class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border bg-bg/40 text-base transition hover:bg-bg/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-bg/40"
+      class="relative flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-void text-base transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border"
     >
       <span class="btn-label">🧊</span>
       {{ spinner(size='4') }}
@@ -129,7 +140,7 @@
         x-ref="undoBtn"
         onclick="event.stopPropagation()"
         @click="undoOpen = !undoOpen; $nextTick(() => undoOpen && positionCardPopover($refs.undoBtn, $refs.undoPopover))"
-        class="flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-accent/30 bg-accent/10 px-4 text-sm font-medium text-accent transition hover:bg-accent/15"
+        class="flex h-10 w-full items-center justify-center gap-2 border border-accent bg-accent/10 px-4 font-display text-xs uppercase tracking-wide text-accent transition-colors hover:bg-accent/15"
       >
         <span>Done today</span><span>✓</span>
       </button>
@@ -151,14 +162,14 @@
           x-transition:leave="transition ease-in duration-100"
           x-transition:leave-start="opacity-100 scale-100"
           x-transition:leave-end="opacity-0 scale-95"
-          class="fixed z-40 rounded-xl border border-border bg-surface p-4 shadow-xl"
+          class="fixed z-40 border border-border bg-surface p-4"
         >
-          <p id="undo-heading-{{ habit.id }}" class="text-sm text-text">Undo today's check-in?</p>
+          <p id="undo-heading-{{ habit.id }}" class="font-body text-sm text-text">Undo today's check-in?</p>
           <div class="mt-3 flex justify-end gap-2">
             <button
               type="button"
               @click="undoOpen = false"
-              class="rounded-lg border border-border px-3 py-1.5 text-xs text-text hover:bg-bg/40"
+              class="border border-border px-3 py-1.5 font-display text-[11px] uppercase text-text hover:bg-void"
             >
               Cancel
             </button>
@@ -168,7 +179,7 @@
               hx-target="#habit-card-{{ habit.id }}"
               hx-swap="outerHTML"
               hx-disabled-elt="this"
-              class="relative rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              class="relative border border-danger bg-danger px-3 py-1.5 font-display text-[11px] uppercase text-void transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span class="btn-label">Undo</span>
               {{ spinner(size='3') }}
@@ -177,7 +188,7 @@
         </div>
       </template>
       {% elif not is_due_today %}
-      <div class="flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-bg/20 px-4 text-sm font-medium text-text-muted">
+      <div class="flex h-10 w-full items-center justify-center gap-2 border border-dashed border-border bg-void px-4 font-body text-sm text-text-muted">
         <span>Not scheduled today</span><span>🌿</span>
       </div>
       {% else %}
@@ -186,7 +197,7 @@
         x-ref="checkinBtn"
         onclick="event.stopPropagation()"
         @click="checkinOpen = !checkinOpen; $nextTick(() => checkinOpen && positionCardPopover($refs.checkinBtn, $refs.checkinPopover))"
-        class="h-10 w-full rounded-2xl bg-accent px-4 text-sm font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+        class="h-10 w-full bg-accent px-4 font-display text-xs uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
       >
         Check in
       </button>
@@ -208,7 +219,7 @@
           x-transition:leave="transition ease-in duration-100"
           x-transition:leave-start="opacity-100 scale-100"
           x-transition:leave-end="opacity-0 scale-95"
-          class="fixed z-40 rounded-xl border border-border bg-surface p-4 shadow-xl"
+          class="fixed z-40 border border-border bg-surface p-4"
         >
           <form
             hx-post="{{ url_for('habits.checkin', habit_id=habit.id) }}"
@@ -216,24 +227,24 @@
             hx-swap="outerHTML"
             hx-disabled-elt="find button[type='submit']"
           >
-            <label for="proof-note-{{ habit.id }}" class="mb-1 block text-xs text-text-muted">Add a note? (optional)</label>
+            <label for="proof-note-{{ habit.id }}" class="mb-1 block font-body text-xs text-text-muted">Add a note? (optional)</label>
             <textarea
               id="proof-note-{{ habit.id }}"
               name="proof_note"
               maxlength="280"
               rows="2"
               placeholder="What did you do?"
-              class="w-full resize-none rounded-lg border border-border bg-bg/40 px-2 py-1.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+              class="input resize-none text-sm"
             ></textarea>
             <div class="mt-3 flex justify-end gap-2">
               <button
                 type="button"
                 @click="checkinOpen = false"
-                class="rounded-lg border border-border px-3 py-1.5 text-xs text-text hover:bg-bg/40"
+                class="border border-border px-3 py-1.5 font-display text-[11px] uppercase text-text hover:bg-void"
               >
                 Cancel
               </button>
-              <button type="submit" class="relative rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" class="relative bg-accent px-3 py-1.5 font-display text-[11px] uppercase text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
                 <span class="btn-label">Check in</span>
                 {{ spinner(size='3') }}
               </button>
@@ -257,29 +268,29 @@
     x-transition:leave="transition ease-in duration-100"
     x-transition:leave-start="opacity-100"
     x-transition:leave-end="opacity-0"
-    class="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
+    class="fixed inset-0 z-40 flex items-center justify-center bg-void/80 p-4"
   >
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-heading-{{ habit.id }}"
-      class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl"
+      class="w-full max-w-sm border border-border bg-surface p-6"
     >
       {% if habit.room_id %}
-      <h4 id="confirm-heading-{{ habit.id }}" class="font-heading text-lg font-semibold text-text">Leave "{{ habit.title }}"?</h4>
-      <p class="mt-2 text-sm text-text-muted">This removes your room habit and its points. This can't be undone.</p>
+      <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Leave "{{ habit.title }}"?</h4>
+      <p class="mt-2 font-body text-sm text-text-muted">This removes your room habit and its points. This can't be undone.</p>
       {% else %}
-      <h4 id="confirm-heading-{{ habit.id }}" class="font-heading text-lg font-semibold text-text">Delete "{{ habit.title }}"?</h4>
-      <p class="mt-2 text-sm text-text-muted">This removes {{ habit_points }} points from your total. This can't be undone.</p>
+      <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Delete "{{ habit.title }}"?</h4>
+      <p class="mt-2 font-body text-sm text-text-muted">This removes {{ habit_points }} points from your total. This can't be undone.</p>
       {% endif %}
       <div class="mt-5 flex justify-end gap-3">
-        <button type="button" @click="confirmOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+        <button type="button" @click="confirmOpen = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">
           Cancel
         </button>
         {% if habit.room_id %}
         <form method="post" action="{{ url_for('rooms.leave_room', room_id=habit.room_id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="relative rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="submit" class="relative bg-danger px-4 py-2 font-display text-xs uppercase text-void transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
             <span class="btn-label">Leave</span>
             {{ spinner() }}
           </button>
@@ -291,7 +302,7 @@
           hx-target="#habit-card-{{ habit.id }}"
           hx-swap="outerHTML swap:200ms"
           hx-disabled-elt="this"
-          class="relative rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          class="relative bg-danger px-4 py-2 font-display text-xs uppercase text-void transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span class="btn-label">Delete</span>
           {{ spinner() }}

@@ -1,32 +1,32 @@
-{% from "partials/day_cell.html" import heat_cell %}
+{% from "partials/colony_cells.html" import colony_heat_cell %}
 
-<section id="dashboard-overview" {% if oob %}hx-swap-oob="true"{% endif %} class="mb-8">
+<section id="dashboard-overview" {% if oob %}hx-swap-oob="true"{% endif %} class="mb-6 font-body">
 {% if overview_habits %}
   <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-    <div class="rounded-xl border border-border bg-surface/40 p-3">
-      <p class="text-xs text-text-muted">Today</p>
-      <p class="mt-1 font-heading text-xl font-bold tabular-nums text-text">{{ today_done }}/{{ today_total }}</p>
+    <div class="border border-border bg-surface p-3">
+      <p class="font-display text-[10px] uppercase tracking-wide text-text-muted">Today</p>
+      <p class="mt-1 font-mono text-xl font-bold tabular-nums text-text">{{ today_done }}/{{ today_total }}</p>
     </div>
-    <div class="rounded-xl border border-border bg-surface/40 p-3">
-      <p class="text-xs text-text-muted">This month</p>
-      <p class="mt-1 font-heading text-xl font-bold tabular-nums text-accent">{{ month_success }}%</p>
+    <div class="border border-border bg-surface p-3">
+      <p class="font-display text-[10px] uppercase tracking-wide text-text-muted">This month</p>
+      <p class="mt-1 font-mono text-xl font-bold tabular-nums text-accent">{{ month_success }}%</p>
     </div>
     {% if best_streak %}
-    <div class="rounded-xl border border-border bg-surface/40 p-3">
-      <p class="text-xs text-text-muted">Best streak</p>
-      <p class="mt-1 truncate font-heading text-xl font-bold tabular-nums text-streak" title="{{ best_streak.title }}">
+    <div class="border border-border bg-surface p-3">
+      <p class="font-display text-[10px] uppercase tracking-wide text-text-muted">Best streak</p>
+      <p class="mt-1 truncate font-mono text-xl font-bold tabular-nums text-streak" title="{{ best_streak.title }}">
         {{ best_streak.emoji }} {{ best_streak.current_streak }}
-        <span class="text-xs font-medium text-text-muted">{{ best_streak.streak_unit or 'day' }}{{ 's' if best_streak.current_streak != 1 else '' }}</span>
+        <span class="font-body text-xs font-medium text-text-muted">{{ best_streak.streak_unit or 'day' }}{{ 's' if best_streak.current_streak != 1 else '' }}</span>
       </p>
     </div>
     {% endif %}
     {% if overview_habits|length > 1 %}
-    <div class="rounded-xl border border-border bg-surface/40 p-3">
-      <p class="text-xs text-text-muted">Needs attention</p>
+    <div class="border border-border bg-surface p-3">
+      <p class="font-display text-[10px] uppercase tracking-wide text-text-muted">Needs attention</p>
       {% if needs_attention %}
-      <p class="mt-1 truncate text-sm font-medium text-text">{{ needs_attention.emoji }} {{ needs_attention.title }}</p>
+      <p class="mt-1 truncate font-body text-sm font-medium text-text">{{ needs_attention.emoji }} {{ needs_attention.title }}</p>
       {% else %}
-      <p class="mt-1 truncate text-sm font-medium text-text">All habits on track 🎉</p>
+      <p class="mt-1 truncate font-body text-sm font-medium text-text">All habits on track 🎉</p>
       {% endif %}
     </div>
     {% endif %}
@@ -45,7 +45,7 @@
       },
     }"
   >
-    <button type="button" @click="open = !open" class="flex items-center gap-1.5 text-sm text-text-muted transition hover:text-text">
+    <button type="button" @click="open = !open" class="flex items-center gap-1.5 font-display text-[11px] uppercase tracking-wide text-text-muted transition hover:text-text">
       <span :class="open ? '' : '-rotate-90'" class="inline-block text-xs transition-transform duration-150">▾</span>
       30-day overview
     </button>
@@ -55,7 +55,7 @@
       x-transition:enter="transition ease-out duration-150"
       x-transition:enter-start="opacity-0 -translate-y-1"
       x-transition:enter-end="opacity-100 translate-y-0"
-      class="mt-3 rounded-2xl border border-border bg-surface/40 p-4"
+      class="mt-3 border border-border bg-surface p-4"
     >
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
         <div class="overflow-x-auto">
@@ -74,12 +74,12 @@
               {% for row in overview_rows %}
               {% set ratio = (row.done_count / row.total_count) if row.total_count else 0 %}
               <div
-                class="grid items-center gap-1 rounded"
+                class="grid items-center gap-1"
                 style="grid-template-columns: 70px repeat({{ overview_habits|length }}, 20px); background-color: rgb(var(--color-accent-rgb) / {{ (0.04 + 0.16 * ratio) | round(3) }})"
               >
-                <span class="text-xs text-text-muted">{{ row.date.strftime('%b %-d') }}</span>
+                <span class="font-mono text-xs text-text-muted">{{ row.date.strftime('%b %-d') }}</span>
                 {% for state in row.states %}
-                <div class="flex justify-center py-0.5">{{ heat_cell(state) }}</div>
+                <div class="flex justify-center py-0.5">{{ colony_heat_cell(state, size='h-4 w-4') }}</div>
                 {% endfor %}
               </div>
               {% endfor %}

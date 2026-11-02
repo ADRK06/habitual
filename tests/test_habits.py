@@ -81,7 +81,10 @@ def test_dashboard_card_has_no_status_pill_chain_or_strength_bar(client, db):
 
     response = client.get("/dashboard").get_data(as_text=True)
     card_start = response.index(f'id="habit-card-{habit.id}"')
-    card_html = response[card_start:card_start + 4000]
+    # Window generous enough to cover the Colonies card's trailing-14-day
+    # (desktop) + trailing-7-day (phone) strips - both render in the same
+    # markup, toggled by CSS breakpoint, not server-side.
+    card_html = response[card_start:card_start + 12000]
     assert "data-strength-bar" not in card_html
     assert ">Chain<" not in card_html
     assert "On track" not in card_html

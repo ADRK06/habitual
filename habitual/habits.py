@@ -168,6 +168,25 @@ def _frequency_badge_label(habit):
     return _frequency_label(habit)
 
 
+CARD_DAY_STRIP_LENGTH = 14
+
+
+def _card_day_strip(completed, frozen, not_scheduled, start_date, today, days=CARD_DAY_STRIP_LENGTH):
+    """Oldest-to-newest {date, state} for the dashboard card's trailing-
+    N-days strip (Colonies WebHabits/PhoneHabits mock) - phone just renders
+    the last 7 of this same list, so one computation serves both
+    breakpoints. Each entry carries its own `date` (not just the state) so
+    the phone strip's weekday-letter row needs no date arithmetic in the
+    template - Jinja has no `timedelta`."""
+    return [
+        {
+            "date": d,
+            "state": analytics.day_state(d, completed, frozen, start_date, today, not_scheduled),
+        }
+        for d in (today - timedelta(days=i) for i in range(days - 1, -1, -1))
+    ]
+
+
 def _habit_view(habit, today, freezes_held):
     """Pricing/stats for one habit card, derived from points.py's pure
     functions. For Daily/Specific-Days, non-scheduled dates bridge the
@@ -181,6 +200,8 @@ def _habit_view(habit, today, freezes_held):
     amounts = [pt.amount for pt in habit.point_transactions]
     effective_start = _effective_start(habit)
 
+    not_scheduled = _not_scheduled_for(habit, effective_start, today)
+
     if habit.frequency_type == "weekly":
         target = habit.frequency_target or 1
         floor = points.week_start(effective_start)
@@ -191,7 +212,6 @@ def _habit_view(habit, today, freezes_held):
         is_due_today = True
         streak_unit = "week"
     else:
-        not_scheduled = _not_scheduled_for(habit, effective_start, today)
         bridge = frozen | not_scheduled
         current_streak = points.current_streak(completed, bridge, today, effective_start)
         longest_streak = points.longest_streak(completed, bridge, effective_start, today)
@@ -214,6 +234,7 @@ def _habit_view(habit, today, freezes_held):
         "is_due_today": is_due_today,
         "frequency_label": _frequency_label(habit),
         "frequency_badge_label": _frequency_badge_label(habit),
+        "day_strip": _card_day_strip(completed, frozen, not_scheduled, effective_start, today),
         "streak_unit": streak_unit,
     }
 

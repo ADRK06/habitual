@@ -2,16 +2,19 @@
 <div
   id="header-stats"
   {% if oob %}hx-swap-oob="true"{% endif %}
-  class="grid grid-cols-[repeat(3,auto)] items-baseline justify-items-end gap-x-5 gap-y-1 sm:gap-x-8"
+  class="flex flex-wrap items-baseline gap-x-5 gap-y-1 pb-4 font-body text-xs text-text-muted"
 >
-  <p class="text-xs text-text-muted">Earned points</p>
-  <p class="text-xs text-text-muted">Balance</p>
-  <p class="text-xs text-text-muted">Freezes</p>
-
-  <p id="earned-points-value" class="font-heading text-3xl font-bold tabular-nums text-accent" data-counter="{{ earned_points }}">{{ earned_points }}</p>
-  <p class="text-lg font-medium text-text">{{ balance }}</p>
-  <div class="flex items-baseline gap-2">
-    <p class="text-lg font-medium text-text">🧊 {{ freezes_held }}/2</p>
+  <span class="flex items-baseline gap-1.5">
+    <span id="earned-points-value" class="font-mono text-xl font-bold tabular-nums text-accent" data-counter="{{ earned_points }}">{{ earned_points }}</span>
+    Earned points
+  </span>
+  <span class="flex items-baseline gap-1.5">
+    <span class="font-mono text-sm text-text">{{ balance }}</span>
+    Balance
+  </span>
+  <span class="flex items-baseline gap-1.5">
+    <span class="font-mono text-sm text-text">🧊 {{ freezes_held }}/2</span>
+    Freezes
     <button
       type="button"
       {% if can_buy_freeze %}
@@ -22,10 +25,10 @@
       {% else %}
       disabled title="{{ freeze_buy_disabled_reason }}"
       {% endif %}
-      class="relative rounded-lg border border-border px-2 py-1 text-xs font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+      class="relative border border-border px-2 py-0.5 font-display text-[10px] uppercase text-text transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-40"
     >
       <span class="btn-label">Buy</span>
       {{ spinner(size='3') }}
     </button>
-  </div>
+  </span>
 </div>

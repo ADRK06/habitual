@@ -1,0 +1,25 @@
+{# Colonies-styled day_state -> visual mapping (WebHabits/PhoneHabits legend:
+   Done = Signal, Shielded = Steel, Missed = Rust outline, Not scheduled =
+   Bulkhead outline). A separate macro from partials/day_cell.html's
+   heat_cell/week_circle (still used, un-restyled, by the habit detail page
+   out of this phase's scope) - this one is square-cornered, no gradients,
+   and used by both the dashboard's per-card day strip and the 30-day
+   overview grid so they read as one visual language. aria-labels match
+   day_cell.html's exactly (tests assert on them) even though the look
+   differs. #}
+
+{% macro colony_heat_cell(state, size='h-3.5 w-3.5') %}
+  {% if state == 'done' %}
+    <div class="{{ size }} bg-success" aria-label="Done"></div>
+  {% elif state == 'frozen' %}
+    <div class="{{ size }} bg-steel" aria-label="Streak frozen"></div>
+  {% elif state == 'not_scheduled' %}
+    <div class="{{ size }} border border-border box-border" aria-label="Not scheduled"></div>
+  {% elif state == 'missed' %}
+    <div class="{{ size }} border border-danger box-border" aria-label="Missed"></div>
+  {% elif state == 'future' %}
+    <div class="{{ size }} border border-border/50 box-border" aria-label="Upcoming"></div>
+  {% else %}
+    <div class="{{ size }} border border-border/30 box-border" aria-label="Not tracked yet"></div>
+  {% endif %}
+{% endmacro %}
