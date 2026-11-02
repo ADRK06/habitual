@@ -650,11 +650,16 @@ def test_habit_strength_specific_days_ignores_non_scheduled_gaps(client, db):
 
 
 def test_habit_strength_weekly_hits_100_once_target_met(client, db):
+    # Anchored to last week (always fully in the past), not the live
+    # current week - on a Monday, week_start(today) == today, so the
+    # original "week_start(today) and today" pair collided on the same
+    # date (UNIQUE(habit_id, date) violation) once every 7 days.
     user = _login(client, db)
     today = date.today()
-    habit = _create_habit(db, user, created_on=week_start(today), frequency_type="weekly", frequency_target=2)
-    db.session.add(Checkin(habit_id=habit.id, date=week_start(today)))
-    db.session.add(Checkin(habit_id=habit.id, date=today))
+    last_week = week_start(today) - timedelta(days=7)
+    habit = _create_habit(db, user, created_on=last_week, frequency_type="weekly", frequency_target=2)
+    db.session.add(Checkin(habit_id=habit.id, date=last_week))
+    db.session.add(Checkin(habit_id=habit.id, date=last_week + timedelta(days=1)))
     db.session.commit()
 
     response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
