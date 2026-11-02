@@ -1,8 +1,12 @@
-{# Crimson text fails WCAG AA at this size (see CLAUDE.md's palette note),
-   so the available/unavailable cue is carried by the emoji (exempt from
-   text-contrast rules, and already readable as color) - the message itself
-   stays in the high-contrast body color regardless of state. #}
+{# The message itself stays in the high-contrast body color regardless of
+   state; the available/unavailable cue is carried by the icon alone. The
+   unavailable icon is a plain "✕" glyph (no emoji variation selector) so it
+   takes `text-danger` (Rust) instead of a built-in-colour red emoji. #}
 <p class="flex items-center gap-1.5 text-sm text-text">
-  <span aria-hidden="true">{{ '✅' if available else '❌' }}</span>
+  {% if available %}
+  <span aria-hidden="true" class="text-success">✓</span>
+  {% else %}
+  <span aria-hidden="true" class="text-danger">✕</span>
+  {% endif %}
   {{ message }}
 </p>

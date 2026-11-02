@@ -34,3 +34,13 @@
   class="relative z-10 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[10px] leading-none text-text-muted/70 transition-colors hover:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
 >ⓘ</button>
 {% endmacro %}
+
+{# Inline field-validation error, used under every form field site-wide.
+   Icon and message both render in `text-danger` (Rust) - the plain "⚠"
+   glyph (no U+FE0F variation selector) takes text color instead of
+   forcing a built-in-colour emoji, so the whole line reads as one
+   consistent rust warning rather than a red/orange icon next to
+   neutral-coloured text. #}
+{% macro field_error(message) %}
+<p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-danger">⚠ {{ message }}</p>
+{% endmacro %}

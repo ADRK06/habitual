@@ -11,7 +11,7 @@
 
   <div class="relative w-full max-w-[420px] border border-border bg-surface p-8 text-center">
     {% if ok %}
-    <div class="mx-auto flex h-12 w-12 items-center justify-center border border-success text-2xl">✅</div>
+    <div class="mx-auto flex h-12 w-12 items-center justify-center border border-success text-2xl text-success">✓</div>
     <h1 class="mt-4 font-display text-xl uppercase tracking-wide text-text">Email verified</h1>
     <p class="mt-2 text-sm text-text-muted">You're all set - this email can now be used to recover your account.</p>
     <a
@@ -21,7 +21,7 @@
       {{ "Go to dashboard" if already_logged_in else "Log in" }}
     </a>
     {% else %}
-    <div class="mx-auto flex h-12 w-12 items-center justify-center border border-danger text-2xl">⚠️</div>
+    <div class="mx-auto flex h-12 w-12 items-center justify-center border border-danger text-2xl text-danger">⚠</div>
     <h1 class="mt-4 font-display text-xl uppercase tracking-wide text-text">This link is invalid or has expired</h1>
     <p class="mt-2 text-sm text-text-muted">Request a new one from Account security, or sign in and we'll take you there.</p>
     <a

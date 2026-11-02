@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import spinner %}
+{% from "_macros.html" import spinner, field_error %}
 
 {% block title %}Log in · Habitual{% endblock %}
 
@@ -19,7 +19,7 @@
 
       <div>
         <label for="username" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Username</label>
-        {{ form.username(id='username', class_='w-full border border-border bg-void px-3 py-2.5 text-text transition-colors duration-200 focus:border-accent', autocomplete='username') }}
+        {{ form.username(id='username', class_='input', autocomplete='username') }}
       </div>
 
       <div>
@@ -30,7 +30,7 @@
         <div class="relative">
           {{ form.password(
             id='password',
-            class_='w-full border border-border bg-void px-3 py-2.5 pr-16 text-text transition-colors duration-200 focus:border-accent',
+            class_='input pr-16',
             autocomplete='current-password',
             **{':type': "showPassword ? 'text' : 'password'"}
           ) }}
@@ -44,17 +44,13 @@
         </div>
       </div>
 
-      {% for error in form.username.errors %}
-      <p class="border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-      {% endfor %}
+      {% for error in form.username.errors %}{{ field_error(error) }}{% endfor %}
       {% if show_signup_link %}
       <p class="text-sm text-text-muted">
         <a href="{{ url_for('auth.signup', next=form.next.data or none) }}" class="text-accent hover:underline">Create an account</a> instead?
       </p>
       {% endif %}
-      {% for error in form.password.errors %}
-      <p class="border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-      {% endfor %}
+      {% for error in form.password.errors %}{{ field_error(error) }}{% endfor %}
 
       <button type="submit" class="relative flex min-h-11 w-full items-center justify-center bg-accent px-4 font-display text-sm uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100">
         <span class="btn-label">Log in</span>

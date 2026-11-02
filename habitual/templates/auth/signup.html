@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import spinner %}
+{% from "_macros.html" import spinner, field_error %}
 
 {% block title %}Sign up · Habitual{% endblock %}
 
@@ -27,7 +27,8 @@
         get matches() { return this.confirm.length > 0 && this.confirm === this.password },
         get score() { return [this.hasLength, this.hasUpper, this.hasLower, this.hasDigit, this.hasSpecial].filter(Boolean).length },
         get strengthLabel() { return ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'][this.score] },
-        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-regolith' : 'bg-accent' },
+        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-accent' : 'bg-success' },
+        get strengthTextColor() { return this.score <= 2 ? 'text-danger' : this.score <= 4 ? 'text-accent' : 'text-success' },
       }"
       x-init="document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone"
       class="space-y-4"
@@ -38,26 +39,22 @@
 
       <div>
         <label for="name" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Name</label>
-        {{ form.name(id='name', class_='w-full border border-border bg-void px-3 py-2.5 text-text transition-colors duration-200 focus:border-accent') }}
-        {% for error in form.name.errors %}
-        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        {{ form.name(id='name', class_='input') }}
+        {% for error in form.name.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
       <div>
         <label for="email" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Email</label>
-        {{ form.email(id='email', class_='w-full border border-border bg-void px-3 py-2.5 text-text transition-colors duration-200 focus:border-accent', autocomplete='email') }}
+        {{ form.email(id='email', class_='input', autocomplete='email') }}
         <p class="mt-1 text-xs text-text-muted">Used only to verify your account and let you reset your password - never shared.</p>
-        {% for error in form.email.errors %}
-        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        {% for error in form.email.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
       <div>
         <label for="username" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Username</label>
         {{ form.username(
           id='username',
-          class_='w-full border border-border bg-void px-3 py-2.5 text-text transition-colors duration-200 focus:border-accent',
+          class_='input',
           autocomplete='off',
           autocapitalize='off',
           **{
@@ -72,9 +69,7 @@
           <div id="username-check" class="flex-1"></div>
           <span id="username-checking" class="htmx-indicator-text text-xs text-text-muted">Checking…</span>
         </div>
-        {% for error in form.username.errors %}
-        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        {% for error in form.username.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
       <div>
@@ -82,7 +77,7 @@
         <div class="relative">
           {{ form.password(
             id='password',
-            class_='w-full border border-border bg-void px-3 py-2.5 pr-16 text-text transition-colors duration-200 focus:border-accent',
+            class_='input pr-16',
             **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'password'}
           ) }}
           <button
@@ -97,7 +92,7 @@
         <div class="mt-2 h-1.5 w-full overflow-hidden bg-border">
           <div class="h-full transition-all duration-300" :class="strengthColor" :style="`width: ${(score / 5) * 100}%`"></div>
         </div>
-        <p class="mt-1 text-xs text-text-muted" x-text="password.length ? strengthLabel : ''"></p>
+        <p class="mt-1 text-xs transition-colors duration-200" :class="password.length ? strengthTextColor : 'text-text-muted'" x-text="password.length ? strengthLabel : ''"></p>
 
         <ul class="mt-2 space-y-0.5 text-xs text-text-muted">
           <li class="transition-colors duration-200" :class="{ 'text-success': hasLength }">8+ characters</li>
@@ -106,22 +101,18 @@
           <li class="transition-colors duration-200" :class="{ 'text-success': hasDigit }">Digit</li>
           <li class="transition-colors duration-200" :class="{ 'text-success': hasSpecial }">Special character</li>
         </ul>
-        {% for error in form.password.errors %}
-        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        {% for error in form.password.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
       <div>
         <label for="confirm_password" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Confirm password</label>
         {{ form.confirm_password(
           id='confirm_password',
-          class_='w-full border border-border bg-void px-3 py-2.5 text-text transition-colors duration-200 focus:border-accent',
+          class_='input',
           **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'confirm'}
         ) }}
         <p class="mt-1 text-xs transition-colors duration-200" :class="matches ? 'text-success' : 'text-text-muted'" x-text="confirm.length ? (matches ? 'Passwords match' : 'Passwords do not match') : ''"></p>
-        {% for error in form.confirm_password.errors %}
-        <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        {% for error in form.confirm_password.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
       <button type="submit" class="relative flex min-h-11 w-full items-center justify-center bg-accent px-4 font-display text-sm uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100">
