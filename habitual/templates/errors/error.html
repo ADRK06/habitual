@@ -3,18 +3,20 @@
 {% block title %}{{ title }} · Habitual{% endblock %}
 
 {% block content %}
-<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
-  <div data-glow="accent" class="pointer-events-none absolute -top-32 -right-24 h-80 w-80 rounded-full bg-accent/20 blur-3xl"></div>
-  <div data-glow="steel" class="pointer-events-none absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-steel/20 blur-3xl"></div>
+<div class="relative flex min-h-screen flex-col items-center justify-center gap-10 px-4 py-12">
+  <a href="{{ url_for('home') }}" class="flex items-center gap-2.5 no-underline text-text">
+    <img src="{{ url_for('static', filename='art/logo-mark.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
+    <span class="font-display text-lg uppercase tracking-wide">Habitual</span>
+  </a>
 
-  <div id="error-card" class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 text-center shadow-2xl shadow-black/20">
-    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10 text-3xl">{{ emoji }}</div>
-    <p class="mt-4 font-heading text-5xl font-bold tabular-nums text-accent">{{ code }}</p>
-    <h1 class="mt-2 font-heading text-xl font-semibold text-text">{{ title }}</h1>
-    <p class="mt-2 text-sm text-text-muted">{{ message }}</p>
+  <div id="error-card" class="relative w-full max-w-sm border border-border bg-surface p-8 text-center">
+    <div class="mx-auto flex h-16 w-16 items-center justify-center border border-accent/40 bg-accent/10 text-3xl" aria-hidden="true">{{ emoji }}</div>
+    <p class="mt-4 font-mono text-5xl tabular-nums text-accent">{{ code }}</p>
+    <h1 class="mt-2 font-display text-xl uppercase tracking-wide text-text">{{ title }}</h1>
+    <p class="mt-2 font-body text-sm text-text-muted">{{ message }}</p>
     <a
       href="{{ url_for('home') }}"
-      class="mt-6 inline-block w-full rounded-2xl bg-accent px-4 py-2 font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+      class="mt-6 inline-block w-full bg-accent px-4 py-2 font-display text-xs uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
     >
       Back home
     </a>
@@ -34,8 +36,6 @@
     }
 
     gsap.fromTo(card, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" });
-    gsap.to('[data-glow="accent"]', { x: -30, y: 20, duration: 9, repeat: -1, yoyo: true, ease: "sine.inOut" });
-    gsap.to('[data-glow="steel"]', { x: 25, y: -15, duration: 11, repeat: -1, yoyo: true, ease: "sine.inOut" });
   });
 </script>
 {% endblock %}

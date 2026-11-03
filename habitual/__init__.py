@@ -27,7 +27,7 @@ def create_app(config_class=Config):
     from habitual.habits import habits as habits_blueprint
     from habitual.rooms import rooms as rooms_blueprint
     from habitual.cli import admin_reset_password, dev_backdate, send_test_email
-    from habitual.errors import not_found, server_error
+    from habitual.errors import forbidden, not_found, rate_limited, server_error
 
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(habits_blueprint)
@@ -41,6 +41,8 @@ def create_app(config_class=Config):
     app.cli.add_command(admin_reset_password)
     app.cli.add_command(send_test_email)
     app.register_error_handler(404, not_found)
+    app.register_error_handler(403, forbidden)
+    app.register_error_handler(429, rate_limited)
     app.register_error_handler(500, server_error)
 
     @app.get("/")

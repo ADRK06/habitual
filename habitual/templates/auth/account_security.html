@@ -1,33 +1,33 @@
 {% extends "app_base.html" %}
-{% from "_macros.html" import spinner %}
+{% from "_macros.html" import spinner, field_error %}
 
 {% block title %}Account security · Habitual{% endblock %}
 
 {% block app_content %}
 <div class="mx-auto max-w-lg py-10">
-  <a href="{{ url_for('habits.dashboard') }}" class="inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text">
+  <a href="{{ url_for('habits.dashboard') }}" class="inline-flex items-center gap-1 font-display text-xs uppercase tracking-wide text-text-muted transition-colors hover:text-accent">
     ← Back to dashboard
   </a>
-  <h1 class="mt-4 font-heading text-2xl font-semibold text-text">Account security</h1>
+  <h1 class="mt-4 font-display text-2xl uppercase tracking-wide text-text">Account security</h1>
 
-  <section class="mt-8 rounded-2xl border border-border bg-surface/40 p-6">
-    <h2 class="font-heading text-lg font-semibold text-text">Email</h2>
+  <section class="mt-8 border border-border bg-surface p-6">
+    <h2 class="font-display text-sm uppercase tracking-wide text-text">Email</h2>
 
     {% if current_user.pending_email %}
-    <p class="mt-1 text-sm text-text-muted">
+    <p class="mt-2 font-body text-sm text-text-muted">
       Current: <span class="text-text">{{ current_user.email or "none" }}</span>.
       Pending confirmation: <span class="text-text">{{ current_user.pending_email }}</span> - check your inbox.
     </p>
     <form method="post" action="{{ url_for('auth.resend_verification') }}" class="mt-3">
       {{ resend_form.csrf_token }}
       <input type="hidden" name="next" value="{{ url_for('auth.account_security') }}">
-      <button type="submit" class="relative rounded-xl border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" class="relative border border-border px-4 py-2 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60">
         <span class="btn-label">Resend confirmation email</span>
         {{ spinner(size='4') }}
       </button>
     </form>
     {% elif current_user.email %}
-    <p class="mt-1 text-sm text-text-muted">
+    <p class="mt-2 font-body text-sm text-text-muted">
       <span class="text-text">{{ current_user.email }}</span>
       {% if current_user.email_verified_at %}
       - verified.
@@ -39,14 +39,14 @@
     <form method="post" action="{{ url_for('auth.resend_verification') }}" class="mt-3">
       {{ resend_form.csrf_token }}
       <input type="hidden" name="next" value="{{ url_for('auth.account_security') }}">
-      <button type="submit" class="relative rounded-xl border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" class="relative border border-border px-4 py-2 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60">
         <span class="btn-label">Resend verification email</span>
         {{ spinner(size='4') }}
       </button>
     </form>
     {% endif %}
     {% else %}
-    <p class="mt-1 text-sm text-text-muted">
+    <p class="mt-2 font-body text-sm text-text-muted">
       No email on file yet. Add one so you can reset your password if you ever lose access.
     </p>
     {% endif %}
@@ -54,24 +54,19 @@
     <form method="post" action="{{ url_for('auth.change_email') }}" class="mt-4 flex flex-wrap items-start gap-3">
       {{ email_form.csrf_token }}
       <div class="min-w-0 flex-1">
-        {{ email_form.email(
-          placeholder='you@example.com', autocomplete='email',
-          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent'
-        ) }}
-        {% for error in email_form.email.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        {{ email_form.email(placeholder='you@example.com', autocomplete='email', class_='input') }}
+        {% for error in email_form.email.errors %}{{ field_error(error) }}{% endfor %}
       </div>
-      <button type="submit" class="relative shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+      <button type="submit" class="relative shrink-0 bg-accent px-4 py-2 font-display text-xs uppercase tracking-wide text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
         <span class="btn-label">{{ "Change email" if current_user.email else "Add email" }}</span>
         {{ spinner(size='4') }}
       </button>
     </form>
-    <p class="mt-2 text-xs text-text-muted">The new address must be confirmed before it replaces the old one.</p>
+    <p class="mt-2 font-body text-xs text-text-muted">The new address must be confirmed before it replaces the old one.</p>
   </section>
 
-  <section class="mt-6 rounded-2xl border border-border bg-surface/40 p-6">
-    <h2 class="font-heading text-lg font-semibold text-text">Change password</h2>
+  <section class="mt-6 border border-border bg-surface p-6">
+    <h2 class="font-display text-sm uppercase tracking-wide text-text">Change password</h2>
     <form
       method="post"
       action="{{ url_for('auth.change_password') }}"
@@ -87,29 +82,25 @@
         get matches() { return this.confirm.length > 0 && this.confirm === this.password },
         get score() { return [this.hasLength, this.hasUpper, this.hasLower, this.hasDigit, this.hasSpecial].filter(Boolean).length },
         get strengthLabel() { return ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'][this.score] },
-        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-steel' : 'bg-accent' },
+        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-accent' : 'bg-success' },
+        get strengthTextColor() { return this.score <= 2 ? 'text-danger' : this.score <= 4 ? 'text-accent' : 'text-success' },
       }"
       class="mt-4 space-y-4"
     >
       {{ password_form.csrf_token }}
 
       <div>
-        <label for="current_password" class="block text-sm text-text-muted mb-1">Current password</label>
-        {{ password_form.current_password(
-          id='current_password', type='password', autocomplete='current-password',
-          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent'
-        ) }}
-        {% for error in password_form.current_password.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        <label for="current_password" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Current password</label>
+        {{ password_form.current_password(id='current_password', type='password', autocomplete='current-password', class_='input') }}
+        {% for error in password_form.current_password.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
       <div>
-        <label for="new_password" class="block text-sm text-text-muted mb-1">New password</label>
+        <label for="new_password" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">New password</label>
         <div class="relative">
           {{ password_form.new_password(
             id='new_password',
-            class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 pr-16 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
+            class_='input pr-16',
             **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'password'}
           ) }}
           <button
@@ -120,45 +111,42 @@
             <span x-text="showPassword ? 'Hide' : 'Show'"></span>
           </button>
         </div>
-        <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
-          <div class="h-full rounded-full transition-all duration-300" :class="strengthColor" :style="`width: ${(score / 5) * 100}%`"></div>
+        <div class="mt-2 h-1.5 w-full overflow-hidden bg-border">
+          <div class="h-full transition-all duration-300" :class="strengthColor" :style="`width: ${(score / 5) * 100}%`"></div>
         </div>
-        <p class="mt-1 text-xs text-text-muted" x-text="password.length ? strengthLabel : ''"></p>
+        <p class="mt-1 font-body text-xs transition-colors duration-200" :class="password.length ? strengthTextColor : 'text-text-muted'" x-text="password.length ? strengthLabel : ''"></p>
 
-        <ul class="mt-2 space-y-0.5 text-xs text-text-muted">
+        <ul class="mt-2 space-y-0.5 font-body text-xs text-text-muted">
           <li class="transition-colors duration-200" :class="{ 'text-success': hasLength }">8+ characters</li>
           <li class="transition-colors duration-200" :class="{ 'text-success': hasUpper }">Uppercase letter</li>
           <li class="transition-colors duration-200" :class="{ 'text-success': hasLower }">Lowercase letter</li>
           <li class="transition-colors duration-200" :class="{ 'text-success': hasDigit }">Digit</li>
           <li class="transition-colors duration-200" :class="{ 'text-success': hasSpecial }">Special character</li>
         </ul>
-        {% for error in password_form.new_password.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        {% for error in password_form.new_password.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
       <div>
-        <label for="confirm_password" class="block text-sm text-text-muted mb-1">Confirm new password</label>
+        <label for="confirm_password" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Confirm new password</label>
         {{ password_form.confirm_password(
           id='confirm_password',
-          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent',
+          class_='input',
           **{':type': "showPassword ? 'text' : 'password'", 'x-model': 'confirm'}
         ) }}
-        {% for error in password_form.confirm_password.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        <p class="mt-1 font-body text-xs transition-colors duration-200" :class="matches ? 'text-success' : 'text-text-muted'" x-text="confirm.length ? (matches ? 'Passwords match' : 'Passwords do not match') : ''"></p>
+        {% for error in password_form.confirm_password.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
-      <button type="submit" class="relative rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
+      <button type="submit" class="relative bg-accent px-5 py-2.5 font-display text-xs uppercase tracking-wide text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
         <span class="btn-label">Change password</span>
         {{ spinner() }}
       </button>
     </form>
   </section>
 
-  <section class="mt-6 rounded-2xl border border-danger/30 bg-danger/5 p-6" x-data="{ confirmOpen: false }">
-    <h2 class="font-heading text-lg font-semibold text-text">Danger zone</h2>
-    <p class="mt-1 text-sm text-text-muted">
+  <section class="mt-6 border border-danger/30 bg-danger/5 p-6" x-data="{ confirmOpen: false }">
+    <h2 class="font-display text-sm uppercase tracking-wide text-text">Danger zone</h2>
+    <p class="mt-2 font-body text-sm text-text-muted">
       Deleting your account is permanent - every habit, point, badge, and Fleet membership goes
       with it. There's no undo.
     </p>
@@ -167,33 +155,23 @@
       {{ delete_form.csrf_token }}
 
       <div>
-        <label for="confirm_username" class="block text-sm text-text-muted mb-1">
-          Type your username (<span class="text-text">{{ current_user.username }}</span>) to confirm
+        <label for="confirm_username" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">
+          Type your username (<span class="normal-case text-text">{{ current_user.username }}</span>) to confirm
         </label>
-        {{ delete_form.confirm_username(
-          id='confirm_username', autocomplete='off', autocapitalize='off',
-          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-danger focus:ring-2 focus:ring-danger'
-        ) }}
-        {% for error in delete_form.confirm_username.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        {{ delete_form.confirm_username(id='confirm_username', autocomplete='off', autocapitalize='off', class_='input') }}
+        {% for error in delete_form.confirm_username.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
       <div>
-        <label for="delete_password" class="block text-sm text-text-muted mb-1">Current password</label>
-        {{ delete_form.password(
-          id='delete_password', type='password', autocomplete='current-password',
-          class_='w-full rounded-xl border border-border bg-bg/40 px-3 py-2 text-text transition-colors duration-200 focus:outline-none focus:border-danger focus:ring-2 focus:ring-danger'
-        ) }}
-        {% for error in delete_form.password.errors %}
-        <p class="mt-1 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-text">⚠️ {{ error }}</p>
-        {% endfor %}
+        <label for="delete_password" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">Current password</label>
+        {{ delete_form.password(id='delete_password', type='password', autocomplete='current-password', class_='input') }}
+        {% for error in delete_form.password.errors %}{{ field_error(error) }}{% endfor %}
       </div>
 
       <button
         type="button"
         @click="confirmOpen = true"
-        class="rounded-xl border border-danger/50 px-4 py-2 text-sm font-medium text-text transition hover:bg-danger/15"
+        class="border border-danger/50 px-4 py-2 font-display text-xs uppercase tracking-wide text-text transition hover:bg-danger/15"
       >
         Delete my account
       </button>
@@ -210,27 +188,27 @@
       x-transition:leave="transition ease-in duration-100"
       x-transition:leave-start="opacity-100"
       x-transition:leave-end="opacity-0"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4"
     >
       <div
         @click.outside="confirmOpen = false"
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-account-heading"
-        class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl"
+        class="w-full max-w-sm border border-border bg-surface p-6"
       >
-        <h3 id="delete-account-heading" class="font-heading text-lg font-semibold text-text">Delete your account permanently?</h3>
-        <p class="mt-2 text-sm text-text-muted">
+        <h3 id="delete-account-heading" class="font-display text-base uppercase tracking-wide text-text">Delete your account permanently?</h3>
+        <p class="mt-2 font-body text-sm text-text-muted">
           This can't be undone - every habit, point, badge, and Fleet membership will be gone for good.
         </p>
         <div class="mt-5 flex justify-end gap-3">
-          <button type="button" @click="confirmOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">
+          <button type="button" @click="confirmOpen = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">
             Cancel
           </button>
           <button
             type="submit"
             form="delete-account-form"
-            class="relative rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            class="relative bg-danger px-4 py-2 font-display text-xs uppercase text-void transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span class="btn-label">Yes, delete my account</span>
             {{ spinner() }}
