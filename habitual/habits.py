@@ -1009,7 +1009,8 @@ def buy_freeze():
     ))
     db.session.commit()
 
-    resp = make_response(render_template("partials/header_stats.html", **_header_stats(current_user)))
+    context = {**_header_stats(current_user), **nav_shell_context(current_user)}
+    resp = make_response(render_template("partials/buy_freeze_response.html", **context))
     resp.headers["HX-Trigger"] = json.dumps(
         {"toast": {"message": "Freeze purchased 🧊", "type": "success"}}
     )

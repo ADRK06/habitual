@@ -1358,13 +1358,43 @@ def test_buy_freeze_succeeds_with_enough_balance(client, db):
 
 
 def test_buy_freeze_response_is_header_stats_without_oob_wrapper(client, db):
+    # header_stats.html is this response's own direct swap target
+    # (hx-target="#header-stats" hx-swap="outerHTML" on every Buy button) -
+    # giving its own div an hx-swap-oob attribute on top of that is the
+    # ambiguous-swap bug this guards against. The sidebar/phone-bar nav
+    # stats further down the same response are a different story - they're
+    # genuine OOB siblings (see test_buy_freeze_response_updates_sidebar_and_phone_nav_stats),
+    # so only the header-stats div itself is asserted oob-free here.
     user = _login(client, db)
     db.session.add(PointTransaction(user_id=user.id, habit_id=None, amount=50, reason="daily", date=date.today()))
     db.session.commit()
 
-    response = client.post("/freezes/buy")
-    assert b'id="header-stats"' in response.data
-    assert b'hx-swap-oob="true"' not in response.data
+    html = client.post("/freezes/buy").get_data(as_text=True)
+    assert 'id="header-stats"' in html
+    header_start = html.index('id="header-stats"')
+    header_tag = html[header_start:html.index(">", header_start)]
+    assert "hx-swap-oob" not in header_tag
+
+
+def test_buy_freeze_response_updates_sidebar_and_phone_nav_stats(client, db):
+    # Regression: buying a freeze spends balance (header Balance and the
+    # sidebar/phone commander bar's Energy figure, nav_shell_context's
+    # nav_balance, are the same number) - like check-in/undo/freeze, the
+    # sidebar/phone bar must be OOB-swapped in the same response, not just
+    # header_stats.html.
+    user = _login(client, db)
+    db.session.add(PointTransaction(user_id=user.id, habit_id=None, amount=50, reason="daily", date=date.today()))
+    db.session.commit()
+
+    html = client.post("/freezes/buy").get_data(as_text=True)
+
+    for stats_id in ("sidebar-nav-stats", "phone-nav-stats"):
+        start = html.index(f'id="{stats_id}"')
+        block = html[start:start + 100]
+        assert 'hx-swap-oob="true"' in block
+
+    # Balance after the 50-cost purchase: 50 earned - 50 spent = 0.
+    assert 'aria-label="0 Energy"' in html
 
 
 def test_buy_freeze_rejected_without_enough_balance(client, db):

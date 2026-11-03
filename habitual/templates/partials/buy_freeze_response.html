@@ -1,0 +1,19 @@
+{#
+  /freezes/buy's response - header_stats.html itself is the primary swap
+  target (hx-target="#header-stats" hx-swap="outerHTML" on every Buy
+  button), so it renders with no `oob` in scope (see
+  test_buy_freeze_response_is_header_stats_without_oob_wrapper - giving it
+  an hx-swap-oob attribute on top of being the literal swap target is the
+  ambiguous-swap bug, not a valid OOB sibling). The persistent sidebar/
+  phone commander bar's Energy figure (app_base.html, present on every
+  page) is a genuine extra OOB sibling here, same pattern as
+  checkin_response.html's. Buy freeze only has one trigger in the whole
+  app - header_stats.html's own Buy button, which only ever renders on
+  the dashboard - so there's no room/detail-page equivalent of this
+  response to also wire up, unlike checkin/undo/freeze.
+#}
+{% include "partials/header_stats.html" %}
+{% with oob=True %}
+{% include "partials/nav/nav_stats_desktop.html" %}
+{% include "partials/nav/nav_stats_phone.html" %}
+{% endwith %}
