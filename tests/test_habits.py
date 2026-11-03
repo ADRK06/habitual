@@ -1258,7 +1258,7 @@ def test_checkin_toast_is_generic_on_a_normal_day(client, db):
     habit = _create_habit(db, user, created_on=date.today())
 
     response = client.post(f"/habits/{habit.id}/checkin")
-    assert "+5 points!" in response.headers["HX-Trigger"]
+    assert "+5 Energy!" in response.headers["HX-Trigger"]
 
 
 # -- create habit templates --------------------------------------------------

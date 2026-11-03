@@ -900,7 +900,7 @@ def checkin(habit_id):
     if points_earned:
         label = points.milestone_label(streak_day)
         toast = {
-            "message": f"+{points_earned} · {label}" if label else f"+{points_earned} points!",
+            "message": f"+{points_earned} · {label}" if label else f"+{points_earned} Energy!",
             "type": "success",
         }
         celebration = {"habitId": habit.id, "milestone": bool(bonus)}
