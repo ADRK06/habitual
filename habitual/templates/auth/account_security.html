@@ -156,7 +156,7 @@
 
       <div>
         <label for="confirm_username" class="mb-1 block font-display text-xs uppercase tracking-wider text-text-muted">
-          Type your username (<span class="normal-case text-text">{{ current_user.username }}</span>) to confirm
+          Type your username (<span class="font-body normal-case text-text">{{ current_user.username }}</span>) to confirm
         </label>
         {{ delete_form.confirm_username(id='confirm_username', autocomplete='off', autocapitalize='off', class_='input') }}
         {% for error in delete_form.confirm_username.errors %}{{ field_error(error) }}{% endfor %}
