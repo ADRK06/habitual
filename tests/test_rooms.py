@@ -1103,7 +1103,9 @@ def test_fleet_list_shows_a_card_per_fleet_with_member_count_and_health(client, 
     assert "Night Owls" in response
     card_start = response.index(f'id="fleet-card-{room.id}"')
     card_html = response[card_start:card_start + 2500]
-    assert "2 commanders" in card_html
+    # The number is IBM Plex Mono, the word is IBM Plex Sans - a nested
+    # <span> for the number breaks "2 commanders" as one contiguous string.
+    assert '<span class="font-mono">2</span> commander' in card_html
     assert "0%" in card_html  # nobody's checked in yet today
     assert "Check in" in card_html
     assert "Open" not in card_html
@@ -1122,6 +1124,40 @@ def test_fleet_list_shows_open_once_checked_in_today(client, db):
     assert "100%" in card_html
     assert "Open" in card_html
     assert "Check in" not in card_html
+
+
+def test_fleet_list_card_title_links_to_the_fleet_page(client, db):
+    # Bug fix: the whole card is clickable via its title's stretched link
+    # (habit_card.html's pattern - a real, keyboard-focusable <a> whose
+    # ::after covers the card - not a bare div @click, which no keyboard
+    # user could ever activate).
+    leader = _login(client, db, username="leader")
+    room = _create_room(db, leader, title="Night Owls")
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    card_start = response.index(f'id="fleet-card-{room.id}"')
+    card_html = response[card_start:card_start + 2500]
+    assert f'href="/rooms/{room.id}"' in card_html
+    assert "after:absolute" in card_html
+    assert "x-data" not in card_html
+
+
+def test_fleet_list_check_in_button_is_a_plain_link_not_a_popover_trigger(client, db):
+    # Bug fix: Check In used to be presumed to need the dashboard's
+    # openPopover Alpine scope, which doesn't exist on /rooms - it's a
+    # plain link to the room page's own check-in panel instead, no
+    # backend branch, no Alpine binding of any kind.
+    user = _login(client, db)
+    room = _create_room(db, user, title="Night Owls")
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    card_start = response.index(f'id="fleet-card-{room.id}"')
+    card_html = response[card_start:card_start + 2500]
+    assert f'href="/rooms/{room.id}#my-room-panel"' in card_html
+    assert "openPopover" not in card_html
+    assert "@click" not in card_html
 
 
 def test_dashboard_auto_open_fleet_modal_hook_is_present(client, db):

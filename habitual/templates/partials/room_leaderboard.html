@@ -27,7 +27,7 @@
     <span class="w-8 shrink-0" aria-hidden="true"></span>
     <span class="min-w-0 flex-1" aria-hidden="true"></span>
     <span class="hidden w-10 shrink-0 text-right font-display text-[9px] uppercase tracking-wide text-text-muted sm:block">Missed</span>
-    <span class="w-14 shrink-0 text-right font-display text-[9px] uppercase tracking-wide text-text-muted">Pts</span>
+    <span class="w-16 shrink-0 text-right font-display text-[9px] uppercase tracking-wide text-text-muted">Energy</span>
   </div>
   <ol class="divide-y divide-border">
     {% for entry in leaderboard %}
@@ -56,7 +56,7 @@
           {% endif %}
         </div>
         <span class="hidden w-10 shrink-0 text-right font-mono text-sm text-text-muted sm:block">{{ entry.missed_days }}</span>
-        <span class="w-14 shrink-0 text-right font-mono text-sm font-medium text-text">{{ entry.points }}</span>
+        <span class="w-16 shrink-0 text-right font-mono text-sm font-medium text-text">{{ entry.points }}</span>
       </div>
     </li>
     {% endfor %}

@@ -3,13 +3,31 @@
   from the habit_card.html shell plus WebFleet.dc.html's crew-row/streak-
   badge language and Main.dc.html's tile/button pieces, same square flat
   tokens as groups 1-5. `fleet` is the dict fleet_list() builds (rooms.py).
+
+  Stretched-link pattern (habit_card.html's, see its own comment): the
+  title's own <a> covers the whole card via an absolutely-positioned
+  ::after sized to the card (its nearest `relative` ancestor, since the
+  anchor itself stays position:static) - real, keyboard-focusable link
+  text, not an aria-label-only overlay. Truncation lives on an inner
+  <span>, not the anchor itself or any ancestor between the ::after and
+  the card: overflow:hidden anywhere in that chain would clip the
+  stretched ::after down to whatever box carries it. The action button
+  stays `relative` (its own positioned stacking layer, later in DOM
+  order) so it still wins the click over the stretched title beneath it.
 #}
-<div id="fleet-card-{{ fleet.room.id }}" class="flex flex-col gap-3 border border-border bg-surface p-3.5">
+<div id="fleet-card-{{ fleet.room.id }}" class="relative flex flex-col gap-3 border border-border bg-surface p-3.5">
   <div class="flex items-center gap-3">
     <span class="shrink-0 text-3xl" style="image-rendering: pixelated" aria-hidden="true">{{ fleet.room.emoji }}</span>
     <div class="min-w-0 flex-1">
-      <h3 class="truncate font-body text-base font-medium text-text">{{ fleet.room.title }}</h3>
-      <p class="font-mono text-xs text-text-muted">{{ fleet.member_count }} commander{{ 's' if fleet.member_count != 1 else '' }}</p>
+      <h3>
+        <a
+          href="{{ url_for('rooms.room_detail', room_id=fleet.room.id) }}"
+          class="block after:absolute after:inset-0 after:content-['']"
+        >
+          <span class="block truncate font-body text-base font-medium text-text">{{ fleet.room.title }}</span>
+        </a>
+      </h3>
+      <p class="font-body text-xs text-text-muted"><span class="font-mono">{{ fleet.member_count }}</span> commander{{ 's' if fleet.member_count != 1 else '' }}</p>
     </div>
     <div class="flex shrink-0 flex-col items-end">
       <span class="font-mono text-lg tabular-nums {{ 'text-streak' if fleet.streak_value else 'text-text-muted' }}">{{ fleet.streak_value }}{{ 'd' if fleet.room_streak_unit == 'day' else 'w' }}</span>
@@ -28,8 +46,8 @@
   </div>
 
   <a
-    href="{{ url_for('rooms.room_detail', room_id=fleet.room.id) }}"
-    class="mt-auto flex h-10 items-center justify-center px-4 font-display text-xs uppercase tracking-wide transition-colors
+    href="{{ url_for('rooms.room_detail', room_id=fleet.room.id) }}{{ '#my-room-panel' if not fleet.checked_in_today else '' }}"
+    class="relative mt-auto flex h-10 items-center justify-center px-4 font-display text-xs uppercase tracking-wide transition-colors
       {{ 'bg-accent text-bg hover:opacity-90' if not fleet.checked_in_today else 'border border-border text-text hover:border-accent' }}"
   >
     {{ 'Check in' if not fleet.checked_in_today else 'Open' }}
