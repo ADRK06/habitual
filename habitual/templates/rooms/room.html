@@ -7,48 +7,67 @@
 <script src="{{ url_for('static', filename='js/rings_chart.js') }}"></script>
 {% endblock %}
 
+{#
+  Fleet page (Phase 1c group 5 - docs/reference/colonies/screens/WebFleet.dc.html,
+  PhoneFleet.dc.html). Omitted versus the mocks (later phases, not real
+  features yet): the station image, boss HP bar, "next module" build
+  progress, flagship-of-the-day banner, and nudges. Kept the overall
+  page section order from before (header, invite block, streak/health
+  tiles, leaderboard + feed, personal stats panel) - CLAUDE.md's own
+  room-page spec, not either mock, is the source of truth for that;
+  the mocks are matched component-by-component instead (see
+  room_leaderboard.html, room_health.html, room_streak_stat.html).
+#}
 {% block app_content %}
 <div class="py-10" x-data="{ leaveOpen: false, linkCopied: false, codeCopied: false, messageCopied: false }">
-  <a href="{{ url_for('habits.dashboard') }}" class="inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text">
+  <a href="{{ url_for('habits.dashboard') }}" class="inline-flex items-center gap-1 font-display text-xs uppercase tracking-wide text-text-muted transition-colors hover:text-accent">
     ← Back to dashboard
   </a>
 
   <header class="mt-6 flex flex-wrap items-start justify-between gap-6">
     <div class="flex items-center gap-4">
-      <span class="text-4xl">{{ room.emoji }}</span>
+      <span class="text-4xl" style="image-rendering: pixelated" aria-hidden="true">{{ room.emoji }}</span>
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="font-heading text-2xl font-semibold text-text">{{ room.title }}</h1>
+          <h1 class="font-body text-2xl font-medium text-text">{{ room.title }}</h1>
           {% if room_frequency_label and room_frequency_label != 'Daily' %}
-          <span class="inline-flex items-center rounded-full bg-rooms/15 px-2 py-0.5 text-[11px] font-medium text-rooms">
-            {{ room_frequency_label }}
-          </span>
+          <span class="font-display text-[11px] uppercase tracking-wide text-text-muted">{{ room_frequency_label }}</span>
           {% endif %}
         </div>
-        <p class="text-sm text-text-muted">
-          {{ member_count }}/{{ max_members }} member{{ "s" if member_count != 1 else "" }}
-          {%- if ended %} · room ended
+        <p class="font-body text-sm text-text-muted">
+          <span class="font-mono">{{ member_count }}</span>/<span class="font-mono">{{ max_members }}</span> commander{{ "s" if member_count != 1 else "" }}
+          {%- if ended %} · fleet ended
           {%- elif viewer_ended %} · ended for you
-          {%- else %} · {{ days_remaining }} day{{ "s" if days_remaining != 1 else "" }} left for you{% endif %}
+          {%- else %} · <span class="font-mono">{{ days_remaining }}</span> day{{ "s" if days_remaining != 1 else "" }} left for you{% endif %}
         </p>
       </div>
     </div>
 
-    <button type="button" @click="leaveOpen = true" class="shrink-0 rounded-xl border border-danger/50 px-4 py-2 text-sm font-medium text-text transition hover:bg-danger/15">
-      Leave room
+    <button type="button" @click="leaveOpen = true" class="shrink-0 border border-danger/50 px-4 py-2 font-display text-xs uppercase tracking-wide text-text transition hover:bg-danger/15">
+      Leave Fleet
     </button>
   </header>
 
   {% if not viewer_ended %}
-  <div class="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-rooms/30 bg-rooms/5 p-4">
+  <div class="mt-4 flex flex-col gap-1">
+    <div class="flex items-center justify-between font-body text-xs text-text-muted">
+      <span>Mission</span>
+      <span class="font-mono">day {{ room.duration_days - days_remaining }} / {{ room.duration_days }}</span>
+    </div>
+    <div class="h-1 w-full max-w-xs bg-border">
+      <div class="h-1 bg-bone" style="width: {{ ((room.duration_days - days_remaining) / room.duration_days * 100) | round(1) }}%"></div>
+    </div>
+  </div>
+
+  <div class="mt-6 flex flex-wrap items-center gap-4 border border-dashed border-border bg-surface p-4">
     <div>
-      <p class="text-xs text-text-muted">Room code</p>
+      <p class="font-body text-xs text-text-muted">Invite code</p>
       <div class="mt-1 flex items-center gap-2">
-        <span class="font-heading text-2xl font-bold tracking-[0.3em] text-text">{{ room.join_code }}</span>
+        <span class="font-mono text-2xl tracking-[0.3em] text-text">{{ room.join_code }}</span>
         <button
           type="button"
           @click="navigator.clipboard.writeText('{{ room.join_code }}'); codeCopied = true; setTimeout(() => codeCopied = false, 2000)"
-          class="rounded-lg border border-border px-2 py-1 text-xs font-medium text-text transition hover:bg-bg/40"
+          class="border border-border px-2 py-1 font-display text-[11px] uppercase text-text transition hover:border-accent"
         >
           <span x-text="codeCopied ? 'Copied!' : 'Copy'"></span>
         </button>
@@ -59,12 +78,12 @@
       <input
         id="invite-link" type="text" readonly onclick="this.select()"
         value="{{ url_for('rooms.join_landing', token=room.invite_token, _external=True) }}"
-        class="w-48 rounded-xl border border-border bg-bg/40 px-3 py-2 text-xs text-text-muted sm:w-64"
+        class="input w-48 font-mono text-xs text-text-muted sm:w-64"
       >
       <button
         type="button"
         @click="navigator.clipboard.writeText(document.getElementById('invite-link').value); linkCopied = true; setTimeout(() => linkCopied = false, 2000)"
-        class="shrink-0 rounded-xl border border-border px-3 py-2 text-xs font-medium text-text transition hover:bg-bg/40"
+        class="shrink-0 border border-border px-3 py-2 font-display text-[11px] uppercase text-text transition hover:border-accent"
       >
         <span x-text="linkCopied ? 'Copied!' : 'Copy link'"></span>
       </button>
@@ -73,7 +92,7 @@
     <button
       type="button"
       @click="navigator.clipboard.writeText({{ invite_message|tojson|forceescape }}); messageCopied = true; setTimeout(() => messageCopied = false, 2000)"
-      class="shrink-0 rounded-xl border border-border px-3 py-2 text-xs font-medium text-text transition hover:bg-bg/40"
+      class="shrink-0 border border-border px-3 py-2 font-display text-[11px] uppercase text-text transition hover:border-accent"
     >
       <span x-text="messageCopied ? 'Copied!' : 'Copy invite message'"></span>
     </button>
@@ -81,7 +100,7 @@
     {% if is_creator %}
     <form method="post" action="{{ url_for('rooms.regenerate_invite', room_id=room.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" title="Regenerate invite link and code" class="relative shrink-0 rounded-xl border border-border px-3 py-2 text-xs text-text-muted transition hover:bg-bg/40 disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" title="Regenerate invite link and code" class="relative shrink-0 border border-border px-3 py-2 font-display text-[11px] uppercase text-text-muted transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60">
         <span class="btn-label">↻ Regenerate</span>
         {{ spinner(size='3') }}
       </button>
@@ -91,24 +110,24 @@
   {% endif %}
 
   <div class="mt-6 grid max-w-md grid-cols-2 gap-3">
-    {% include "partials/room_health.html" %}
     {% include "partials/room_streak_stat.html" %}
+    {% include "partials/room_health.html" %}
   </div>
 
   <div class="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
     <div class="space-y-6">
-      <section class="rounded-2xl border border-border bg-surface/40 p-6">
-        <h2 class="font-heading text-lg font-semibold text-text">Leaderboard</h2>
+      <section class="border border-border bg-surface p-6">
+        <h2 class="font-display text-sm uppercase tracking-wide text-text">Leaderboard</h2>
         {% include "partials/room_leaderboard.html" %}
       </section>
-      <section class="rounded-2xl border border-border bg-surface/40 p-6">
-        <h2 class="font-heading text-lg font-semibold text-text">Recent check-ins</h2>
+      <section class="border border-border bg-surface p-6">
+        <h2 class="font-display text-sm uppercase tracking-wide text-text">Recent check-ins</h2>
         {% include "partials/room_feed.html" %}
       </section>
     </div>
 
     <div>
-      <h2 class="mb-3 font-heading text-lg font-semibold text-text">Your progress</h2>
+      <h2 class="mb-3 font-display text-sm uppercase tracking-wide text-text">Your progress</h2>
       {% include "partials/room_my_panel.html" %}
     </div>
   </div>
@@ -118,22 +137,22 @@
     @keydown.escape.window="leaveOpen = false"
     x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
     x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4"
   >
     <div
       @click.outside="leaveOpen = false"
       role="dialog"
       aria-modal="true"
       aria-labelledby="leave-room-heading"
-      class="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl"
+      class="w-full max-w-sm border border-border bg-surface p-6"
     >
-      <h3 id="leave-room-heading" class="font-heading text-lg font-semibold text-text">Leave "{{ room.title }}"?</h3>
-      <p class="mt-2 text-sm text-text-muted">This removes your room habit and its points. This can't be undone.</p>
+      <h3 id="leave-room-heading" class="font-display text-base uppercase tracking-wide text-text">Leave <span class="font-body normal-case">"{{ room.title }}"</span>?</h3>
+      <p class="mt-2 font-body text-sm text-text-muted">This removes your Fleet habit and its points. This can't be undone.</p>
       <div class="mt-5 flex justify-end gap-3">
-        <button type="button" @click="leaveOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">Cancel</button>
+        <button type="button" @click="leaveOpen = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">Cancel</button>
         <form method="post" action="{{ url_for('rooms.leave_room', room_id=room.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="relative rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="submit" class="relative bg-danger px-4 py-2 font-display text-xs uppercase text-void transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
             <span class="btn-label">Leave</span>
             {{ spinner() }}
           </button>
@@ -161,11 +180,10 @@
   });
 
   // GSAP Flip, keyed by each row's stable data-flip-id (the member's user
-  // id, not DOM position - covers both the podium cards and the rank-4+
-  // list rows, since a member can cross that boundary), so a leaderboard
-  // re-render after a check-in animates the reorder smoothly instead of
-  // just popping to the new order. Also tracks the viewer's own position
-  // across the swap, for the overtake celebration below.
+  // id, not DOM position), so a leaderboard re-render after a check-in
+  // animates the reorder smoothly instead of just popping to the new
+  // order. Also tracks the viewer's own position across the swap, for the
+  // overtake celebration below.
   let leaderboardFlipState = null;
   let viewerRankBeforeSwap = null;
 

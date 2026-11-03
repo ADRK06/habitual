@@ -4,51 +4,55 @@
 {% block title %}Join {{ room.title }} · Habitual{% endblock %}
 
 {% block content %}
-<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
-  <div data-glow="rooms" class="pointer-events-none absolute -top-32 -right-24 h-80 w-80 rounded-full bg-rooms/20 blur-3xl"></div>
-  <div data-glow="accent" class="pointer-events-none absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-accent/20 blur-3xl"></div>
+<div class="relative flex min-h-screen flex-col items-center justify-center gap-10 px-4 py-12">
+  <a href="{{ url_for('home') }}" class="flex items-center gap-2.5 no-underline text-text">
+    <img src="{{ url_for('static', filename='art/logo-mark.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
+    <span class="font-display text-lg uppercase tracking-wide">Habitual</span>
+  </a>
 
-  <div id="join-card" class="relative w-full max-w-sm rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 shadow-2xl shadow-black/20 text-center">
-    <div id="join-emoji" class="text-5xl">{{ room.emoji }}</div>
-    <h1 class="mt-3 font-heading text-2xl font-semibold text-text">{{ room.title }}</h1>
-    <p class="mt-1 text-sm text-text-muted">
-      {{ member_count }}/{{ max_members }} member{{ "s" if member_count != 1 else "" }} · {{ room.duration_days }} days · ends {{ final_day.strftime("%b %-d, %Y") }}
+  <div id="join-card" class="relative w-full max-w-sm border border-border bg-surface p-8 text-center">
+    <div class="text-5xl" style="image-rendering: pixelated" aria-hidden="true">{{ room.emoji }}</div>
+    <h1 class="mt-3 font-body text-2xl font-medium text-text">{{ room.title }}</h1>
+    <p class="mt-1 font-body text-sm text-text-muted">
+      <span class="font-mono">{{ member_count }}</span>/<span class="font-mono">{{ max_members }}</span> commander{{ "s" if member_count != 1 else "" }}
+      · <span class="font-mono">{{ room.duration_days }}</span> days
+      · ends <span class="font-mono">{{ final_day.strftime("%b %-d, %Y") }}</span>
       {%- if frequency_label and frequency_label != 'Daily' %} · {{ frequency_label }}{% endif %}
     </p>
-    <p class="mt-3 text-xs text-text-muted">
+    <p class="mt-3 font-body text-xs text-text-muted">
       Everyone races the same habit on their own streak, their own points, and a shared daily crown 👑
     </p>
 
     {% if is_member %}
-      <p class="mt-6 rounded-xl border border-border bg-bg/40 px-3 py-2 text-sm text-text-muted">
-        You're already in this room.
+      <p class="mt-6 border border-border bg-void px-3 py-2 font-body text-sm text-text-muted">
+        You're already in this Fleet.
       </p>
-      <a href="{{ url_for('rooms.room_detail', room_id=room.id) }}" class="mt-4 inline-block w-full rounded-2xl bg-rooms px-4 py-2 font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]">
-        Go to room
+      <a href="{{ url_for('rooms.room_detail', room_id=room.id) }}" class="mt-4 inline-block w-full bg-accent px-4 py-2 font-display text-xs uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]">
+        Go to Fleet
       </a>
     {% elif is_full %}
-      <p class="mt-6 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-text">
-        ⚠️ This room is full ({{ member_count }}/{{ max_members }}).
+      <p class="mt-6 border border-danger/30 bg-danger/10 px-3 py-2 font-body text-sm text-text">
+        ⚠️ This Fleet is full (<span class="font-mono">{{ member_count }}/{{ max_members }}</span>).
       </p>
     {% elif ended_for_viewer %}
-      <p class="mt-6 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-text">
-        ⚠️ This room has already ended for you.
+      <p class="mt-6 border border-danger/30 bg-danger/10 px-3 py-2 font-body text-sm text-text">
+        ⚠️ This Fleet has already ended for you.
       </p>
     {% elif can_join %}
       <form method="post" action="{{ url_for('rooms.join_room', token=room.invite_token) }}" class="mt-6">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="relative w-full rounded-2xl bg-rooms px-4 py-2 font-medium text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100">
-          <span class="btn-label">Join room</span>
+        <button type="submit" class="relative w-full bg-accent px-4 py-2 font-display text-xs uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100">
+          <span class="btn-label">Join Fleet</span>
           {{ spinner() }}
         </button>
       </form>
     {% else %}
-      <p class="mt-6 text-sm text-text-muted">Log in or create an account to join.</p>
+      <p class="mt-6 font-body text-sm text-text-muted">Log in or create an account to join.</p>
       <div class="mt-4 flex gap-3">
-        <a href="{{ url_for('auth.login', next=request.path) }}" class="flex-1 rounded-2xl border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-bg/40">
+        <a href="{{ url_for('auth.login', next=request.path) }}" class="flex-1 border border-border px-4 py-2 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent">
           Log in
         </a>
-        <a href="{{ url_for('auth.signup', next=request.path) }}" class="flex-1 rounded-2xl bg-rooms px-4 py-2 text-sm font-medium text-bg transition hover:opacity-90">
+        <a href="{{ url_for('auth.signup', next=request.path) }}" class="flex-1 bg-accent px-4 py-2 font-display text-xs uppercase tracking-wide text-bg transition hover:opacity-90">
           Create account
         </a>
       </div>
@@ -62,7 +66,6 @@
   document.addEventListener("DOMContentLoaded", () => {
     if (!window.gsap) return;
     const card = document.getElementById("join-card");
-    const emoji = document.getElementById("join-emoji");
 
     if (window.prefersReducedMotion) {
       gsap.set(card, { opacity: 1, y: 0 });
@@ -70,9 +73,6 @@
     }
 
     gsap.fromTo(card, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" });
-    gsap.to('[data-glow="rooms"]', { x: -30, y: 20, duration: 9, repeat: -1, yoyo: true, ease: "sine.inOut" });
-    gsap.to('[data-glow="accent"]', { x: 25, y: -15, duration: 11, repeat: -1, yoyo: true, ease: "sine.inOut" });
-    gsap.to(emoji, { y: -6, duration: 1.8, repeat: -1, yoyo: true, ease: "sine.inOut", delay: 0.6 });
   });
 </script>
 {% endblock %}

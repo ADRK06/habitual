@@ -70,8 +70,8 @@
   {% include "partials/badges_row.html" %}
 
   <div class="flex flex-wrap items-center gap-2 pb-6 lg:hidden">
-    <button type="button" @click="createRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">+ Create room</button>
-    <button type="button" @click="joinRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">Join room</button>
+    <button type="button" @click="createRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">+ Create fleet</button>
+    <button type="button" @click="joinRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">Join fleet</button>
     <form method="post" action="{{ url_for('auth.logout') }}" class="ml-auto">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="relative h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60">
@@ -146,8 +146,8 @@
 
       <div class="hidden flex-col gap-2 border border-border bg-surface p-4 lg:flex">
         <span class="font-display text-xs uppercase tracking-wide text-text-muted">Fleet</span>
-        <button type="button" @click="createRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">+ Create room</button>
-        <button type="button" @click="joinRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">Join room</button>
+        <button type="button" @click="createRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">+ Create fleet</button>
+        <button type="button" @click="joinRoomOpen = true" class="h-10 border border-border bg-transparent px-4 font-display text-xs uppercase text-text transition hover:border-accent">Join fleet</button>
       </div>
 
       <form method="post" action="{{ url_for('auth.logout') }}" class="hidden lg:block">
@@ -314,7 +314,7 @@
       aria-labelledby="create-room-heading"
       class="w-full max-w-md border border-accent bg-surface p-6"
     >
-      <h2 id="create-room-heading" class="font-display text-lg uppercase tracking-wide text-text">New room</h2>
+      <h2 id="create-room-heading" class="font-display text-lg uppercase tracking-wide text-text">New fleet</h2>
       <p class="mt-1 font-body text-sm text-text-muted">Invite friends to race the same habit together - everyone gets their own streak, points and a daily crown.</p>
 
       <form
@@ -362,7 +362,7 @@
 
         <div>
           <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Frequency</label>
-          <p class="mb-1.5 font-body text-xs text-text-muted">Same for every member - locked once the room is created.</p>
+          <p class="mb-1.5 font-body text-xs text-text-muted">Same for every member - locked once the fleet is created.</p>
           <div class="grid grid-cols-3 gap-2">
             <button
               type="button"
@@ -418,7 +418,7 @@
             Cancel
           </button>
           <button type="submit" class="relative bg-accent px-5 py-2 font-display text-xs uppercase text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
-            <span class="btn-label">Create room</span>
+            <span class="btn-label">Create fleet</span>
             {{ spinner() }}
           </button>
         </div>
@@ -440,8 +440,8 @@
       aria-labelledby="join-room-heading"
       class="w-full max-w-sm border border-accent bg-surface p-6"
     >
-      <h2 id="join-room-heading" class="font-display text-lg uppercase tracking-wide text-text">Join a room</h2>
-      <p class="mt-1 font-body text-sm text-text-muted">Enter the 6-character code a friend shared with you - this just shows you the room, it won't join you automatically.</p>
+      <h2 id="join-room-heading" class="font-display text-lg uppercase tracking-wide text-text">Join a fleet</h2>
+      <p class="mt-1 font-body text-sm text-text-muted">Enter the 6-character code a friend shared with you - this just shows you the fleet, it won't join you automatically.</p>
 
       {% if join_code_error %}{{ field_error(join_code_error) }}{% endif %}
 
@@ -461,7 +461,7 @@
             Cancel
           </button>
           <button type="submit" class="relative bg-accent px-5 py-2 font-display text-xs uppercase text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70">
-            <span class="btn-label">Find room</span>
+            <span class="btn-label">Find fleet</span>
             {{ spinner() }}
           </button>
         </div>

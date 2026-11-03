@@ -87,7 +87,7 @@
         get matches() { return this.confirm.length > 0 && this.confirm === this.password },
         get score() { return [this.hasLength, this.hasUpper, this.hasLower, this.hasDigit, this.hasSpecial].filter(Boolean).length },
         get strengthLabel() { return ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'][this.score] },
-        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-rooms' : 'bg-accent' },
+        get strengthColor() { return this.score <= 2 ? 'bg-danger' : this.score <= 4 ? 'bg-steel' : 'bg-accent' },
       }"
       class="mt-4 space-y-4"
     >
@@ -159,7 +159,7 @@
   <section class="mt-6 rounded-2xl border border-danger/30 bg-danger/5 p-6" x-data="{ confirmOpen: false }">
     <h2 class="font-heading text-lg font-semibold text-text">Danger zone</h2>
     <p class="mt-1 text-sm text-text-muted">
-      Deleting your account is permanent - every habit, point, badge, and room membership goes
+      Deleting your account is permanent - every habit, point, badge, and Fleet membership goes
       with it. There's no undo.
     </p>
 
@@ -221,7 +221,7 @@
       >
         <h3 id="delete-account-heading" class="font-heading text-lg font-semibold text-text">Delete your account permanently?</h3>
         <p class="mt-2 text-sm text-text-muted">
-          This can't be undone - every habit, point, badge, and room membership will be gone for good.
+          This can't be undone - every habit, point, badge, and Fleet membership will be gone for good.
         </p>
         <div class="mt-5 flex justify-end gap-3">
           <button type="button" @click="confirmOpen = false" class="rounded-xl border border-border px-4 py-2 text-sm text-text hover:bg-bg/40">

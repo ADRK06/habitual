@@ -703,20 +703,30 @@ def test_room_leaderboard_rows_have_stable_flip_ids(client, db):
     assert f'data-flip-id="leaderboard-row-{user.id}"'.encode() in response.data
 
 
-def test_room_leaderboard_shows_podium_for_top_three(client, db):
+def test_room_leaderboard_shows_flat_rank_order_for_top_three(client, db):
+    # Group 5: the podium/stair-step top-3 treatment is gone - WebFleet.dc.html/
+    # PhoneFleet.dc.html show one flat ranked list, no special-casing for
+    # the top 3.
     leader = _login(client, db, username="leader")
     room = _create_room(db, leader)
-    for name in ("second", "third"):
-        _join_room_direct(db, room, _create_user(db, username=name))
+    second = _create_user(db, username="second")
+    third = _create_user(db, username="third")
+    _join_room_direct(db, room, second)
+    _join_room_direct(db, room, third)
+
+    habits = {u.username: Habit.query.filter_by(room_id=room.id, user_id=u.id).first() for u in (leader, second, third)}
+    today = date.today()
+    for username, amount in {"leader": 100, "second": 70, "third": 50}.items():
+        db.session.add(PointTransaction(user_id=habits[username].user_id, habit_id=habits[username].id, amount=amount, reason="daily", date=today))
+    db.session.commit()
 
     response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
-    assert "Leader" in response
-    assert "Second" in response
-    assert "Third" in response
-    # The podium's literal rank-step numbers, one per top-3 card.
-    assert response.count('font-heading text-lg font-bold text-bg">1<') == 1
-    assert response.count('font-heading text-lg font-bold text-bg">2<') == 1
-    assert response.count('font-heading text-lg font-bold text-bg">3<') == 1
+    # "Leader" is also a substring of the "Leaderboard" heading above it - skip past it.
+    after_heading = response.index("Leaderboard") + len("Leaderboard")
+    leader_idx = response.index("Leader", after_heading)
+    second_idx = response.index("Second", after_heading)
+    third_idx = response.index("Third", after_heading)
+    assert leader_idx < second_idx < third_idx
 
 
 def test_room_leaderboard_crown_marks_todays_holder_not_the_points_leader(client, db):
@@ -745,7 +755,12 @@ def test_room_leaderboard_crown_marks_todays_holder_not_the_points_leader(client
     assert "👑" in challenger_block
 
 
-def test_room_leaderboard_shows_gap_behind_the_rank_above(client, db):
+def test_room_leaderboard_context_computes_gap_behind_the_rank_above(client, db):
+    # Group 5 dropped the "N pts behind #rank" text from the leaderboard
+    # row display (neither mock shows it, and it's not in the explicit
+    # "keep every existing feature" list) - the computation itself is
+    # still exercised here directly, off _leaderboard_context, rather
+    # than through rendered HTML that no longer contains it.
     leader = _login(client, db, username="leader")
     room = _create_room(db, leader)
     for name in ("second", "third", "fourth"):
@@ -758,11 +773,18 @@ def test_room_leaderboard_shows_gap_behind_the_rank_above(client, db):
         db.session.add(PointTransaction(user_id=habits[username].user_id, habit_id=habits[username].id, amount=amount, reason="daily", date=today))
     db.session.commit()
 
-    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
-    assert "30 pts behind #3" in response  # fourth (20) vs third (50)
+    members = rooms_module._room_members(room)
+    habits_by_user = rooms_module._room_member_habits(room, members)
+    entries = rooms_module._leaderboard_context(room, members, leader, habits_by_user)
+    by_username = {e["user"].username: e for e in entries}
+    assert by_username["fourth"]["gap_to_above"] == 30  # fourth (20) vs third (50)
 
 
-def test_room_leaderboard_shows_rank_movement_since_yesterday(client, db):
+def test_room_leaderboard_context_computes_rank_movement_since_yesterday(client, db):
+    # Group 5 dropped the ▲▼ rank-movement display from the leaderboard
+    # row (see test_room_leaderboard_context_computes_gap_behind_the_rank_above
+    # above for why) - the computation itself is still exercised here
+    # directly.
     leader = _login(client, db, username="leader", timezone="UTC")
     room = _create_room(db, leader, start_date=date.today() - timedelta(days=5))
     challenger = _create_user(db, username="challenger", timezone="UTC")
@@ -778,15 +800,12 @@ def test_room_leaderboard_shows_rank_movement_since_yesterday(client, db):
     db.session.add(PointTransaction(user_id=challenger.id, habit_id=challenger_habit.id, amount=60, reason="daily", date=today))
     db.session.commit()
 
-    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
-    # "Leader" is also a substring of the "Leaderboard" heading - skip past it.
-    after_heading = response.index("Leaderboard") + len("Leaderboard")
-    leader_idx = response.index("Leader", after_heading)
-    challenger_idx = response.index("Challenger", after_heading)
-    leader_block = response[leader_idx - 50 : leader_idx + 600]
-    challenger_block = response[challenger_idx - 50 : challenger_idx + 600]
-    assert "▼1" in leader_block
-    assert "▲1" in challenger_block
+    members = rooms_module._room_members(room)
+    habits_by_user = rooms_module._room_member_habits(room, members)
+    entries = rooms_module._leaderboard_context(room, members, leader, habits_by_user)
+    by_username = {e["user"].username: e for e in entries}
+    assert by_username["leader"]["movement"] == -1
+    assert by_username["challenger"]["movement"] == 1
 
 
 def test_room_leaderboard_own_row_links_to_my_stats_others_dont(client, db):
@@ -933,15 +952,15 @@ def test_dashboard_room_card_links_to_the_room_not_the_habit_stats_page(client, 
 
 def test_dashboard_room_card_relabels_health_as_room_health(client, db):
     # Room cards keep the member-health % stat, but item 4 relabels it
-    # "Room health" so it reads distinctly from the new per-habit strength
-    # bar (also shown on the same card) rather than implying they're the
-    # same number.
+    # "Fleet health" (group 5 renamed "Room" to "Fleet" everywhere) so it
+    # reads distinctly from the new per-habit strength bar (also shown on
+    # the same card) rather than implying they're the same number.
     user = _login(client, db)
     room = _create_room(db, user, title="Run Club")
     habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
 
     response = client.get("/dashboard").get_data(as_text=True)
-    assert "Room health" in response
+    assert "Fleet health" in response
     assert ">Health<" not in response
 
 
@@ -964,7 +983,7 @@ def test_dashboard_room_card_has_leave_button_not_delete(client, db):
     card_start = response.index(f'id="habit-card-{habit.id}"')
     card_html = response[card_start:card_start + 2000]
     assert ">&times;</button>" not in card_html
-    assert 'title="Leave room"' in card_html
+    assert 'title="Leave Fleet"' in card_html
     assert 'aria-label="Leave Run Club"' in card_html
 
 
@@ -1235,7 +1254,7 @@ def test_find_by_code_wrong_code_shows_friendly_error(client, db):
     _login(client, db)
     response = client.post("/rooms/find-by-code", data={"code": "ZZZZZZ"})
     assert response.status_code == 400
-    assert b"No room found with that code" in response.data
+    assert b"No Fleet found with that code" in response.data
 
 
 def test_find_by_code_rate_limits_after_max_failures(client, db):
@@ -1277,7 +1296,7 @@ def test_regenerate_invite_invalidates_old_token_and_code(client, db):
     assert client.get(f"/join/{old_token}").status_code == 404
     found = client.post("/rooms/find-by-code", data={"code": old_code})
     assert found.status_code == 400
-    assert b"No room found with that code" in found.data
+    assert b"No Fleet found with that code" in found.data
 
 
 # -- room member cap --------------------------------------------------------

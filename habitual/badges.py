@@ -33,8 +33,8 @@ BADGE_CATALOG = {
     FORTNIGHT: {"emoji": "⚡", "label": "Two Weeks Strong", "hint": "Reach a 14-day streak on any habit."},
     PERFECT_MONTH: {"emoji": "🏆", "label": "Perfect Month", "hint": "Reach a 30-day streak on any habit."},
     FREEZE_SAVER: {"emoji": "🧊", "label": "Freeze Saver", "hint": "Use a freeze, then reach a 7-day streak."},
-    CROWN_COLLECTOR: {"emoji": "👑", "label": "Crown Collector", "hint": f"Earn {CROWN_COLLECTOR_THRESHOLD} daily crowns in rooms."},
-    ROOM_CHAMPION: {"emoji": "🥇", "label": "Room Champion", "hint": "Finish #1 in a room when it ends."},
+    CROWN_COLLECTOR: {"emoji": "👑", "label": "Crown Collector", "hint": f"Earn {CROWN_COLLECTOR_THRESHOLD} daily crowns in Fleets."},
+    ROOM_CHAMPION: {"emoji": "🥇", "label": "Fleet Champion", "hint": "Finish #1 in a Fleet when it ends."},
 }
 
 # Display/award-priority order - also what the dashboard's badge row renders.

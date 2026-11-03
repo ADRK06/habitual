@@ -1,8 +1,8 @@
 <li id="feed-item-{{ item.checkin.id }}" class="flex items-start justify-between gap-3 py-3">
   <div class="min-w-0 flex-1">
-    <p class="text-sm">
+    <p class="font-body text-sm">
       <span class="font-medium text-text">{{ item.user.name if item.user else "Someone" }}</span>
-      <span class="text-text-muted">checked in · {{ item.checkin.date.strftime('%b %-d') }}</span>
+      <span class="text-text-muted">checked in · <span class="font-mono">{{ item.checkin.date.strftime('%b %-d') }}</span></span>
       {% if item.crown_badge == "final" %}
       <span title="Crown winner that day">👑</span>
       {% elif item.crown_badge == "provisional" %}
@@ -10,7 +10,7 @@
       {% endif %}
     </p>
     {% if item.checkin.proof_note %}
-    <p class="mt-0.5 text-sm text-text-muted">{{ item.checkin.proof_note }}</p>
+    <p class="mt-0.5 font-body text-sm text-text-muted">{{ item.checkin.proof_note }}</p>
     {% endif %}
   </div>
 
@@ -27,8 +27,8 @@
       {% else %}
       disabled
       {% endif %}
-      class="rounded-full px-2 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-40
-        {% if item.viewer_vouch_emoji == emoji %}bg-accent/20 text-accent{% else %}border border-border text-text-muted hover:bg-bg/40{% endif %}"
+      class="border px-2 py-1 font-mono text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40
+        {% if item.viewer_vouch_emoji == emoji %}bg-bone text-void border-bone{% else %}border-border text-text-muted hover:border-accent{% endif %}"
     >{{ emoji }} {{ item.vouch_counts.get(emoji, 0) }}</button>
     {% endfor %}
   </div>

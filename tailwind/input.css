@@ -73,17 +73,6 @@
   --color-streak: var(--color-rust);
   --color-danger: var(--color-rust);
 
-  /* DEPRECATED - old-design tokens kept only because habit_card.html,
-     dashboard.html, rooms/*, room_leaderboard.html, room_feed.html and
-     the auth-page glow blobs still reference bg-navy/*, bg-rooms/*,
-     border-rooms etc. directly. The Colonies palette has no equivalent
-     (rooms/pink has no replacement until Fleet pages are restyled, and
-     the new palette doesn't need a second surface tint). Delete these
-     two lines once every template above is re-skinned (restyle commits
-     3 and 5) and stops referencing them - do not use them in new work. */
-  --color-navy: #000080;
-  --color-rooms: #ff00ff;
-
   /* Space-separated RGB components of --color-accent, for the dashboard
      overview's per-row completion wash (rgb(var(--color-accent-rgb) / a%)) -
      a dynamically-computed alpha can't be expressed as a static Tailwind

@@ -3,8 +3,8 @@
     {% for item in feed %}{% include "partials/room_feed_item.html" %}{% endfor %}
   {% else %}
   <li class="flex flex-col items-center gap-2 py-10 text-center">
-    <span class="flex h-10 w-10 items-center justify-center rounded-full bg-rooms/10 text-xl">🏁</span>
-    <p class="text-sm text-text-muted">No check-ins yet - be the first!</p>
+    <span class="flex h-10 w-10 items-center justify-center bg-steel/10 text-xl" aria-hidden="true">🏁</span>
+    <p class="font-body text-sm text-text-muted">No check-ins yet - be the first!</p>
   </li>
   {% endif %}
 </ol>

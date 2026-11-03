@@ -1,4 +1,21 @@
-<div id="room-health" {% if oob %}hx-swap-oob="true"{% endif %} class="rounded-xl border border-border bg-surface/40 p-3">
-  <p class="text-xs text-text-muted">Health today</p>
-  <p class="mt-1 font-heading text-xl font-bold tabular-nums text-text">{{ health_pct }}%</p>
+{#
+  Fleet health tile - PhoneFleet.dc.html/WebFleet.dc.html's "POWER TODAY"
+  segmented bar, relabeled for our real feature (% of members checked in
+  today - CLAUDE.md's room health meter) since there's no "power" game
+  mechanic here. `checked_in_count` is back-derived from health_pct (an
+  already-rounded %) rather than threading a second number through every
+  caller - exact except at a vanishingly rare floating-point half-round,
+  not worth a backend signature change for a cosmetic segment count.
+#}
+<div id="room-health" {% if oob %}hx-swap-oob="true"{% endif %} class="flex flex-col gap-2 border border-border p-3">
+  {% set checked_in_count = (health_pct / 100 * member_count) | round | int %}
+  <div class="flex items-center justify-between">
+    <span class="font-display text-[11px] uppercase tracking-wide text-text-muted">Health today</span>
+    <span class="font-mono text-[11px] tabular-nums text-text-muted">{{ checked_in_count }}/{{ member_count }} in</span>
+  </div>
+  <div class="grid gap-1" style="grid-template-columns: repeat({{ member_count }}, minmax(0, 1fr))">
+    {% for i in range(member_count) %}
+    <div class="h-4 {{ 'bg-success' if i < checked_in_count else 'bg-border' }}"></div>
+    {% endfor %}
+  </div>
 </div>

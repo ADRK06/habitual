@@ -17,7 +17,7 @@
   <a
     href="{{ url_for('rooms.room_detail', room_id=habit.room_id) if habit.room_id else url_for('habits.habit_detail', habit_id=habit.id) }}"
     class="absolute inset-0 z-0"
-    aria-label="{{ 'Open room ' + habit.title if habit.room_id else 'View ' + habit.title }}"
+    aria-label="{{ 'Open Fleet ' + habit.title if habit.room_id else 'View ' + habit.title }}"
   ></a>
 
   {# Same small icon button, same position, on every card - a room card
@@ -28,7 +28,7 @@
     type="button"
     @click.stop="confirmOpen = true"
     class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-    title="Leave room"
+    title="Leave Fleet"
     aria-label="Leave {{ habit.title }}"
   >
     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -88,7 +88,7 @@
       <dd class="mt-0.5 font-mono text-sm text-accent tabular-nums">{{ habit_points }}</dd>
     </div>
     <div class="border border-border bg-void px-1 py-1.5">
-      <dt class="font-display text-[9px] uppercase tracking-wide text-text-muted">{{ "Room health" if habit.room_id else "Success" }}</dt>
+      <dt class="font-display text-[9px] uppercase tracking-wide text-text-muted">{{ "Fleet health" if habit.room_id else "Success" }}</dt>
       <dd class="mt-0.5 font-mono text-sm text-text tabular-nums">{{ health_pct if habit.room_id else success_rate }}%</dd>
     </div>
   </dl>
@@ -99,7 +99,7 @@
     </span>
     <span class="shrink-0 font-display text-[10px] uppercase {{ 'text-accent' if leader_is_viewer else 'text-text-muted' }}">
       {% if habit.room_id %}
-        {% if leader_is_viewer %}You lead 👑{% elif leader_name %}<span class="font-body normal-case">{{ leader_name }}</span> leads 👑{% else %}Room{% endif %}
+        {% if leader_is_viewer %}You lead 👑{% elif leader_name %}<span class="font-body normal-case">{{ leader_name }}</span> leads 👑{% else %}Fleet{% endif %}
       {% else %}
         Solo
       {% endif %}
@@ -280,7 +280,7 @@
     >
       {% if habit.room_id %}
       <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Leave <span class="font-body normal-case">"{{ habit.title }}"</span>?</h4>
-      <p class="mt-2 font-body text-sm text-text-muted">This removes your room habit and its points. This can't be undone.</p>
+      <p class="mt-2 font-body text-sm text-text-muted">This removes your Fleet habit and its points. This can't be undone.</p>
       {% else %}
       <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Delete <span class="font-body normal-case">"{{ habit.title }}"</span>?</h4>
       <p class="mt-2 font-body text-sm text-text-muted">This removes {{ habit_points }} points from your total. This can't be undone.</p>

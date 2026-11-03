@@ -2,7 +2,7 @@
 
 {% block title %}Habitual — Play your habits.{% endblock %}
 
-{% block meta_description %}Play your habits. Habitual turns daily habits into a game you actually want to play - streaks, points, rooms, and a crown worth chasing.{% endblock %}
+{% block meta_description %}Play your habits. Habitual turns daily habits into a game you actually want to play - streaks, points, fleets, and a crown worth chasing.{% endblock %}
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
@@ -31,7 +31,7 @@
     <h1 class="font-display text-5xl font-bold tracking-wide text-text md:text-7xl">Habitual</h1>
     <p class="mt-5 font-heading text-lg text-text md:text-xl">Play your habits.</p>
     <p class="mx-auto mt-3 max-w-md text-sm text-text-muted">
-      Streaks, points, rooms, and a crown worth chasing - Habitual turns daily habits into a game you
+      Streaks, points, fleets, and a crown worth chasing - Habitual turns daily habits into a game you
       actually want to play.
     </p>
     <div class="mt-8 flex items-center justify-center gap-4">
@@ -44,7 +44,7 @@
 <div id="journey" class="relative mx-auto max-w-6xl px-6">
   <div class="pointer-events-none absolute inset-y-0 left-1/2 hidden w-1 -translate-x-1/2 md:block">
     <div class="h-full w-full rounded-full bg-border"></div>
-    <div id="chain-fill" class="absolute inset-x-0 top-0 w-full origin-top rounded-full bg-linear-to-b from-streak via-rooms to-accent" style="height: 100%; transform: scaleY(0)"></div>
+    <div id="chain-fill" class="absolute inset-x-0 top-0 w-full origin-top rounded-full bg-linear-to-b from-streak via-steel to-accent" style="height: 100%; transform: scaleY(0)"></div>
   </div>
 
   <section data-step="1" class="relative py-24 md:py-32">
@@ -103,7 +103,7 @@
         <h2 class="text-3xl font-semibold text-text md:text-4xl">Rack up points with every streak</h2>
         <p class="mt-4 text-text-muted">
           Five points a day, plus a bonus at every milestone - day 7, day 14, day 30, and every 30 after
-          that. Your points only climb, and they're what ranks you in every room you join.
+          that. Your points only climb, and they're what ranks you in every fleet you join.
         </p>
       </div>
       <div class="reveal rounded-2xl border border-border bg-surface/60 p-6 shadow-xl backdrop-blur-xl">
@@ -147,7 +147,7 @@
       <div class="reveal md:order-2">
         <h2 class="text-3xl font-semibold text-text md:text-4xl">Recruit your crew</h2>
         <p class="mt-4 text-text-muted">
-          Solo streaks are good. Shared ones hit different. Create a room, invite your friends, and watch
+          Solo streaks are good. Shared ones hit different. Create a fleet, invite your friends, and watch
           everyone's check-ins land on one leaderboard - ranked by points, misses, and who shows up first.
         </p>
       </div>
@@ -168,7 +168,7 @@
         <div class="mb-3 flex items-center gap-2 text-sm text-text-muted">
           <span>👑</span><span>Daily crown</span>
         </div>
-        <div class="flex items-center justify-between rounded-xl border border-rooms/30 bg-rooms/10 px-4 py-3">
+        <div class="flex items-center justify-between rounded-xl border border-steel/30 bg-steel/10 px-4 py-3">
           <div>
             <p class="font-medium text-text">Alex checked in first</p>
             <p class="text-xs text-text-muted">"Ran 5k before work 🏃"</p>

@@ -1,4 +1,15 @@
-<div id="room-streak-stat" {% if oob %}hx-swap-oob="true"{% endif %} class="rounded-xl border border-border bg-surface/40 p-3">
-  <p class="text-xs text-text-muted">Room {{ room_streak_unit or 'day' }} streak</p>
-  <p class="mt-1 font-heading text-xl font-bold tabular-nums text-streak">🔥 {{ streak_value }}</p>
+{#
+  Shield badge for the room streak - WebFleet.dc.html's overlaid
+  "SHIELD UP · ROOM STREAK 9D" / PhoneFleet.dc.html's standalone Signal-
+  bordered tile. Signal border+label only once the streak is actually
+  alive (streak_value > 0); a fresh/broken streak shows the same shape in
+  a neutral Bulkhead border instead of a false "shield up" claim.
+#}
+<div id="room-streak-stat" {% if oob %}hx-swap-oob="true"{% endif %} class="flex flex-col gap-1 border {{ 'border-success' if streak_value else 'border-border' }} p-3">
+  {% if streak_value %}
+  <span class="font-display text-[11px] uppercase tracking-wide text-success">Shield up</span>
+  {% else %}
+  <span class="font-display text-[11px] uppercase tracking-wide text-text-muted">Fleet streak</span>
+  {% endif %}
+  <span class="font-body text-xs text-text-muted">🔥 <span class="font-mono tabular-nums text-text">{{ streak_value }}</span> {{ room_streak_unit or 'day' }}{{ 's' if streak_value != 1 else '' }}</span>
 </div>

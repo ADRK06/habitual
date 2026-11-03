@@ -703,7 +703,7 @@ def _leaderboard_context(room, members, viewer, habits_by_user=None, skip_moveme
 
 def _invite_message(room):
     join_url = url_for("rooms.join_landing", token=room.invite_token, _external=True)
-    return f"Join my Habitual room 🔥 {room.emoji} {room.title} — code: {room.join_code} or {join_url}"
+    return f"Join my Habitual Fleet 🔥 {room.emoji} {room.title} — code: {room.join_code} or {join_url}"
 
 
 def render_room_live_update(room, viewer):
@@ -722,6 +722,7 @@ def render_room_live_update(room, viewer):
     return render_template(
         "partials/room_live_update.html",
         room=room,
+        member_count=len(members),
         leaderboard=_leaderboard_context(room, members, viewer, habits_by_user, skip_movement=True),
         health_pct=room_health_pct(room, members, habits_by_user),
         streak_value=room_streak_value(room, members, habits_by_user),
@@ -769,7 +770,7 @@ def create_room():
     ))
     db.session.commit()
 
-    flash(f'"{room.title}" room created - share the invite link!', "success")
+    flash(f'"{room.title}" Fleet created - share the invite link!', "success")
     return redirect(url_for("rooms.room_detail", room_id=room.id))
 
 
@@ -976,7 +977,7 @@ def find_by_code():
         room = Room.query.filter_by(join_code=code).first() if len(code) == JOIN_CODE_LENGTH else None
         if room is None:
             _register_failed_code_attempt(current_user)
-            error = "No room found with that code."
+            error = "No Fleet found with that code."
         else:
             # Finding a real room isn't an abuse signal, even if the viewer
             # then can't actually join it (full/ended/already a member) -
