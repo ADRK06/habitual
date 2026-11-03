@@ -1,0 +1,16 @@
+{#
+  A check-in/undo made from "My fleets" itself (habits._fleet_list_live_response)
+  re-renders. fleet_card.html is this response's own primary swap target
+  (hx-target="#fleet-card-<room id>" hx-swap="outerHTML" on the card's own
+  Check in button), so it renders with no `oob` of its own - same
+  reasoning as buy_freeze_response.html's header_stats.html. The
+  persistent sidebar/phone commander bar's Energy/streak figures are a
+  genuine OOB sibling here, same {% with oob=True %} scoping
+  room_live_update.html already uses for its own OOB siblings next to a
+  non-OOB primary target.
+#}
+{% include "partials/fleet_card.html" %}
+{% with oob=True %}
+{% include "partials/nav/nav_stats_desktop.html" %}
+{% include "partials/nav/nav_stats_phone.html" %}
+{% endwith %}

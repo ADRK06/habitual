@@ -1143,21 +1143,74 @@ def test_fleet_list_card_title_links_to_the_fleet_page(client, db):
     assert "x-data" not in card_html
 
 
-def test_fleet_list_check_in_button_is_a_plain_link_not_a_popover_trigger(client, db):
-    # Bug fix: Check In used to be presumed to need the dashboard's
-    # openPopover Alpine scope, which doesn't exist on /rooms - it's a
-    # plain link to the room page's own check-in panel instead, no
-    # backend branch, no Alpine binding of any kind.
+def test_fleet_list_check_in_button_is_an_htmx_post_not_a_link(client, db):
+    # Check in now checks the habit in on the spot (real HTMX POST to the
+    # same endpoint the dashboard's cards use), not a navigate-away link -
+    # no openPopover/@click either, since it needs no Alpine scope at all.
     user = _login(client, db)
     room = _create_room(db, user, title="Night Owls")
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
 
     response = client.get("/rooms").get_data(as_text=True)
 
     card_start = response.index(f'id="fleet-card-{room.id}"')
     card_html = response[card_start:card_start + 2500]
-    assert f'href="/rooms/{room.id}#my-room-panel"' in card_html
+    assert f'hx-post="/habits/{habit.id}/checkin"' in card_html
+    assert 'hx-vals=\'{"fleet_list_view": "1"}\'' in card_html
+    assert f'hx-target="#fleet-card-{room.id}"' in card_html
     assert "openPopover" not in card_html
     assert "@click" not in card_html
+
+
+def test_fleet_list_checkin_returns_the_updated_card_and_nav_stats(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, title="Night Owls")
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+
+    response = client.post(f"/habits/{habit.id}/checkin", data={"fleet_list_view": "1"})
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    # The card itself (its own primary swap target - no hx-swap-oob here,
+    # same reasoning as header_stats.html on /freezes/buy) now shows "Open",
+    # not "Check in".
+    assert f'id="fleet-card-{room.id}"' in html
+    assert "hx-swap-oob" not in html[: html.index(f'id="fleet-card-{room.id}"') + 200]
+    assert "Open" in html
+    assert "Check in" not in html
+    # Sidebar/phone-bar Energy OOB-swapped alongside it, same as every
+    # other check-in response.
+    for stats_id in ("sidebar-nav-stats", "phone-nav-stats"):
+        start = html.index(f'id="{stats_id}"')
+        assert 'hx-swap-oob="true"' in html[start:start + 100]
+    assert "+5 Energy!" in response.headers["HX-Trigger"]
+
+
+def test_fleet_list_checkin_awards_energy_once(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, title="Night Owls")
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+
+    client.post(f"/habits/{habit.id}/checkin", data={"fleet_list_view": "1"})
+
+    assert Checkin.query.filter_by(habit_id=habit.id).count() == 1
+    assert sum(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id)) == 5
+
+
+def test_fleet_list_second_checkin_does_not_double_award(client, db):
+    # UNIQUE(habit_id, date) blocks the second Checkin row before any
+    # points are written for it - same double-submit safety as every
+    # other check-in route, exercised here via the fleet-list flag.
+    user = _login(client, db)
+    room = _create_room(db, user, title="Night Owls")
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+
+    client.post(f"/habits/{habit.id}/checkin", data={"fleet_list_view": "1"})
+    response = client.post(f"/habits/{habit.id}/checkin", data={"fleet_list_view": "1"})
+
+    assert response.status_code == 200
+    assert Checkin.query.filter_by(habit_id=habit.id).count() == 1
+    assert sum(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id)) == 5
 
 
 def test_dashboard_auto_open_fleet_modal_hook_is_present(client, db):

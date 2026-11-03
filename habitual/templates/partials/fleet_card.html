@@ -1,8 +1,12 @@
+{% from "_macros.html" import spinner %}
 {#
   One row on "My fleets" (rooms/fleet_list.html) - no mock, extrapolated
   from the habit_card.html shell plus WebFleet.dc.html's crew-row/streak-
   badge language and Main.dc.html's tile/button pieces, same square flat
-  tokens as groups 1-5. `fleet` is the dict fleet_list() builds (rooms.py).
+  tokens as groups 1-5. `fleet` is the dict rooms.fleet_card_context()
+  builds, shared by fleet_list (every fleet) and habits.
+  _fleet_list_live_response (one fleet, after a check-in/undo made from
+  this list).
 
   Stretched-link pattern (habit_card.html's, see its own comment): the
   title's own <a> covers the whole card via an absolutely-positioned
@@ -13,7 +17,10 @@
   the card: overflow:hidden anywhere in that chain would clip the
   stretched ::after down to whatever box carries it. The action button
   stays `relative` (its own positioned stacking layer, later in DOM
-  order) so it still wins the click over the stretched title beneath it.
+  order) so it still wins the click over the stretched title beneath it -
+  and, being a real <button> (not an <a>), was never going to trigger the
+  stretched link's navigation even without that: hx-post checks this
+  habit in on the spot instead of navigating away.
 #}
 <div id="fleet-card-{{ fleet.room.id }}" class="relative flex flex-col gap-3 border border-border bg-surface p-3.5">
   <div class="flex items-center gap-3">
@@ -45,11 +52,25 @@
     </div>
   </div>
 
+  {% if fleet.checked_in_today %}
   <a
-    href="{{ url_for('rooms.room_detail', room_id=fleet.room.id) }}{{ '#my-room-panel' if not fleet.checked_in_today else '' }}"
-    class="relative mt-auto flex h-10 items-center justify-center px-4 font-display text-xs uppercase tracking-wide transition-colors
-      {{ 'bg-accent text-bg hover:opacity-90' if not fleet.checked_in_today else 'border border-border text-text hover:border-accent' }}"
+    href="{{ url_for('rooms.room_detail', room_id=fleet.room.id) }}"
+    class="relative mt-auto flex h-10 items-center justify-center border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition-colors hover:border-accent"
   >
-    {{ 'Check in' if not fleet.checked_in_today else 'Open' }}
+    Open
   </a>
+  {% else %}
+  <button
+    type="button"
+    hx-post="{{ url_for('habits.checkin', habit_id=fleet.habit_id) }}"
+    hx-vals='{"fleet_list_view": "1"}'
+    hx-target="#fleet-card-{{ fleet.room.id }}"
+    hx-swap="outerHTML"
+    hx-disabled-elt="this"
+    class="relative mt-auto flex h-10 items-center justify-center bg-accent px-4 font-display text-xs uppercase tracking-wide text-bg transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    <span class="btn-label">Check in</span>
+    {{ spinner(size='4') }}
+  </button>
+  {% endif %}
 </div>

@@ -805,6 +805,33 @@ def _room_live_response(habit, toast=None, celebration=None, badges_earned=None)
     return resp
 
 
+def _fleet_list_live_response(habit, toast=None, celebration=None, badges_earned=None):
+    """If this check-in/undo came from "My fleets" itself (flagged with a
+    `fleet_list_view` field, mirroring `_room_live_response`'s `room_view`)
+    and the habit belongs to a room, re-renders just that one fleet's card
+    (partials/fleet_card.html - its own primary swap target, hx-swap=
+    "outerHTML", so it renders with no `oob` of its own) plus the
+    persistent sidebar/phone commander bar's Energy/streak figures (a
+    genuine OOB sibling here, same as checkin_response.html's)."""
+    if not request.values.get("fleet_list_view") or habit.room_id is None:
+        return None
+    from habitual import rooms  # local import avoids a circular import with rooms.py
+    fleet = rooms.fleet_card_context(habit.room, current_user, habit=habit)
+    resp = make_response(render_template(
+        "partials/fleet_card_response.html", fleet=fleet, **nav_shell_context(current_user)
+    ))
+    trigger = {}
+    if toast:
+        trigger["toast"] = toast
+    if celebration:
+        trigger["checkinCelebration"] = celebration
+    if badges_earned:
+        trigger["badgesEarned"] = badges_earned
+    if trigger:
+        resp.headers["HX-Trigger"] = json.dumps(trigger)
+    return resp
+
+
 def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, badges_earned=None):
     """If this check-in/undo/freeze came from the habit's own detail page
     (flagged with a `detail_view` field, mirroring `_room_live_response`'s
@@ -909,6 +936,11 @@ def checkin(habit_id):
     room_response = _room_live_response(habit, toast=toast, celebration=celebration, badges_earned=newly_badges)
     if room_response is not None:
         return room_response
+    fleet_list_response = _fleet_list_live_response(
+        habit, toast=toast, celebration=celebration, badges_earned=newly_badges
+    )
+    if fleet_list_response is not None:
+        return fleet_list_response
     detail_response = _detail_live_response(
         habit, today, now_hour, toast=toast, celebration=celebration, badges_earned=newly_badges
     )
@@ -967,6 +999,9 @@ def undo_checkin(habit_id):
     room_response = _room_live_response(habit, toast=toast)
     if room_response is not None:
         return room_response
+    fleet_list_response = _fleet_list_live_response(habit, toast=toast)
+    if fleet_list_response is not None:
+        return fleet_list_response
     detail_response = _detail_live_response(habit, today, now_hour, toast=toast)
     if detail_response is not None:
         return detail_response

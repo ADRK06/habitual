@@ -849,35 +849,50 @@ def fleet_index():
     return redirect(url_for("rooms.fleet_list"))
 
 
+def fleet_card_context(room, viewer, habit=None, members=None, habits_by_user=None):
+    """Everything one "My fleets" card (partials/fleet_card.html) needs:
+    member count, fleet streak, today's health, and whether `viewer` has
+    checked in today. Shared by fleet_list (every fleet at once) and
+    habits._fleet_list_live_response (one fleet, after a check-in/undo
+    made from that list) so both render the exact same card. `members`/
+    `habits_by_user` let a caller that already has them (fleet_list's
+    batched room_bundle_for_user) skip refetching; `habit` likewise for
+    a caller that already has the viewer's own room habit loaded."""
+    members = members if members is not None else _room_members(room)
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
+    habit = habit if habit is not None else habits_by_user.get(viewer.id)
+    today = local_today(viewer)
+    return {
+        "room": room,
+        "habit_id": habit.id if habit is not None else None,
+        "member_count": len(members),
+        "streak_value": room_streak_value(room, members, habits_by_user),
+        "room_streak_unit": room_streak_unit(room),
+        "health_pct": room_health_pct(room, members, habits_by_user),
+        "checked_in_today": habit is not None and any(c.date == today for c in habit.checkins),
+    }
+
+
 @rooms.get("/rooms")
 @login_required
 def fleet_list():
-    """"My fleets" (v1, no mock - see rooms/fleet_list.html) - every fleet
-    the viewer belongs to, each with just enough to decide what to do
-    next: member count, fleet streak, today's health, and one action
-    link. No inline check-in here - the link is always /rooms/<id>,
-    labelled "Check in" (viewer hasn't yet today) or "Open" (they have);
-    the room page's own popover does the actual check-in. Reachable on
-    its own (not just via fleet_index's 2+ redirect above), so 0 or 1
-    fleet renders exactly as honestly as 2+ - no redirect-back-out here."""
+    """"My fleets" (no mock - see rooms/fleet_list.html) - every fleet the
+    viewer belongs to, each with just enough to decide what to do next:
+    member count, fleet streak, today's health, and one action - Check in
+    (a real HTMX check-in, same endpoint and OOB-update pattern as the
+    dashboard's cards - see habits._fleet_list_live_response) or Open
+    (already done today). Reachable on its own (not just via
+    fleet_index's 2+ redirect above), so 0 or 1 fleet renders exactly as
+    honestly as 2+ - no redirect-back-out here."""
     bundle = room_bundle_for_user(current_user)
     finalize_due_crowns_for_user(current_user, bundle)
-    today = local_today(current_user)
 
-    fleets = []
-    for entry in bundle.values():
-        room = entry["room"]
-        members = entry["members"]
-        habits_by_user = entry["habits_by_user"]
-        habit = habits_by_user.get(current_user.id)
-        fleets.append({
-            "room": room,
-            "member_count": len(members),
-            "streak_value": room_streak_value(room, members, habits_by_user),
-            "room_streak_unit": room_streak_unit(room),
-            "health_pct": room_health_pct(room, members, habits_by_user),
-            "checked_in_today": habit is not None and any(c.date == today for c in habit.checkins),
-        })
+    fleets = [
+        fleet_card_context(
+            entry["room"], current_user, members=entry["members"], habits_by_user=entry["habits_by_user"]
+        )
+        for entry in bundle.values()
+    ]
     fleets.sort(key=lambda f: f["room"].title.lower())
 
     return render_template("rooms/fleet_list.html", fleets=fleets, **nav_shell_context(current_user))
