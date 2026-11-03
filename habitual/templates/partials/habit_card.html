@@ -6,7 +6,7 @@
   data-habit-points="{{ habit_points }}"
   data-current-streak="{{ current_streak }}"
   data-checked-in-today="{{ 'true' if checked_in_today else 'false' }}"
-  x-data="{ confirmOpen: false, undoOpen: false, checkinOpen: false }"
+  x-data="{ confirmOpen: false }"
 >
   {# Stretched-link pattern: the whole card navigates like a big clickable
      region, but that needs a real, keyboard-reachable <a> underneath rather
@@ -54,7 +54,7 @@
       <p class="truncate font-body text-xs text-text-muted">{{ frequency_label }}</p>
     </div>
     <div class="flex shrink-0 flex-col items-end">
-      <span class="font-mono text-2xl font-bold text-streak tabular-nums">{{ current_streak }}{{ 'd' if streak_unit == 'day' else 'w' }}</span>
+      <span class="font-mono text-[15px] tabular-nums lg:text-lg {{ 'text-streak' if current_streak else 'text-text-muted' }}">{{ current_streak }}{{ 'd' if streak_unit == 'day' else 'w' }}</span>
       <span class="font-mono text-[11px] text-text-muted tabular-nums">best {{ longest_streak }}{{ 'd' if streak_unit == 'day' else 'w' }}</span>
     </div>
   </div>
@@ -84,7 +84,7 @@
       <dd class="mt-0.5 font-mono text-sm text-text tabular-nums">{{ days_remaining if habit.room_id else longest_streak }}</dd>
     </div>
     <div class="border border-border bg-void px-1 py-1.5">
-      <dt class="font-display text-[9px] uppercase tracking-wide text-text-muted">Points</dt>
+      <dt class="font-display text-[9px] uppercase tracking-wide text-text-muted">Energy</dt>
       <dd class="mt-0.5 font-mono text-sm text-accent tabular-nums">{{ habit_points }}</dd>
     </div>
     <div class="border border-border bg-void px-1 py-1.5">
@@ -99,7 +99,7 @@
     </span>
     <span class="shrink-0 font-display text-[10px] uppercase {{ 'text-accent' if leader_is_viewer else 'text-text-muted' }}">
       {% if habit.room_id %}
-        {% if leader_is_viewer %}You lead 👑{% elif leader_name %}{{ leader_name }} leads 👑{% else %}Room{% endif %}
+        {% if leader_is_viewer %}You lead 👑{% elif leader_name %}<span class="font-body normal-case">{{ leader_name }}</span> leads 👑{% else %}Room{% endif %}
       {% else %}
         Solo
       {% endif %}
@@ -139,7 +139,7 @@
         type="button"
         x-ref="undoBtn"
         onclick="event.stopPropagation()"
-        @click="undoOpen = !undoOpen; $nextTick(() => undoOpen && positionCardPopover($refs.undoBtn, $refs.undoPopover))"
+        @click="openPopover = (openPopover === 'undo-{{ habit.id }}' ? null : 'undo-{{ habit.id }}'); $nextTick(() => openPopover === 'undo-{{ habit.id }}' && positionCardPopover($refs.undoBtn, $refs.undoPopover))"
         class="flex h-10 w-full items-center justify-center gap-2 border border-accent bg-accent/10 px-4 font-display text-xs uppercase tracking-wide text-accent transition-colors hover:bg-accent/15"
       >
         <span>Done today</span><span>✓</span>
@@ -148,14 +148,15 @@
       <template x-teleport="body">
         <div
           x-ref="undoPopover"
-          x-show="undoOpen"
-          x-trap="undoOpen"
+          x-show="openPopover === 'undo-{{ habit.id }}'"
+          x-trap="openPopover === 'undo-{{ habit.id }}'"
           x-cloak
           role="dialog"
           aria-labelledby="undo-heading-{{ habit.id }}"
-          @keydown.escape.window="undoOpen = false"
-          @resize.window="undoOpen && positionCardPopover($refs.undoBtn, $refs.undoPopover)"
-          @scroll.window="undoOpen && positionCardPopover($refs.undoBtn, $refs.undoPopover)"
+          @click.outside="openPopover = null"
+          @keydown.escape.window="openPopover = null"
+          @resize.window="openPopover === 'undo-{{ habit.id }}' && positionCardPopover($refs.undoBtn, $refs.undoPopover)"
+          @scroll.window="openPopover === 'undo-{{ habit.id }}' && positionCardPopover($refs.undoBtn, $refs.undoPopover)"
           x-transition:enter="transition ease-out duration-150"
           x-transition:enter-start="opacity-0 scale-95"
           x-transition:enter-end="opacity-100 scale-100"
@@ -168,7 +169,7 @@
           <div class="mt-3 flex justify-end gap-2">
             <button
               type="button"
-              @click="undoOpen = false"
+              @click="openPopover = null"
               class="border border-border px-3 py-1.5 font-display text-[11px] uppercase text-text hover:bg-void"
             >
               Cancel
@@ -196,7 +197,7 @@
         type="button"
         x-ref="checkinBtn"
         onclick="event.stopPropagation()"
-        @click="checkinOpen = !checkinOpen; $nextTick(() => checkinOpen && positionCardPopover($refs.checkinBtn, $refs.checkinPopover))"
+        @click="openPopover = (openPopover === 'checkin-{{ habit.id }}' ? null : 'checkin-{{ habit.id }}'); $nextTick(() => openPopover === 'checkin-{{ habit.id }}' && positionCardPopover($refs.checkinBtn, $refs.checkinPopover))"
         class="h-10 w-full bg-accent px-4 font-display text-xs uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
       >
         Check in
@@ -205,14 +206,15 @@
       <template x-teleport="body">
         <div
           x-ref="checkinPopover"
-          x-show="checkinOpen"
-          x-trap="checkinOpen"
+          x-show="openPopover === 'checkin-{{ habit.id }}'"
+          x-trap="openPopover === 'checkin-{{ habit.id }}'"
           x-cloak
           role="dialog"
           aria-label="Check in"
-          @keydown.escape.window="checkinOpen = false"
-          @resize.window="checkinOpen && positionCardPopover($refs.checkinBtn, $refs.checkinPopover)"
-          @scroll.window="checkinOpen && positionCardPopover($refs.checkinBtn, $refs.checkinPopover)"
+          @click.outside="openPopover = null"
+          @keydown.escape.window="openPopover = null"
+          @resize.window="openPopover === 'checkin-{{ habit.id }}' && positionCardPopover($refs.checkinBtn, $refs.checkinPopover)"
+          @scroll.window="openPopover === 'checkin-{{ habit.id }}' && positionCardPopover($refs.checkinBtn, $refs.checkinPopover)"
           x-transition:enter="transition ease-out duration-150"
           x-transition:enter-start="opacity-0 scale-95"
           x-transition:enter-end="opacity-100 scale-100"
@@ -239,7 +241,7 @@
             <div class="mt-3 flex justify-end gap-2">
               <button
                 type="button"
-                @click="checkinOpen = false"
+                @click="openPopover = null"
                 class="border border-border px-3 py-1.5 font-display text-[11px] uppercase text-text hover:bg-void"
               >
                 Cancel
@@ -277,10 +279,10 @@
       class="w-full max-w-sm border border-border bg-surface p-6"
     >
       {% if habit.room_id %}
-      <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Leave "{{ habit.title }}"?</h4>
+      <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Leave <span class="font-body normal-case">"{{ habit.title }}"</span>?</h4>
       <p class="mt-2 font-body text-sm text-text-muted">This removes your room habit and its points. This can't be undone.</p>
       {% else %}
-      <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Delete "{{ habit.title }}"?</h4>
+      <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Delete <span class="font-body normal-case">"{{ habit.title }}"</span>?</h4>
       <p class="mt-2 font-body text-sm text-text-muted">This removes {{ habit_points }} points from your total. This can't be undone.</p>
       {% endif %}
       <div class="mt-5 flex justify-end gap-3">

@@ -1,11 +1,11 @@
 <div
   id="badges-row"
   {% if oob %}hx-swap-oob="true"{% endif %}
-  class="flex w-full flex-wrap items-center gap-3 pb-6 font-body"
+  class="flex w-full flex-nowrap items-center gap-3 overflow-x-auto pb-6 font-body"
 >
-  <span class="font-display text-[10px] uppercase tracking-wide text-text-muted">Badges</span>
+  <span class="shrink-0 font-display text-[10px] uppercase tracking-wide text-text-muted">Badges</span>
   {% for b in badge_rows %}
-  <div class="group relative">
+  <div class="group relative shrink-0">
     <button
       type="button"
       tabindex="0"

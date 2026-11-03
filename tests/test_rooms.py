@@ -952,7 +952,10 @@ def test_dashboard_room_card_has_leave_button_not_delete(client, db):
 
     response = client.get("/dashboard").get_data(as_text=True)
     assert f'/rooms/{room.id}/leave' in response
-    assert 'Leave "Run Club"?' in response
+    # The habit title renders in IBM Plex Sans (font-body), not the
+    # surrounding Silkscreen heading - user-entered text never uses the
+    # pixel font (see CLAUDE.md Design direction).
+    assert 'Leave <span class="font-body normal-case">"Run Club"</span>?' in response
     # The card's own top-right trigger must never show the bare delete
     # glyph for a room habit - only the confirm modal's content (asserted
     # above) isn't enough, since that passes even if the trigger itself
@@ -998,7 +1001,10 @@ def test_dashboard_shows_correct_leader_for_each_of_two_rooms_at_once(client, db
         return html[start:start + 14000]
 
     assert "You lead" not in _card(viewer_habit_a)
-    assert f"{other_a.name} leads" in _card(viewer_habit_a)
+    # The leader's name renders in IBM Plex Sans (font-body), not the
+    # surrounding Silkscreen tag - user-entered text never uses the pixel
+    # font (see CLAUDE.md Design direction).
+    assert f'<span class="font-body normal-case">{other_a.name}</span> leads' in _card(viewer_habit_a)
     assert "You lead" in _card(viewer_habit_b)
 
 

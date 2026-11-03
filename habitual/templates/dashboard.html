@@ -9,6 +9,7 @@
   createRoomOpen: {{ 'true' if room_form.errors else 'false' }},
   joinRoomOpen: {{ 'true' if join_code_error else 'false' }},
   filter: 'all',
+  openPopover: null,
 }">
   <header class="flex flex-wrap items-center justify-between gap-4 pt-8 pb-4">
     <h1 class="font-display text-xl uppercase tracking-wide text-text lg:text-2xl">Habits</h1>
@@ -20,18 +21,18 @@
       + New habit
     </button>
     <div class="hidden flex-wrap gap-1.5 lg:flex">
-      <button type="button" @click="filter = 'all'" :class="filter === 'all' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">All</button>
-      <button type="button" @click="filter = 'solo'" :class="filter === 'solo' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">Solo</button>
-      <button type="button" @click="filter = 'fleet'" :class="filter === 'fleet' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">Fleet</button>
+      <button type="button" @click="filter = 'all'" :class="filter === 'all' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">All</button>
+      <button type="button" @click="filter = 'solo'" :class="filter === 'solo' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">Solo</button>
+      <button type="button" @click="filter = 'fleet'" :class="filter === 'fleet' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">Fleet</button>
     </div>
   </header>
 
   {% include "partials/header_stats.html" %}
 
   <div class="flex flex-wrap gap-1.5 pb-4 lg:hidden">
-    <button type="button" @click="filter = 'all'" :class="filter === 'all' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">All</button>
-    <button type="button" @click="filter = 'solo'" :class="filter === 'solo' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">Solo</button>
-    <button type="button" @click="filter = 'fleet'" :class="filter === 'fleet' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">Fleet</button>
+    <button type="button" @click="filter = 'all'" :class="filter === 'all' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">All</button>
+    <button type="button" @click="filter = 'solo'" :class="filter === 'solo' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">Solo</button>
+    <button type="button" @click="filter = 'fleet'" :class="filter === 'fleet' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">Fleet</button>
   </div>
 
   {% if not current_user.email %}
@@ -124,7 +125,7 @@
         <span class="shrink-0 text-2xl" aria-hidden="true">🧊</span>
         <div class="flex min-w-0 flex-1 flex-col gap-0.5">
           <span class="font-body text-sm text-text"><span class="font-mono">{{ freezes_held }}</span>/2 shields ready</span>
-          <span class="truncate font-body text-xs text-text-muted">Used automatically on a missed day</span>
+          <span class="font-body text-xs text-text-muted">Used automatically on a missed day</span>
         </div>
         <button
           type="button"
@@ -219,7 +220,7 @@
             <button
               type="button"
               @click="emoji = '{{ e }}'"
-              :class="emoji === '{{ e }}' ? 'bg-accent/20 border-accent' : 'border-border hover:border-text-muted'"
+              :class="emoji === '{{ e }}' ? 'bg-bone border-bone' : 'border-border hover:border-accent'"
               class="flex h-9 items-center justify-center border text-lg transition-colors"
             >{{ e }}</button>
             {% endfor %}
@@ -234,19 +235,19 @@
             <button
               type="button"
               @click="frequencyType = 'daily'"
-              :class="frequencyType === 'daily' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              :class="frequencyType === 'daily' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
               class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >Daily</button>
             <button
               type="button"
               @click="frequencyType = 'days'"
-              :class="frequencyType === 'days' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              :class="frequencyType === 'days' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
               class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >Specific days</button>
             <button
               type="button"
               @click="frequencyType = 'weekly'"
-              :class="frequencyType === 'weekly' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              :class="frequencyType === 'weekly' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
               class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >X times/week</button>
           </div>
@@ -256,7 +257,7 @@
             <button
               type="button"
               @click="frequencyDays = frequencyDays ^ {{ 2 ** loop.index0 }}"
-              :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
               class="border px-1 py-1.5 font-display text-[10px] uppercase transition-colors"
             >{{ label }}</button>
             {% endfor %}
@@ -343,7 +344,7 @@
             <button
               type="button"
               @click="emoji = '{{ e }}'"
-              :class="emoji === '{{ e }}' ? 'bg-accent/20 border-accent' : 'border-border hover:border-text-muted'"
+              :class="emoji === '{{ e }}' ? 'bg-bone border-bone' : 'border-border hover:border-accent'"
               class="flex h-9 items-center justify-center border text-lg transition-colors"
             >{{ e }}</button>
             {% endfor %}
@@ -366,19 +367,19 @@
             <button
               type="button"
               @click="frequencyType = 'daily'"
-              :class="frequencyType === 'daily' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              :class="frequencyType === 'daily' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
               class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >Daily</button>
             <button
               type="button"
               @click="frequencyType = 'days'"
-              :class="frequencyType === 'days' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              :class="frequencyType === 'days' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
               class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >Specific days</button>
             <button
               type="button"
               @click="frequencyType = 'weekly'"
-              :class="frequencyType === 'weekly' ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              :class="frequencyType === 'weekly' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
               class="border px-3 py-2 font-display text-[11px] uppercase transition-colors"
             >X times/week</button>
           </div>
@@ -388,7 +389,7 @@
             <button
               type="button"
               @click="frequencyDays = frequencyDays ^ {{ 2 ** loop.index0 }}"
-              :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-accent/20 border-accent text-text' : 'border-border text-text-muted hover:border-text-muted'"
+              :class="(frequencyDays & {{ 2 ** loop.index0 }}) ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
               class="border px-1 py-1.5 font-display text-[10px] uppercase transition-colors"
             >{{ label }}</button>
             {% endfor %}
