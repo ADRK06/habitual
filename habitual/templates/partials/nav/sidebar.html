@@ -36,16 +36,7 @@
         <span class="font-mono text-[11px] text-dust truncate">@{{ current_user.username }}</span>
       </span>
     </span>
-    <span class="flex gap-2">
-      <span class="flex items-center gap-1.5 flex-grow h-7 px-2 border border-border font-mono text-xs text-phosphor">
-        <svg width="10" height="12" viewBox="0 0 12 14" aria-hidden="true"><path d="M7 0 1 8h4l-1 6 6-8H6z" fill="currentColor"></path></svg>
-        {{ nav_balance }}
-      </span>
-      <span class="flex items-center gap-1.5 flex-grow h-7 px-2 border border-border font-mono text-xs text-rust">
-        <svg width="10" height="12" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 0c1 3 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-8z" fill="currentColor"></path></svg>
-        {{ nav_streak.value }}{{ nav_streak.unit }}
-      </span>
-    </span>
+    {% include "partials/nav/nav_stats_desktop.html" %}
   </a>
   {% endif %}
 

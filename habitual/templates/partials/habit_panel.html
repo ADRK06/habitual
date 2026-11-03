@@ -173,3 +173,17 @@
     {% endif %}
   </div>
 </div>
+
+{% if oob %}
+{# This panel is itself the primary htmx swap target (outerHTML, no OOB
+   wrapper of its own) - these two are extra OOB siblings in the same
+   response, same as checkin_response.html's, so the persistent sidebar/
+   phone commander bar (app_base.html, present on every page including
+   this one) doesn't go stale after a check-in/undo/freeze made from here.
+   Guarded by `oob` (only set by the live-update response in habits.py)
+   since the normal full-page render already shows these once via
+   app_base.html - rendering them again unconditionally would duplicate
+   their ids. #}
+{% include "partials/nav/nav_stats_desktop.html" %}
+{% include "partials/nav/nav_stats_phone.html" %}
+{% endif %}

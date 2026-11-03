@@ -710,8 +710,12 @@ def render_room_live_update(room, viewer):
     """The OOB bundle rendered after a check-in/undo/freeze made from the
     room page itself (habits.py's checkin()/undo_checkin()/use_freeze()
     call this instead of their usual dashboard-shaped response when the
-    request came from there) - personal panel, leaderboard, health, streak
-    and feed, all re-derived from current state."""
+    request came from there) - personal panel, leaderboard, health, streak,
+    feed and the persistent sidebar/phone commander bar's Energy/streak
+    figures (app_base.html, present on every page including this one), all
+    re-derived from current state."""
+    from habitual.habits import nav_shell_context  # local import avoids a circular import with habits.py
+
     members = _room_members(room)
     habits_by_user = _room_member_habits(room, members)
     viewer_habit = _member_habit(room, viewer, habits_by_user)
@@ -725,6 +729,7 @@ def render_room_live_update(room, viewer):
         room_frequency_label=_frequency_label(room),
         feed=_feed_context(room, members, viewer, habits_by_user=habits_by_user),
         **_personal_stats(viewer_habit, viewer),
+        **nav_shell_context(viewer),
     )
 
 

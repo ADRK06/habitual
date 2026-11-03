@@ -1312,6 +1312,35 @@ def test_header_stats_with_no_transactions_is_zero_not_none(client, db):
     assert stats["balance"] == 0
 
 
+def test_checkin_response_updates_sidebar_and_phone_nav_stats(client, db):
+    # Regression: the persistent sidebar (desktop) / phone commander bar
+    # (app_base.html, every page) renders its Energy/streak figures once on
+    # full page load (habits.nav_shell_context) off the header's balance and
+    # the best current streak across all habits - but unlike header_stats.html,
+    # nothing OOB-swapped them on check-in, so they stayed stuck at their
+    # page-load value (e.g. 0) after an htmx check-in bumped the real balance
+    # and streak underneath them.
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Morning Run")
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+    html = response.get_data(as_text=True)
+
+    # Both the desktop sidebar's and the phone commander bar's stats blocks
+    # must be present as OOB swaps in the same response as the habit card/
+    # header stats.
+    for stats_id in ("sidebar-nav-stats", "phone-nav-stats"):
+        start = html.index(f'id="{stats_id}"')
+        block = html[start:start + 100]
+        assert 'hx-swap-oob="true"' in block
+
+    # A fresh daily habit's first check-in earns the base 5 points (no
+    # milestone bonus until day 7) and is day 1 of its only streak - those
+    # are exactly the header's balance and the best-current-streak figure.
+    assert 'aria-label="5 Energy"' in html
+    assert 'aria-label="1 day best streak"' in html
+
+
 # -- buy freeze -------------------------------------------------------------
 
 

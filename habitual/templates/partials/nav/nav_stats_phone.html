@@ -1,0 +1,24 @@
+{#
+  The phone commander bar's Energy/streak pair (PhoneHud.dc.html) - see
+  nav_stats_desktop.html for why this is its own file (OOB-swappable from
+  a check-in/undo/freeze response, included plain for the normal render
+  inside phone_hud.html).
+#}
+<div
+  id="phone-nav-stats"
+  {% if oob %}hx-swap-oob="true"{% endif %}
+  class="flex items-center gap-3"
+>
+  {% set shop_on = config.NAV_FEATURES.shop %}
+  {% set energy_classes = "flex items-center gap-1.5 h-8 px-2.5 bg-surface border border-border font-mono text-sm text-phosphor" %}
+  {% if shop_on %}
+  <a href="#" aria-label="{{ nav_balance }} Energy, open shop" class="{{ energy_classes }} no-underline">
+  {% else %}
+  <div aria-label="{{ nav_balance }} Energy" class="{{ energy_classes }}">
+  {% endif %}
+    <svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><path d="M7 0 1 8h4l-1 6 6-8H6z" fill="currentColor"></path></svg>{{ nav_balance }}
+  {% if shop_on %}</a>{% else %}</div>{% endif %}
+  <div aria-label="{{ nav_streak.value }} {{ 'week' if nav_streak.unit == 'w' else 'day' }} best streak" class="flex items-center gap-1.5 h-8 px-2.5 bg-surface border border-border font-mono text-sm text-rust">
+    <svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 0c1 3 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-8z" fill="currentColor"></path></svg>{{ nav_streak.value }}{{ nav_streak.unit }}
+  </div>
+</div>

@@ -811,8 +811,10 @@ def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, 
     `room_view`), re-renders that page's own panel (ring card + month
     calendar + recent check-ins + the controls themselves) instead of the
     dashboard-shaped response below. habits/detail.html has no header
-    stats/badges row of its own (those only live on the dashboard), so
-    there's nothing else here to OOB-swap alongside it."""
+    stats/badges row of its own (those only live on the dashboard), but
+    the persistent sidebar/phone commander bar (app_base.html) is on every
+    page including this one, so its Energy/streak figures still need the
+    same OOB swap the dashboard-shaped response gives them below."""
     if not request.values.get("detail_view"):
         return None
     freezes_held = Freeze.query.filter_by(user_id=current_user.id, used_on=None).count()
@@ -823,6 +825,8 @@ def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, 
         "recent_checkins": (
             Checkin.query.filter_by(habit_id=habit.id).order_by(Checkin.date.desc()).limit(10).all()
         ),
+        **nav_shell_context(current_user),
+        "oob": True,
     }
     resp = make_response(render_template("partials/habit_panel.html", **context))
     trigger = {}
@@ -918,6 +922,8 @@ def checkin(habit_id):
         **_room_card_context(habit),
         **header,
         **_overview_context(habit_rows, today),
+        "nav_balance": header["balance"],
+        "nav_streak": _best_current_streak(habit_rows, today),
         "oob": True,
     }
     context.update(_day_status_context(current_user, today, habit_rows, context["habits_remaining"]))
@@ -972,6 +978,8 @@ def undo_checkin(habit_id):
         **_room_card_context(habit),
         **header,
         **_overview_context(habit_rows, today),
+        "nav_balance": header["balance"],
+        "nav_streak": _best_current_streak(habit_rows, today),
         "oob": True,
     }
     context.update(_day_status_context(current_user, today, habit_rows, context["habits_remaining"]))
@@ -1106,6 +1114,8 @@ def use_freeze(habit_id):
         **_room_card_context(habit),
         **header,
         **_overview_context(habit_rows, today),
+        "nav_balance": header["balance"],
+        "nav_streak": _best_current_streak(habit_rows, today),
         "oob": True,
     }
     context.update(_day_status_context(current_user, today, habit_rows, context["habits_remaining"]))
