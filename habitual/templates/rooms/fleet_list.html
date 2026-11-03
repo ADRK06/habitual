@@ -1,0 +1,51 @@
+{% extends "app_base.html" %}
+
+{% block title %}My fleets · Habitual{% endblock %}
+
+{#
+  "My fleets" (v1) - no mock targets this page; extrapolated from
+  WebFleet.dc.html's crew-row language and Main.dc.html's tile/button
+  pieces, same square/flat Colonies tokens as groups 1-5. Reached when
+  fleet_index() (rooms.py) sees 2+ memberships instead of guessing which
+  one to redirect to - 0 and 1 keep their existing behaviour unchanged.
+  Also reachable directly at any membership count, so the empty/single-
+  fleet states below are real, not dead code.
+
+  No inline check-in here - "+ Create fleet"/"Join fleet" link to the
+  dashboard (where those flows already live, fully validated) with an
+  ?open= hint dashboard.html's x-init reads to pop the right modal
+  straight away, rather than duplicating that form/error-handling here.
+#}
+{% block app_content %}
+<div class="py-10">
+  <header class="flex flex-wrap items-center justify-between gap-4 pb-6">
+    <h1 class="font-display text-xl uppercase tracking-wide text-text lg:text-2xl">My fleets</h1>
+    {% if fleets %}
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('habits.dashboard') }}?open=create-fleet" class="flex h-10 items-center border border-border bg-transparent px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent">+ Create fleet</a>
+      <a href="{{ url_for('habits.dashboard') }}?open=join-fleet" class="flex h-10 items-center border border-border bg-transparent px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent">Join fleet</a>
+    </div>
+    {% endif %}
+  </header>
+
+  {% if fleets %}
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+    {% for fleet in fleets %}
+    {% include "partials/fleet_card.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="flex flex-col items-center justify-center border border-dashed border-border bg-surface px-6 py-20 text-center font-body">
+    <div class="flex h-16 w-16 items-center justify-center border border-accent/40 bg-accent/10 text-3xl" aria-hidden="true">🛰️</div>
+    <h2 class="mt-5 font-display text-lg uppercase tracking-wide text-text">No fleets yet</h2>
+    <p class="mt-2 max-w-sm text-sm text-text-muted">
+      Race a habit together with friends - create a fleet or join one with an invite code.
+    </p>
+    <div class="mt-6 flex items-center gap-3">
+      <a href="{{ url_for('habits.dashboard') }}?open=create-fleet" class="bg-accent px-6 py-2.5 font-display text-xs uppercase tracking-wide text-bg transition hover:opacity-90">+ Create fleet</a>
+      <a href="{{ url_for('habits.dashboard') }}?open=join-fleet" class="border border-border px-6 py-2.5 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent">Join fleet</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

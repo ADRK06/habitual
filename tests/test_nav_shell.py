@@ -157,11 +157,34 @@ def test_fleet_index_redirects_to_the_users_room(client, db):
     assert response.location == f"/rooms/{room.id}"
 
 
+def test_fleet_index_redirects_to_fleet_list_with_several_rooms(client, db):
+    # 2+ fleets used to guess (most recently joined) - now sent to the
+    # "My fleets" list instead of picking one for the member.
+    user = _login(client, db)
+    _create_room(db, user, title="Night Owls")
+    _create_room(db, user, title="Early Birds")
+
+    response = client.get("/fleet")
+
+    assert response.status_code == 302
+    assert response.location == "/rooms"
+
+
 def test_fleet_index_requires_login(client):
     response = client.get("/fleet")
 
     assert response.status_code == 302
     assert "/login" in response.location
+
+
+def test_fleet_nav_item_is_active_on_fleet_list(client, db):
+    user = _login(client, db)
+    _create_room(db, user, title="Night Owls")
+    _create_room(db, user, title="Early Birds")
+
+    html = client.get("/rooms").get_data(as_text=True)
+
+    assert "text-accent" in _active_nav_classes(html, "/fleet", "FLEET")
 
 
 # -- real data, not placeholders ---------------------------------------------

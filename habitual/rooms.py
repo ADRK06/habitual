@@ -831,19 +831,56 @@ def join_room(token):
 @login_required
 def fleet_index():
     """Nav entry point for the "FLEET" sidebar/tab-bar item (Sidebar.dc.html,
-    PhoneNav.dc.html) - there's no multi-fleet switcher screen in the
-    Colonies mocks, so this just sends the member straight to their own
-    room page, picking the most recently joined one if they're in more
-    than one. A member of none lands on the dashboard, where "create a
-    room" / "join a room" already live."""
-    membership = (
+    PhoneNav.dc.html). A member of none lands on the dashboard, where
+    "create a fleet" / "join a fleet" already live; a member of exactly
+    one goes straight to that room page. A member of several used to just
+    guess (most recently joined) - now sent to fleet_list (/rooms) below
+    instead, since there's no mock for a multi-fleet switcher to copy and
+    guessing wrong is worse than one extra click."""
+    memberships = (
         RoomMember.query.filter_by(user_id=current_user.id)
         .order_by(RoomMember.joined_on.desc())
-        .first()
+        .all()
     )
-    if membership is None:
+    if not memberships:
         return redirect(url_for("habits.dashboard"))
-    return redirect(url_for("rooms.room_detail", room_id=membership.room_id))
+    if len(memberships) == 1:
+        return redirect(url_for("rooms.room_detail", room_id=memberships[0].room_id))
+    return redirect(url_for("rooms.fleet_list"))
+
+
+@rooms.get("/rooms")
+@login_required
+def fleet_list():
+    """"My fleets" (v1, no mock - see rooms/fleet_list.html) - every fleet
+    the viewer belongs to, each with just enough to decide what to do
+    next: member count, fleet streak, today's health, and one action
+    link. No inline check-in here - the link is always /rooms/<id>,
+    labelled "Check in" (viewer hasn't yet today) or "Open" (they have);
+    the room page's own popover does the actual check-in. Reachable on
+    its own (not just via fleet_index's 2+ redirect above), so 0 or 1
+    fleet renders exactly as honestly as 2+ - no redirect-back-out here."""
+    bundle = room_bundle_for_user(current_user)
+    finalize_due_crowns_for_user(current_user, bundle)
+    today = local_today(current_user)
+
+    fleets = []
+    for entry in bundle.values():
+        room = entry["room"]
+        members = entry["members"]
+        habits_by_user = entry["habits_by_user"]
+        habit = habits_by_user.get(current_user.id)
+        fleets.append({
+            "room": room,
+            "member_count": len(members),
+            "streak_value": room_streak_value(room, members, habits_by_user),
+            "room_streak_unit": room_streak_unit(room),
+            "health_pct": room_health_pct(room, members, habits_by_user),
+            "checked_in_today": habit is not None and any(c.date == today for c in habit.checkins),
+        })
+    fleets.sort(key=lambda f: f["room"].title.lower())
+
+    return render_template("rooms/fleet_list.html", fleets=fleets, **nav_shell_context(current_user))
 
 
 @rooms.get("/rooms/<int:room_id>")

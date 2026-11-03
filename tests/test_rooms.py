@@ -1076,6 +1076,68 @@ def test_dashboard_finalizes_due_crowns_without_opening_the_room_page(client, db
     assert PointTransaction.query.filter_by(habit_id=habit.id, reason="crown").count() == 1
 
 
+# -- my fleets (/rooms) ------------------------------------------------------
+
+
+def test_fleet_list_requires_login(client):
+    response = client.get("/rooms")
+    assert response.status_code == 302
+    assert "/login" in response.location
+
+
+def test_fleet_list_shows_empty_state_with_no_fleets(client, db):
+    _login(client, db)
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    assert "No fleets yet" in response
+
+
+def test_fleet_list_shows_a_card_per_fleet_with_member_count_and_health(client, db):
+    leader = _login(client, db, username="leader")
+    room = _create_room(db, leader, title="Night Owls")
+    _join_room_direct(db, room, _create_user(db, username="second"))
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    assert "Night Owls" in response
+    card_start = response.index(f'id="fleet-card-{room.id}"')
+    card_html = response[card_start:card_start + 2500]
+    assert "2 commanders" in card_html
+    assert "0%" in card_html  # nobody's checked in yet today
+    assert "Check in" in card_html
+    assert "Open" not in card_html
+
+
+def test_fleet_list_shows_open_once_checked_in_today(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, title="Night Owls")
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+    client.post(f"/habits/{habit.id}/checkin")
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    card_start = response.index(f'id="fleet-card-{room.id}"')
+    card_html = response[card_start:card_start + 2500]
+    assert "100%" in card_html
+    assert "Open" in card_html
+    assert "Check in" not in card_html
+
+
+def test_dashboard_auto_open_fleet_modal_hook_is_present(client, db):
+    # The "My fleets" page's Create/Join buttons link to the dashboard with
+    # ?open=create-fleet / ?open=join-fleet, which dashboard.html's own
+    # x-init reads to pop the matching modal straight away - a regression
+    # guard for that hook's two param values, since the actual pop-open
+    # behavior is client-side Alpine the test client can't exercise.
+    _login(client, db)
+
+    html = client.get("/dashboard").get_data(as_text=True)
+
+    assert "create-fleet" in html
+    assert "join-fleet" in html
+
+
 # -- final-day gate (fix #3): check-in, undo, freeze-use, vouch -------------
 
 

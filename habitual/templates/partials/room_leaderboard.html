@@ -20,6 +20,15 @@
 #}
 <div id="leaderboard-list" {% if oob %}hx-swap-oob="true"{% endif %} class="mt-4">
   {% if leaderboard %}
+  {# Column headers for the two unlabeled number columns - matches the row's
+     own widths/gaps exactly so they line up. #}
+  <div class="flex items-center gap-3 pb-2">
+    <span class="w-5 shrink-0" aria-hidden="true"></span>
+    <span class="w-8 shrink-0" aria-hidden="true"></span>
+    <span class="min-w-0 flex-1" aria-hidden="true"></span>
+    <span class="hidden w-10 shrink-0 text-right font-display text-[9px] uppercase tracking-wide text-text-muted sm:block">Missed</span>
+    <span class="w-14 shrink-0 text-right font-display text-[9px] uppercase tracking-wide text-text-muted">Pts</span>
+  </div>
   <ol class="divide-y divide-border">
     {% for entry in leaderboard %}
     <li

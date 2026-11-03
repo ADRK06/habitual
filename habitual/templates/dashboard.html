@@ -10,7 +10,11 @@
   joinRoomOpen: {{ 'true' if join_code_error else 'false' }},
   filter: 'all',
   openPopover: null,
-}">
+}" x-init="
+  const openParam = new URLSearchParams(location.search).get('open');
+  if (openParam === 'create-fleet') createRoomOpen = true;
+  if (openParam === 'join-fleet') joinRoomOpen = true;
+">
   <header class="flex flex-wrap items-center justify-between gap-4 pt-8 pb-4">
     <h1 class="font-display text-xl uppercase tracking-wide text-text lg:text-2xl">Habits</h1>
     <button
