@@ -4,6 +4,19 @@
 // (not a manually tracked variable) finds any existing instance to destroy,
 // since the canvas can be a brand-new DOM node after an htmx OOB swap on
 // either page.
+//
+// Colours are read from the Colonies tokens (tailwind/input.css), never
+// hardcoded hex, and mapped Week=Phosphor, Month=Steel, Milestone=Rust
+// (Phase 1c group 4 - no mock shows this chart, so Month moved off Bone/
+// --color-text: the palette table marks Bone "text" only, never a fill).
+// No legend/tooltip is enabled, so there's no on-canvas text today, but
+// Chart.js' own default font is still pointed at IBM Plex Mono (every
+// number, per CLAUDE.md's Design direction) rather than its built-in
+// sans-serif default, in case that ever changes.
+if (window.Chart) {
+  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+}
+
 function initRingsChart() {
   const canvas = document.getElementById("rings-chart");
   if (!canvas || !window.Chart) return;
@@ -24,9 +37,9 @@ function initRingsChart() {
   const [msDone, msTotal] = parsePair(canvas.dataset.milestone);
   const remainder = (done, total) => Math.max(total - done, 0);
 
-  const accent = token("--color-accent");
-  const text = token("--color-text");
-  const streak = token("--color-streak");
+  const phosphor = token("--color-phosphor");
+  const steel = token("--color-steel");
+  const rust = token("--color-rust");
 
   new Chart(canvas, {
     type: "doughnut",
@@ -34,21 +47,21 @@ function initRingsChart() {
       datasets: [
         {
           data: [weekDone, remainder(weekDone, weekTotal)],
-          backgroundColor: [accent, hexToRgba(accent, 0.16)],
+          backgroundColor: [phosphor, hexToRgba(phosphor, 0.16)],
           borderWidth: 0,
           radius: "100%",
           cutout: "78%",
         },
         {
           data: [monthDone, remainder(monthDone, monthTotal)],
-          backgroundColor: [text, hexToRgba(text, 0.16)],
+          backgroundColor: [steel, hexToRgba(steel, 0.16)],
           borderWidth: 0,
           radius: "72%",
           cutout: "50%",
         },
         {
           data: [msDone, remainder(msDone, msTotal)],
-          backgroundColor: [streak, hexToRgba(streak, 0.16)],
+          backgroundColor: [rust, hexToRgba(rust, 0.16)],
           borderWidth: 0,
           radius: "44%",
           cutout: "22%",

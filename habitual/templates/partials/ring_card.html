@@ -1,30 +1,47 @@
-{% from "partials/day_cell.html" import week_circle, heat_cell %}
+{% from "partials/colony_cells.html" import colony_heat_cell %}
 {% from "_macros.html" import tooltip %}
 
+{#
+  Habit detail page's ring card (Phase 1c group 4). No mock exists for this
+  page - ported 1:1 from its pre-Colonies layout, re-skinned with Main.dc.html's
+  tokens/type system and the day-strip component groups 1-3 already built
+  (colony_cells.html), per CLAUDE.md's "keep today's layout, only re-skin"
+  instruction. Judgment calls made where the style guide is silent:
+  - Status pill: flat border+text per variant (no bg wash), same look as
+    Main.dc.html's "SHIELD UP" badge - saved=Steel (🧊 a shield was used),
+    risk=Rust, due=Phosphor, ontrack=Signal, resting=Bulkhead/dust.
+  - The three rings: Week=Phosphor, Month=Steel, Milestone=Rust (was
+    Phosphor/Bone/Rust - Bone is "text" only per the palette table, never a
+    fill, so Month moved to Steel instead).
+#}
 <div
-  class="rounded-2xl border border-border bg-surface/60 p-6 shadow-lg shadow-black/10 backdrop-blur-xl"
+  class="border border-border bg-surface p-6"
   data-current-streak="{{ current_streak }}"
   data-checked-in-today="{{ 'true' if checked_in_today else 'false' }}"
   data-habit-points="{{ habit_points }}"
 >
   <div class="flex items-start justify-between gap-4">
     <div class="flex items-center gap-3">
-      <span class="text-4xl">{{ habit.emoji }}</span>
+      <span class="text-4xl" style="image-rendering: pixelated" aria-hidden="true">{{ habit.emoji }}</span>
       <div>
-        <h1 class="font-heading text-2xl font-semibold text-text">{{ habit.title }}</h1>
+        <h1 class="font-body text-2xl font-medium text-text">{{ habit.title }}</h1>
         {% if frequency_label and frequency_label != 'Daily' %}
-        <span class="mt-0.5 inline-flex items-center rounded-full bg-border/50 px-2 py-0.5 text-[11px] font-medium text-text-muted">
-          {{ frequency_label }}
-        </span>
+        <span class="font-display text-[11px] uppercase tracking-wide text-text-muted">{{ frequency_label }}</span>
         {% endif %}
       </div>
     </div>
-    <span
-      class="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium
-        {% if status_variant == 'ontrack' %}bg-success/15 text-success
-        {% elif status_variant == 'risk' %}bg-danger/20 text-text
-        {% else %}bg-border/50 text-text-muted{% endif %}"
-    >
+    {% if status_variant == 'ontrack' %}
+      {% set status_classes = 'border-success text-success' %}
+    {% elif status_variant == 'risk' %}
+      {% set status_classes = 'border-danger text-danger' %}
+    {% elif status_variant == 'saved' %}
+      {% set status_classes = 'border-steel text-steel' %}
+    {% elif status_variant == 'due' %}
+      {% set status_classes = 'border-accent text-accent' %}
+    {% else %}
+      {% set status_classes = 'border-border text-text-muted' %}
+    {% endif %}
+    <span class="flex shrink-0 items-center gap-1.5 border px-3 py-1 font-display text-xs uppercase tracking-wide {{ status_classes }}">
       {% if status_variant == 'saved' %}🧊{% elif status_variant == 'due' %}📅{% elif status_variant == 'risk' %}⚠️{% elif status_variant == 'resting' %}🌿{% else %}✓{% endif %}
       {{ status_label }}
     </span>
@@ -44,44 +61,44 @@
       </div>
       <dl class="space-y-2 text-sm">
         <div class="flex items-center gap-2">
-          <span class="h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true"></span>
-          <dt class="text-text-muted">Week</dt>
-          <dd class="font-medium text-text">{{ week_ring[0] }}/{{ week_ring[1] }} {{ ring_unit or 'days' }}</dd>
+          <span class="h-2.5 w-2.5 bg-accent" aria-hidden="true"></span>
+          <dt class="font-display text-[10px] uppercase tracking-wide text-text-muted">Week</dt>
+          <dd class="text-text"><span class="font-mono tabular-nums">{{ week_ring[0] }}/{{ week_ring[1] }}</span> <span class="font-body text-text-muted">{{ ring_unit or 'days' }}</span></dd>
         </div>
         <div class="flex items-center gap-2">
-          <span class="h-2.5 w-2.5 rounded-full bg-text" aria-hidden="true"></span>
-          <dt class="text-text-muted">Month</dt>
-          <dd class="font-medium text-text">{{ month_ring[0] }}/{{ month_ring[1] }} {{ ring_unit or 'days' }}</dd>
+          <span class="h-2.5 w-2.5 bg-steel" aria-hidden="true"></span>
+          <dt class="font-display text-[10px] uppercase tracking-wide text-text-muted">Month</dt>
+          <dd class="text-text"><span class="font-mono tabular-nums">{{ month_ring[0] }}/{{ month_ring[1] }}</span> <span class="font-body text-text-muted">{{ ring_unit or 'days' }}</span></dd>
         </div>
         <div class="flex items-center gap-2">
-          <span class="h-2.5 w-2.5 rounded-full bg-streak" aria-hidden="true"></span>
-          <dt class="text-text-muted">Milestone</dt>
-          <dd class="font-medium text-text">{{ (streak_unit or 'day')|capitalize }} {{ milestone_ring[0] }} of {{ milestone_ring[1] }}</dd>
+          <span class="h-2.5 w-2.5 bg-streak" aria-hidden="true"></span>
+          <dt class="font-display text-[10px] uppercase tracking-wide text-text-muted">Milestone</dt>
+          <dd class="text-text"><span class="font-body">{{ (streak_unit or 'day')|capitalize }}</span> <span class="font-mono tabular-nums">{{ milestone_ring[0] }}</span> <span class="font-body text-text-muted">of</span> <span class="font-mono tabular-nums">{{ milestone_ring[1] }}</span></dd>
         </div>
       </dl>
     </div>
 
     <div class="grid w-fit grid-cols-2 gap-3">
-      <div class="w-32 rounded-xl bg-bg/40 p-4">
-        <p class="flex items-center gap-1 text-xs text-text-muted">
+      <div class="w-32 border border-border bg-void p-4">
+        <p class="flex items-center gap-1 font-display text-[10px] uppercase tracking-wide text-text-muted">
           🔥 {{ (streak_unit or 'day')|capitalize }} streak
           {{ tooltip("Consecutive " + (streak_unit or 'day') + "s completed, ending today (or yesterday, if today isn't done yet). A used freeze keeps the chain unbroken without adding to the count.") }}
         </p>
-        <p class="mt-1 font-heading text-3xl font-bold tabular-nums text-streak">{{ current_streak }}</p>
-        <p class="flex items-center gap-1 text-xs text-text-muted">
-          best {{ longest_streak }}
+        <p class="mt-1 font-mono text-3xl tabular-nums {{ 'text-streak' if current_streak else 'text-text-muted' }}">{{ current_streak }}</p>
+        <p class="flex items-center gap-1 font-body text-xs text-text-muted">
+          best <span class="font-mono tabular-nums">{{ longest_streak }}</span>
           {{ tooltip("The longest streak this habit has ever had.") }}
         </p>
       </div>
-      <div class="w-32 rounded-xl bg-bg/40 p-4">
-        <p class="flex items-center gap-1 text-xs text-text-muted">
+      <div class="w-32 border border-border bg-void p-4">
+        <p class="flex items-center gap-1 font-display text-[10px] uppercase tracking-wide text-text-muted">
           Habit strength
           {{ tooltip("A weighted score (0-100%) of how consistently you've kept this habit - recent days count more than old ones, so it reacts to recent streaks and misses faster than your lifetime success rate.") }}
         </p>
-        <p class="mt-1 font-heading text-3xl font-bold tabular-nums text-accent">{{ strength }}%</p>
-        <div class="mt-2 h-1.5 w-full origin-left overflow-hidden rounded-full bg-border">
+        <p class="mt-1 font-mono text-3xl tabular-nums text-accent">{{ strength }}%</p>
+        <div class="mt-2 h-1.5 w-full origin-left overflow-hidden bg-border">
           <div
-            class="h-full origin-left rounded-full bg-accent"
+            class="h-full origin-left bg-accent"
             style="transform: scaleX({{ (strength / 100) | round(3) }})"
             data-strength-bar
             data-strength-fraction="{{ (strength / 100) | round(3) }}"
@@ -95,26 +112,33 @@
 
   <div class="grid gap-6 sm:grid-cols-2">
     <div>
-      <p class="mb-2 flex items-center gap-1 text-xs text-text-muted">
+      <p class="mb-2 flex items-center gap-1 font-display text-[10px] uppercase tracking-wide text-text-muted">
         This week
         {{ tooltip("This calendar week (Monday-Sunday) - filled means completed, dashed means not scheduled, empty means missed.") }}
       </p>
       <div class="flex gap-2">
-        {% for day in week_days %}{{ week_circle(day.letter, day.state, day.is_today) }}{% endfor %}
+        {% for day in week_days %}
+        <div class="flex flex-col items-center gap-1">
+          <div class="{{ 'ring-2 ring-accent ring-offset-2 ring-offset-bg' if day.is_today else '' }}">
+            {{ colony_heat_cell(day.state, size='h-6 w-6', is_today=day.is_today) }}
+          </div>
+          <span class="font-mono text-[10px] text-text-muted">{{ day.letter }}</span>
+        </div>
+        {% endfor %}
       </div>
     </div>
     <div>
-      <p class="mb-2 flex items-center gap-1 text-xs text-text-muted">
+      <p class="mb-2 flex items-center gap-1 font-display text-[10px] uppercase tracking-wide text-text-muted">
         Last 5 weeks
         {{ tooltip("Your completion chain over the last 5 weeks - filled means completed, dashed means not scheduled, empty means missed.") }}
       </p>
       <div class="grid grid-cols-7 gap-1.5">
-        {% for week in heatmap_weeks %}{% for state in week %}{{ heat_cell(state) }}{% endfor %}{% endfor %}
+        {% for week in heatmap_weeks %}{% for state in week %}{{ colony_heat_cell(state, size='h-4 w-4') }}{% endfor %}{% endfor %}
       </div>
     </div>
   </div>
 
-  <div class="mt-6 rounded-xl bg-bg/40 px-4 py-3 text-sm text-text">
+  <div class="mt-6 border border-border bg-void px-4 py-3 font-body text-sm text-text">
     {% if insight %}
       💡 {{ insight }}
     {% else %}
