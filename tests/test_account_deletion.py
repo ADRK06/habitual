@@ -215,6 +215,35 @@ def test_delete_account_keeps_room_crown_history_with_user_reference_cleared(cli
     assert Room.query.filter_by(id=room_id).first() is not None  # other member keeps the room
 
 
+def test_delete_account_nulls_crown_checkin_id_before_hard_deleting_the_checkin(client, db):
+    """Phase 3 moved this nulling out of _leave_room_as (archiving no
+    longer deletes the checkin a crown points to) and into
+    _delete_account itself, since THIS is the one path that still
+    hard-deletes the habit (and cascades its check-ins) for real. Without
+    it, this would either orphan RoomCrown.checkin_id or (with the FK
+    enforced) fail the delete outright."""
+    winner = _login(client, db, username="aadhira")
+    room = _create_room(db, winner)
+    other = _create_user(db, username="other")
+    _join_room(db, room, other)
+
+    winner_habit = Habit.query.filter_by(room_id=room.id, user_id=winner.id).first()
+    checkin = Checkin(habit_id=winner_habit.id, date=date.today(), proof_note="first!")
+    db.session.add(checkin)
+    db.session.commit()
+    db.session.add(RoomCrown(room_id=room.id, date=date.today(), user_id=winner.id, checkin_id=checkin.id))
+    db.session.commit()
+    room_id, checkin_id = room.id, checkin.id
+
+    client.post("/account/security/delete", data=_delete_payload())
+
+    crown = RoomCrown.query.filter_by(room_id=room_id).first()
+    assert crown is not None  # history survives
+    assert crown.user_id is None  # reference cleared, same as every other winner-deleted case
+    assert crown.checkin_id is None  # nulled instead of left dangling
+    assert db.session.get(Checkin, checkin_id) is None  # the checkin itself is really gone
+
+
 # -- validation / lockout -----------------------------------------------------
 
 

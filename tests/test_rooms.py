@@ -2,6 +2,7 @@ import secrets
 from datetime import date, datetime, timedelta, timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
+import habitual.points as points
 import habitual.rooms as rooms_module
 from habitual.frequency import WEEKDAY_BIT
 from habitual.habits import EMOJI_CHOICES
@@ -316,15 +317,23 @@ def test_flame_size_grows_weekly_for_a_weekly_room():
 # -- leave + ownership transfer -----------------------------------------------
 
 
-def test_leave_room_deletes_habit_and_membership(client, db):
+def test_leave_room_archives_habit_and_removes_membership(client, db):
+    """Phase 3: leaving archives the room habit in place rather than
+    deleting it - a 2-member room so the room itself survives, isolating
+    this from test_last_member_leaving_deletes_the_room below."""
     user = _login(client, db)
     room = _create_room(db, user)
+    other = _create_user(db, username="other")
+    _join_room_direct(db, room, other)
     habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
 
     response = client.post(f"/rooms/{room.id}/leave")
     assert response.status_code == 302
-    assert db.session.get(Habit, habit.id) is None
+    stored = db.session.get(Habit, habit.id)
+    assert stored is not None
+    assert stored.archived_at is not None
     assert RoomMember.query.filter_by(room_id=room.id, user_id=user.id).count() == 0
+    assert Habit.active().filter_by(id=habit.id).first() is None
 
 
 def test_leave_room_requires_membership(client, db):
@@ -343,6 +352,56 @@ def test_last_member_leaving_deletes_the_room(client, db):
 
     client.post(f"/rooms/{room_id}/leave")
     assert db.session.get(Room, room_id) is None
+
+
+def test_last_member_leaving_deletes_room_without_fk_error_and_keeps_points(client, db):
+    """The schema-impact regression this migration exists for: by the time
+    the LAST member leaves, there can already be an archived habit left
+    behind by an EARLIER leaver, still pointing at this room_id and not
+    loaded in this request's session. Deleting the room must not blow up
+    on that dangling FK (habits.room_id is ON DELETE SET NULL precisely
+    for this), and both archived habits' point_transactions must still
+    count toward their own user's earned points."""
+    creator = _login(client, db, username="creator")
+    other = _create_user(db, username="other")
+    room = _create_room(db, creator)
+    _join_room_direct(db, room, other)
+    room_id = room.id
+
+    other_habit = Habit.query.filter_by(room_id=room_id, user_id=other.id).first()
+    creator_habit = Habit.query.filter_by(room_id=room_id, user_id=creator.id).first()
+    db.session.add(PointTransaction(
+        user_id=other.id, habit_id=other_habit.id, amount=25, reason="daily", date=date.today(),
+    ))
+    db.session.add(PointTransaction(
+        user_id=creator.id, habit_id=creator_habit.id, amount=15, reason="daily", date=date.today(),
+    ))
+    db.session.commit()
+    other_habit_id, creator_habit_id = other_habit.id, creator_habit.id
+
+    # `other` leaves first - room survives with just the creator, but now
+    # carries one archived habit already pointing at it.
+    rooms_module._leave_room_as(room, rooms_module._room_members(room), other)
+    db.session.commit()
+    assert db.session.get(Room, room_id) is not None
+
+    # The creator leaving next is the last member - this is the delete
+    # that must not raise an IntegrityError over `other`'s archived habit.
+    response = client.post(f"/rooms/{room_id}/leave")
+    assert response.status_code == 302
+    assert db.session.get(Room, room_id) is None
+
+    other_after = db.session.get(Habit, other_habit_id)
+    creator_after = db.session.get(Habit, creator_habit_id)
+    assert other_after is not None and other_after.archived_at is not None and other_after.room_id is None
+    assert creator_after is not None and creator_after.archived_at is not None and creator_after.room_id is None
+
+    assert points.earned_points(
+        [pt.amount for pt in PointTransaction.query.filter_by(user_id=other.id)]
+    ) == 25
+    assert points.earned_points(
+        [pt.amount for pt in PointTransaction.query.filter_by(user_id=creator.id)]
+    ) == 15
 
 
 def test_one_of_several_members_leaving_keeps_the_room(client, db):
@@ -375,7 +434,7 @@ def test_creator_leaving_transfers_ownership_to_top_ranked_member(client, db):
     assert room_after.creator_id == other.id
 
 
-def test_leave_after_winning_a_crown_keeps_history_but_removes_points(client, db):
+def test_leave_after_winning_a_crown_keeps_history_and_points(client, db):
     today = date.today()
     d0 = today - timedelta(days=5)
     winner = _login(client, db, username="winner")
@@ -408,18 +467,19 @@ def test_leave_after_winning_a_crown_keeps_history_but_removes_points(client, db
     response = client.post(f"/rooms/{room.id}/leave")
     assert response.status_code == 302
 
-    # The habit (and its whole ledger, including the crown's +2) is gone -
-    # earned points never survive a deleted habit, crown or otherwise.
-    assert db.session.get(Habit, winner_habit.id) is None
-    assert PointTransaction.query.filter_by(habit_id=winner_habit.id).count() == 0
+    # Phase 3: the habit is archived, not deleted - its whole ledger
+    # (including the crown's +2) survives, so earned points are unaffected.
+    stored = db.session.get(Habit, winner_habit.id)
+    assert stored is not None
+    assert stored.archived_at is not None
+    assert PointTransaction.query.filter_by(habit_id=winner_habit.id, reason="crown").count() == 1
 
-    # The crown itself survives as history: the row isn't deleted, but the
-    # now-dangling check-in reference is cleared rather than left pointing
-    # at a deleted row.
+    # The crown row is untouched - archiving doesn't delete the check-in it
+    # points to, so there's nothing to null (unlike the old hard-delete).
     crown_after = db.session.get(RoomCrown, crown.id)
     assert crown_after is not None
     assert crown_after.user_id == winner.id
-    assert crown_after.checkin_id is None
+    assert crown_after.checkin_id == winner_checkin.id
 
 
 # -- regenerate invite ---------------------------------------------------------

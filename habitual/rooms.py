@@ -18,6 +18,7 @@ from habitual.habits import (
     _dashboard_context,
     _frequency_label,
     _habit_view,
+    _recently_archived_same_title,
     _validate_emoji,
     _validate_frequency_days,
     _validate_frequency_target,
@@ -114,25 +115,41 @@ def _room_members(room):
 
 
 def _member_habit(room, user, habits_by_user=None):
+    """The CURRENT room habit for `user` in `room` - Habit.active() matters
+    here, not just as a style choice: once leaving archives a habit instead
+    of deleting it, a user who left and rejoined the same room can have
+    both an old archived row and a new live one for the same (room_id,
+    user_id) pair, and an unfiltered `.first()` could return either one
+    depending on row order. Filtering to active is what makes rejoining
+    reliably pick up the fresh habit."""
     if habits_by_user is not None:
         return habits_by_user.get(user.id)
-    return Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+    return Habit.active().filter_by(room_id=room.id, user_id=user.id).first()
 
 
 def _room_member_habits(room, members):
-    """One query for every member's room habit, with checkins/freezes/
-    point_transactions eagerly loaded - {user_id: Habit}. Used to replace
-    the old pattern of calling _member_habit() (one query) per member, per
-    call site (leaderboard, feed, health, streak, crown candidates...),
-    each of which then lazy-loaded 3 more relationship queries on first
-    access - an N+1 that used to scale with member count on every room
-    page load and dashboard room-card render. Callers that already have
-    this dict should pass it through rather than recomputing it."""
+    """One query for every CURRENT member's room habit, with checkins/
+    freezes/point_transactions eagerly loaded - {user_id: Habit}. Used to
+    replace the old pattern of calling _member_habit() (one query) per
+    member, per call site (leaderboard, feed, health, streak, crown
+    candidates...), each of which then lazy-loaded 3 more relationship
+    queries on first access - an N+1 that used to scale with member count
+    on every room page load and dashboard room-card render. Callers that
+    already have this dict should pass it through rather than recomputing
+    it.
+
+    Habit.active(): a departed member has no RoomMember row left (so
+    they're never in `members` here anyway), but filtering this too is
+    what keeps rank_members/room_health_pct/crown candidates from ever
+    picking up a stale archived habit for someone still in the room via a
+    leave-then-rejoin. The room FEED is the one place that deliberately
+    wants every habit ever created for this room, archived included - see
+    _feed_context, which does not call this."""
     if not members:
         return {}
     user_ids = [m.user_id for m in members]
     habit_rows = (
-        Habit.query.filter(Habit.room_id == room.id, Habit.user_id.in_(user_ids))
+        Habit.active().filter(Habit.room_id == room.id, Habit.user_id.in_(user_ids))
         .options(
             selectinload(Habit.checkins),
             selectinload(Habit.freezes),
@@ -399,10 +416,21 @@ def finalize_due_crowns(room, members=None, habits_by_user=None):
             db.session.add(RoomCrown(
                 room_id=room.id, date=cursor, user_id=winner_user_id, checkin_id=winner_checkin_id,
             ))
-            db.session.add(PointTransaction(
-                user_id=winner_user_id, habit_id=winner_habit_id,
-                amount=points.CROWN_BONUS, reason="crown", date=cursor,
-            ))
+            winner_habit = habits_by_user.get(winner_user_id)
+            # Same anti-farming suppression as the daily/milestone points
+            # (see habits.checkin) - the crown record itself still stands,
+            # only the +2 is withheld on the one day it could double-pay a
+            # same-day archive-then-rejoin.
+            crown_suppressed = (
+                winner_habit is not None
+                and winner_habit.first_day_points_suppressed
+                and cursor == winner_habit.created_on
+            )
+            if not crown_suppressed:
+                db.session.add(PointTransaction(
+                    user_id=winner_user_id, habit_id=winner_habit_id,
+                    amount=points.CROWN_BONUS, reason="crown", date=cursor,
+                ))
         room.finalized_through = cursor
         try:
             db.session.commit()
@@ -447,8 +475,10 @@ def room_bundle_for_user(user):
         members_by_room.setdefault(m.room_id, []).append(m)
 
     member_user_ids = {m.user_id for m in all_members}
+    # Habit.active() - this feeds habits_by_user for every room card's
+    # ranking/health/leader (see _room_member_habits' docstring).
     habit_rows = (
-        Habit.query.filter(Habit.room_id.in_(room_ids), Habit.user_id.in_(member_user_ids))
+        Habit.active().filter(Habit.room_id.in_(room_ids), Habit.user_id.in_(member_user_ids))
         .options(
             selectinload(Habit.checkins), selectinload(Habit.freezes), selectinload(Habit.point_transactions),
         )
@@ -615,22 +645,32 @@ def _crown_badge_for_checkin(room, members, checkin):
 
 
 def _feed_context(room, members, viewer, limit=20, habits_by_user=None):
-    """Recent check-ins across every member's room habit, newest first,
-    each annotated with its crown badge and vouch state. There's no single
-    shared "today" to scope this to (every member's today is their own
-    local date), so it's simply the most recent activity in the room."""
-    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
-    habit_by_id = {}
-    user_by_habit_id = {}
-    for m in members:
-        habit = _member_habit(room, m.user, habits_by_user)
-        if habit is not None:
-            habit_by_id[habit.id] = habit
-            user_by_habit_id[habit.id] = m.user
+    """Recent check-ins across every habit EVER created for this room,
+    newest first, each annotated with its crown badge and vouch state.
+    There's no single shared "today" to scope this to (every member's
+    today is their own local date), so it's simply the most recent
+    activity in the room.
 
+    Deliberately NOT `Habit.active()`/_room_member_habits here, unlike
+    every other room query - a departed member's past check-ins are part
+    of the room's permanent history (Phase 3 decision: archiving must not
+    erase feed/crown history), so this reads every Habit row for
+    `room_id` directly, active or archived, and uses Habit.user (not
+    RoomMember.user, which no longer exists for someone who's left) to
+    attribute them. `habits_by_user` (active-only, current members) is
+    still used for the undecided-date crown race in
+    _crown_badges_for_checkins - that one is correctly "going forward"
+    only."""
+    all_room_habits = (
+        Habit.query.filter_by(room_id=room.id)
+        .options(selectinload(Habit.user))
+        .all()
+    )
+    habit_by_id = {h.id: h for h in all_room_habits}
     if not habit_by_id:
         return []
 
+    habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     checkins = (
         Checkin.query.filter(Checkin.habit_id.in_(habit_by_id.keys()))
         .options(selectinload(Checkin.vouches))
@@ -648,14 +688,17 @@ def _feed_context(room, members, viewer, limit=20, habits_by_user=None):
             vouch_counts[v.emoji] = vouch_counts.get(v.emoji, 0) + 1
             if v.user_id == viewer.id:
                 viewer_vouch_emoji = v.emoji
-        owner = user_by_habit_id.get(c.habit_id)
+        habit = habit_by_id[c.habit_id]
+        owner = habit.user
         items.append({
             "checkin": c,
             "user": owner,
             "crown_badge": badges.get(c.id),
             "vouch_counts": vouch_counts,
             "viewer_vouch_emoji": viewer_vouch_emoji,
-            "can_vouch": owner is not None and owner.id != viewer.id,
+            # No new vouching once the habit behind a check-in is archived
+            # (decision 4) - already-cast vouch_counts above still show.
+            "can_vouch": owner is not None and owner.id != viewer.id and habit.archived_at is None,
         })
     return items
 
@@ -767,6 +810,7 @@ def create_room():
         user_id=current_user.id, room_id=room.id, title=room.title, emoji=room.emoji, created_on=today,
         frequency_type=room.frequency_type, frequency_days=room.frequency_days,
         frequency_target=room.frequency_target,
+        first_day_points_suppressed=_recently_archived_same_title(current_user, room.title, today),
     ))
     db.session.commit()
 
@@ -820,6 +864,7 @@ def join_room(token):
         user_id=current_user.id, room_id=room.id, title=room.title, emoji=room.emoji, created_on=today,
         frequency_type=room.frequency_type, frequency_days=room.frequency_days,
         frequency_target=room.frequency_target,
+        first_day_points_suppressed=_recently_archived_same_title(current_user, room.title, today),
     ))
     db.session.commit()
 
@@ -943,15 +988,20 @@ def room_detail(room_id):
 
 
 def _leave_room_as(room, members, user):
-    """Removes `user` from `room`: deletes their room habit (and, via its
-    own cascade, every check-in/freeze/point-transaction on it), nulling
-    any RoomCrown.checkin_id that pointed into those check-ins first so
-    that history survives the habit's delete instead of blocking on it
-    (see RoomCrown's docstring). If they were the last member, the room
-    itself is deleted; if they were the creator and others remain,
-    ownership transfers to the top-ranked remaining member. Shared by the
-    leave_room route and account deletion (which calls this once per room
-    the account is in) - caller still has to commit.
+    """Removes `user` from `room`: archives their room habit in place
+    (Phase 3 - see Habit.archived_at) rather than deleting it, so its
+    check-ins/freezes/point_transactions survive for the room's history
+    and the user's own earned points/balance. No RoomCrown.checkin_id
+    nulling needed here any more - archiving doesn't touch checkins, so
+    an existing crown's checkin_id stays valid (that nulling only matters
+    again if this habit is later hard-deleted - see
+    habitual.auth._delete_account, which does its own nulling first). If
+    they were the last member, the room itself is deleted (room_id on any
+    archived habit still pointing at it is handled by the FK's ON DELETE
+    SET NULL); if they were the creator and others remain, ownership
+    transfers to the top-ranked remaining member. Shared by the leave_room
+    route and account deletion (which calls this once per room the
+    account is in) - caller still has to commit.
 
     Returns True if `user` was actually a member (and something happened),
     False if they weren't in this room at all."""
@@ -963,12 +1013,7 @@ def _leave_room_as(room, members, user):
     habit = _member_habit(room, user)
 
     if habit is not None:
-        checkin_ids = [c.id for c in habit.checkins]
-        if checkin_ids:
-            RoomCrown.query.filter(RoomCrown.checkin_id.in_(checkin_ids)).update(
-                {"checkin_id": None}, synchronize_session=False
-            )
-        db.session.delete(habit)
+        habit.archived_at = datetime.now(dt_timezone.utc)
 
     db.session.delete(member)
     db.session.flush()
@@ -1062,6 +1107,8 @@ def vouch(checkin_id):
         abort(400)  # no self-vouch
     if member_ended(room, current_user):
         abort(400)  # fix #3: a member's own final day gates vouching too
+    if habit.archived_at is not None:
+        abort(400)  # the check-in's owner has since left/deleted this habit
 
     emoji = request.form.get("emoji")
     if emoji not in VOUCH_EMOJIS:

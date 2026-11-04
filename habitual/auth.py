@@ -15,7 +15,7 @@ from wtforms.validators import DataRequired, EqualTo, ValidationError
 from habitual import db, mailer
 from habitual.habits import nav_shell_context
 from habitual.models import (
-    Badge, EmailToken, Freeze, Habit, PointTransaction, RateLimit, Room, RoomCrown, RoomMember, User, Vouch,
+    Badge, Checkin, EmailToken, Freeze, Habit, PointTransaction, RateLimit, Room, RoomCrown, RoomMember, User, Vouch,
 )
 
 auth = Blueprint("auth", __name__)
@@ -288,12 +288,16 @@ def _delete_account(user):
     an orphaned half-deleted account.
 
     - Every room the account is in: handled exactly like leaving it
-      normally (rooms._leave_room_as) - deletes their room habit,
+      normally (rooms._leave_room_as) - archives their room habit,
       transfers ownership or deletes the room if they were the last
       member. Called once per membership, so this covers every room.
-    - Every remaining (solo) habit and its own cascade (check-ins,
-      freezes, point transactions) - room habits are already gone by the
-      point this runs, from the step above.
+    - Every habit this account has - solo AND the just-archived room ones
+      from the step above (Phase 3: leaving no longer deletes a habit, it
+      archives it, so those rows are still here with user_id=user.id) -
+      is now hard-deleted along with its own cascade (check-ins, freezes,
+      point transactions). This is the ONE place a habit is still ever
+      actually deleted rather than archived - see Habit.archived_at's
+      docstring.
     - Freezes/point-transactions not tied to any habit (habit_id NULL -
       an unused freeze, or a freeze_purchase ledger row), which no
       Habit's own cascade reaches.
@@ -303,8 +307,12 @@ def _delete_account(user):
     - Badges, email tokens, and the rate-limit rows keyed to their
       account/email (never the IP-keyed ones - those aren't "theirs").
     - Finalized room-crown history survives with the winner reference
-      cleared, same idea as checkin_id already being nulled when the
-      habit behind it is deleted (see _leave_room_as).
+      cleared. checkin_id is nulled here too, for every check-in on a
+      habit about to be hard-deleted below - _leave_room_as no longer
+      does this itself (archiving leaves the check-in, and the crown
+      pointing at it, untouched), so this sweep is the only place left
+      that still needs it before the cascade-delete below removes those
+      check-ins for real.
 
     Deleting the User row itself is enough to invalidate every session
     everywhere (load_user's db.session.get simply finds nothing) -
@@ -317,6 +325,17 @@ def _delete_account(user):
         members = rooms._room_members(room)
         rooms._leave_room_as(room, members, user)
 
+    habit_ids = [h.id for h in Habit.query.filter_by(user_id=user.id).all()]
+    if habit_ids:
+        checkin_ids = [c.id for c in Checkin.query.filter(Checkin.habit_id.in_(habit_ids))]
+        if checkin_ids:
+            RoomCrown.query.filter(RoomCrown.checkin_id.in_(checkin_ids)).update(
+                {"checkin_id": None}, synchronize_session=False
+            )
+
+    # Deliberately unfiltered (not Habit.active()) - this is account
+    # deletion, which must hard-delete archived habits too, not just
+    # current ones.
     for habit in Habit.query.filter_by(user_id=user.id).all():
         db.session.delete(habit)
 
