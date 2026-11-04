@@ -1,0 +1,15 @@
+{#
+  A check-in made from the colony page itself (habits._colony_live_response)
+  re-renders. colony_panel.html is this response's own primary swap target
+  (hx-target="#colony-panel" hx-swap="outerHTML"), so it renders with no
+  `oob` of its own - same reasoning as fleet_card_response.html's
+  fleet_card.html. The persistent sidebar/phone commander bar's Energy/
+  streak figures are a genuine OOB sibling here, same {% with oob=True %}
+  scoping fleet_card_response.html already uses for its own OOB siblings
+  next to a non-OOB primary target.
+#}
+{% include "partials/colony_panel.html" %}
+{% with oob=True %}
+{% include "partials/nav/nav_stats_desktop.html" %}
+{% include "partials/nav/nav_stats_phone.html" %}
+{% endwith %}

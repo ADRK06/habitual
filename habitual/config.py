@@ -42,7 +42,7 @@ class Config:
     # empty slots. Flip a flag on once its phase actually lands; nothing
     # else about the shell's layout changes.
     NAV_FEATURES = {
-        "colony": False,
+        "colony": True,
         "habits": True,
         "fleet": True,
         "sector": False,

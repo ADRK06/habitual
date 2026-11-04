@@ -66,19 +66,40 @@ def _category_checkin_counts(user):
     return {category: count for category, count in rows}
 
 
-def _building_tile_context(building_type, building, category_checkins, total_checkins):
+# Display only (not a game rule, so it lives here rather than game.py).
+BUILDING_DISPLAY_NAME = {
+    game.DEFENSE_TOWER: "Defense Tower",
+    game.RESEARCH_LAB: "Research Lab",
+    game.POWER_REACTOR: "Power Reactor",
+    game.BIODOME: "Biodome",
+    game.OBSERVATORY: "Observatory",
+    game.CUSTOM_MODULE: "Custom Module",
+}
+
+
+def _building_tile_context(building_type, building, category_checkins, total_checkins, balance):
+    """`can_afford` lets the templates grey out/hide the Build or Upgrade
+    button instead of offering an action the route will just 400 on - the
+    same "don't offer what you know will fail" lesson as the ended-fleet
+    Check in fix. The route's own balance check (_spend_or_400) stays as
+    the real defense - this is purely about not presenting a guaranteed-
+    to-fail control in the common case."""
     category = game.CATEGORY_FOR_BUILDING_TYPE[building_type]
     unlocked = game.is_unlocked(building_type, category_checkins, total_checkins)
+    name = BUILDING_DISPLAY_NAME[building_type]
 
     if building is None:
+        cost = game.next_level_cost(building_type, 1) if unlocked else None
         return {
             "type": building_type,
+            "name": name,
             "category": category,
             "state": "buildable" if unlocked else "locked",
             "level": 0,
             "checkins": total_checkins if building_type == game.CUSTOM_MODULE else category_checkins,
             "needed": game.UNLOCK_CHECKINS,
-            "cost": game.next_level_cost(building_type, 1) if unlocked else None,
+            "cost": cost,
+            "can_afford": cost is not None and balance >= cost,
             "hours": game.build_time_hours(building_type),
             "building_id": None,
         }
@@ -92,13 +113,16 @@ def _building_tile_context(building_type, building, category_checkins, total_che
     else:
         state = "built"
 
+    cost = None if (in_progress or maxed) else game.next_level_cost(building_type, building.level + 1)
     return {
         "type": building_type,
+        "name": name,
         "category": category,
         "state": state,
         "level": building.level,
         "finishes_at": building.finishes_at,
-        "cost": None if (in_progress or maxed) else game.next_level_cost(building_type, building.level + 1),
+        "cost": cost,
+        "can_afford": cost is not None and balance >= cost,
         "hours": game.build_time_hours(building_type),
         "building_id": building.id,
     }
@@ -108,6 +132,7 @@ def _colony_context(user):
     colony_row = _get_or_create_colony(user)
     _settle_finished_buildings(colony_row)
 
+    header = _header_stats(user)
     category_counts = _category_checkin_counts(user)
     total_checkins = sum(category_counts.values())
     buildings_by_type = {b.type: b for b in colony_row.buildings}
@@ -116,11 +141,10 @@ def _colony_context(user):
         _building_tile_context(
             building_type, buildings_by_type.get(building_type),
             category_counts.get(game.CATEGORY_FOR_BUILDING_TYPE[building_type], 0), total_checkins,
+            header["balance"],
         )
         for building_type in game.BUILDING_TYPES
     ]
-
-    header = _header_stats(user)
     today = local_today(user)
     habit_cards = [_habit_view(h, today, header["freezes_held"]) for h in _user_habits(user)]
     return {
@@ -128,6 +152,7 @@ def _colony_context(user):
         "colony_level": game.colony_level(header["earned_points"]),
         "building_tiles": building_tiles,
         "habit_cards": habit_cards,
+        "building_type_for_category": game.BUILDING_TYPE_FOR_CATEGORY,
         **header,
     }
 

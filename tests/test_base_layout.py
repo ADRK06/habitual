@@ -31,7 +31,10 @@ def test_landing_page_has_ctas_and_sections(client):
     assert "aadhira" not in html.lower()
 
 
-def test_authenticated_user_redirected_from_home_to_dashboard(client, db):
+def test_authenticated_user_redirected_from_home_to_colony(client, db):
+    # /colony replaced /dashboard as the post-login home in Phase 4a -
+    # /dashboard itself is unchanged, still reachable from the HABITS nav
+    # item, just no longer where a logged-in visit to "/" lands.
     user = User(name="Aadhira", username="redirecttest")
     user.set_password("Sup3r$ecret")
     db.session.add(user)
@@ -41,7 +44,7 @@ def test_authenticated_user_redirected_from_home_to_dashboard(client, db):
     response = client.get("/")
 
     assert response.status_code == 302
-    assert response.location == "/dashboard"
+    assert response.location == "/colony"
 
 
 def test_flashed_message_with_quotes_does_not_break_page(app, client):

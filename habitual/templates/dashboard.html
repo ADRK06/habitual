@@ -12,6 +12,7 @@
   openPopover: null,
 }" x-init="
   const openParam = new URLSearchParams(location.search).get('open');
+  if (openParam === 'create-habit') createOpen = true;
   if (openParam === 'create-fleet') createRoomOpen = true;
   if (openParam === 'join-fleet') joinRoomOpen = true;
 ">

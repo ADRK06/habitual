@@ -59,7 +59,7 @@ def create_app(config_class=Config):
     @app.get("/")
     def home():
         if current_user.is_authenticated:
-            return redirect(url_for("habits.dashboard"))
+            return redirect(url_for("colony.colony_home"))
         return render_template("landing.html")
 
     return app

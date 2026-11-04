@@ -356,7 +356,7 @@ def _delete_account(user):
 @auth.route("/signup", methods=["GET", "POST"])
 def signup():
     if current_user.is_authenticated:
-        return redirect(safe_next_path(request.args.get("next")) or url_for("habits.dashboard"))
+        return redirect(safe_next_path(request.args.get("next")) or url_for("colony.colony_home"))
 
     form = SignupForm(next=request.args.get("next", ""))
 
@@ -401,7 +401,7 @@ def signup():
 @auth.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(safe_next_path(request.args.get("next")) or url_for("habits.dashboard"))
+        return redirect(safe_next_path(request.args.get("next")) or url_for("colony.colony_home"))
 
     form = LoginForm(next=request.args.get("next", ""))
     show_signup_link = False
@@ -432,7 +432,7 @@ def login():
             user.locked_until = None
             db.session.commit()
             login_user(user)
-            return redirect(safe_next_path(form.next.data) or url_for("habits.dashboard"))
+            return redirect(safe_next_path(form.next.data) or url_for("colony.colony_home"))
         elif user:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= LOCKOUT_THRESHOLD:
@@ -461,7 +461,7 @@ def check_email():
 def resend_verification():
     if not CSRFOnlyForm().validate_on_submit():
         abort(400)
-    next_url = safe_next_path(request.form.get("next")) or url_for("habits.dashboard")
+    next_url = safe_next_path(request.form.get("next")) or url_for("colony.colony_home")
 
     target = current_user.pending_email or current_user.email
     nothing_pending = target is None or (current_user.pending_email is None and current_user.email_verified_at is not None)
@@ -513,7 +513,7 @@ def verify_email(token):
 @auth.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     if current_user.is_authenticated:
-        return redirect(url_for("habits.dashboard"))
+        return redirect(url_for("colony.colony_home"))
 
     form = ForgotPasswordForm()
 

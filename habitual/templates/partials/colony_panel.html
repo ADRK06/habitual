@@ -1,0 +1,102 @@
+{% from "_macros.html" import spinner %}
+{#
+  The colony home's swappable main panel (planet + building grid + today's
+  habits) - re-rendered whole on every check-in from this page (habits.
+  _colony_live_response), since a check-in can move a building's unlock
+  count or settle one that just finished, both colony-wide, not scoped to
+  one habit the way the dashboard/fleet/detail panels are.
+
+  Phase 4a omissions from WebHome.dc.html/PhoneHome.dc.html (no mock data
+  yet, or belongs to a later phase - see the Phase 4a plan): no SHIELD UP
+  badge (Phase 5), no daily supply drop card (Phase 5), no sector/fleet
+  cards (Phases 6-7), no colony log feed, no "vouched" bonus label
+  (vouching awards no Energy anywhere in this app yet). Check-in here is a
+  single button, not the dashboard card's proof-note popover - a
+  deliberate simplification for this phase, flagged for review.
+#}
+<div id="colony-panel">
+  <div class="flex flex-wrap gap-2 pb-4">
+    <span class="border border-border bg-surface px-3 py-1.5 font-display text-[10px] uppercase tracking-wide text-text-muted">
+      Colony LV <span class="font-mono text-sm normal-case text-text">{{ colony_level }}</span>
+    </span>
+    <span class="border border-border bg-surface px-3 py-1.5 font-display text-[10px] uppercase tracking-wide text-text-muted">
+      XP <span class="font-mono text-sm normal-case text-text">{{ earned_points }}</span>
+    </span>
+    <span class="border border-border bg-surface px-3 py-1.5 font-display text-[10px] uppercase tracking-wide text-text-muted">
+      Energy <span class="font-mono text-sm normal-case text-accent">{{ balance }}</span>
+    </span>
+  </div>
+
+  <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
+    <div class="flex w-full flex-col gap-3 lg:w-[380px] lg:shrink-0">
+      <div id="colony-planet" class="relative border border-border bg-void" style="aspect-ratio: 358 / 310">
+        <img
+          src="{{ url_for('static', filename='art/planet_render_rust.png') }}"
+          alt="{{ colony.name }}"
+          style="image-rendering: pixelated"
+          class="h-full w-full object-contain"
+        >
+        <div class="absolute left-2 top-2 border border-border bg-void px-2 py-1 font-display text-[10px] uppercase tracking-wide text-text">
+          {{ colony.name }}
+        </div>
+      </div>
+
+      {# PhoneHome.dc.html doesn't show this grid at all on phone - only
+         the planet + BUILD button, with the full building list living in
+         the build sheet (PhoneBuild.dc.html). WebHome.dc.html shows both.
+         Matching that exactly rather than showing it everywhere. #}
+      <div class="hidden grid-cols-3 gap-2 lg:grid">
+        {% for tile in building_tiles %}
+        {% include "partials/building_tile.html" %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="min-w-0 flex-1 border border-border bg-surface p-3.5">
+      <div class="flex items-center justify-between pb-3 font-display text-[11px] uppercase tracking-wide text-text-muted">
+        <span>Today</span>
+        <span class="font-mono normal-case text-text-muted">
+          {{ habit_cards | selectattr("checked_in_today") | list | length }} / {{ habit_cards | length }} done
+        </span>
+      </div>
+
+      {% if habit_cards %}
+      <div class="flex flex-col gap-2">
+        {% for card in habit_cards %}
+        <div id="colony-habit-{{ card.habit.id }}" class="flex items-center gap-3 border border-border bg-void px-3 py-2">
+          <img
+            src="{{ url_for('static', filename='art/icon_' ~ building_type_for_category.get(card.habit.category, 'custom_module') ~ '.png') }}"
+            alt=""
+            class="h-6 w-6 shrink-0"
+            style="image-rendering: pixelated"
+          >
+          <span class="min-w-0 flex-1 truncate font-body text-sm {{ 'text-text-muted line-through' if card.checked_in_today else 'text-text' }}">
+            {{ card.habit.title }}
+          </span>
+          {% if card.checked_in_today %}
+          <span class="shrink-0 font-mono text-xs text-signal">✓</span>
+          {% else %}
+          <button
+            type="button"
+            hx-post="{{ url_for('habits.checkin', habit_id=card.habit.id) }}"
+            hx-vals='{"colony_view": "1"}'
+            hx-target="#colony-panel"
+            hx-swap="outerHTML"
+            hx-disabled-elt="this"
+            class="relative h-9 shrink-0 bg-accent px-3 font-display text-[11px] uppercase tracking-wide text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span class="btn-label">Check in</span>
+            {{ spinner(size='3') }}
+          </button>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="font-body text-sm text-text-muted">
+        No habits yet - <a href="{{ url_for('habits.dashboard') }}?open=create-habit" class="text-accent underline">add one</a> to start powering your colony.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</div>

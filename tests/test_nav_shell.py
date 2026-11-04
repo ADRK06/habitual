@@ -66,25 +66,25 @@ def test_dashboard_shows_only_the_enabled_nav_items(client, db):
 
     html = client.get("/dashboard").get_data(as_text=True)
 
+    assert "COLONY" in html
     assert "HABITS" in html
     assert "FLEET" in html
     assert "COMMANDER" in html
     assert "SECTOR" not in html
     assert "GALAXY" not in html
     assert "SHOP" not in html
-    assert "COLONY" not in html
 
 
 def test_phone_tab_bar_has_no_empty_slots(client, db):
-    # Only Habits and Fleet are both NAV_FEATURES-enabled and eligible for
-    # the phone tab bar right now (Profile isn't - PhoneNav.dc.html never
-    # has a Commander tab) - the grid must divide by that real count (2),
-    # not a hardcoded 5, so the two visible tabs fill the bar evenly.
+    # Colony, Habits and Fleet are the three NAV_FEATURES-enabled items
+    # eligible for the phone tab bar now (Profile isn't - PhoneNav.dc.html
+    # never has a Commander tab) - the grid must divide by that real
+    # count (3), not a hardcoded 5, so the tabs fill the bar evenly.
     _login(client, db)
 
     html = client.get("/dashboard").get_data(as_text=True)
 
-    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in html
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in html
     assert "repeat(5, minmax(0, 1fr))" not in html
 
 

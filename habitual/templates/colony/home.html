@@ -2,20 +2,90 @@
 
 {% block title %}Colony · Habitual{% endblock %}
 
-{% block app_content %}
 {#
-  Placeholder only - commit 5/8 of Phase 4a wires the routes/data this
-  page needs so they're testable via status code/DB state before the
-  real mock-matched layout (WebHome.dc.html/PhoneHome.dc.html) lands in
-  the next commit. Not for review at this commit.
+  Colony home (Phase 4a) - WebHome.dc.html / PhoneHome.dc.html, with the
+  elements that need data from a later phase omitted (see colony_panel.
+  html's own comment for the full list and why). This replaces /dashboard
+  as the post-login landing page; /dashboard itself is unchanged, still
+  reachable from the HABITS nav item.
 #}
-<div class="py-10">
-  <h1 class="font-display text-xl uppercase tracking-wide text-text">{{ colony.name }}</h1>
-  <p class="font-body text-sm text-text-muted">Colony LV {{ colony_level }} · {{ earned_points }} XP · {{ balance }} Energy</p>
-  <ul class="mt-4 flex flex-col gap-2">
-    {% for tile in building_tiles %}
-    <li class="font-body text-sm text-text">{{ tile.type }} - {{ tile.state }}{% if tile.level %} (LV {{ tile.level }}){% endif %}</li>
-    {% endfor %}
-  </ul>
+{% block app_content %}
+<div x-data="{ buildOpen: false }">
+  <header class="flex flex-wrap items-center justify-between gap-4 pt-8 pb-4">
+    <h1 class="font-display text-xl uppercase tracking-wide text-text lg:text-2xl">Colony</h1>
+    <div class="flex gap-2">
+      <a
+        href="{{ url_for('habits.dashboard') }}?open=create-habit"
+        class="flex h-11 items-center border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent"
+      >
+        + New habit
+      </a>
+      <button
+        type="button"
+        @click="buildOpen = true"
+        class="flex h-11 items-center bg-accent px-4 font-display text-xs uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+      >
+        Build
+      </button>
+    </div>
+  </header>
+
+  {% include "partials/colony_panel.html" %}
+  {% include "partials/colony_build_sheet.html" %}
 </div>
+
+<script>
+  // Energy beam (design brief's check-in motion spec): on a successful
+  // check-in from THIS page, a short pixel line travels from the habit
+  // row to the planet, the planet pulses once, and "+N" floats up and
+  // fades - skipped entirely under prefers-reduced-motion/a backgrounded
+  // tab (same skipMotion() idea every other page's celebration handler
+  // uses, duplicated here since it's not shared across templates).
+  function skipMotion() {
+    return window.prefersReducedMotion || document.hidden;
+  }
+
+  window.addEventListener("checkinCelebration", (e) => {
+    if (skipMotion()) return;
+    const { habitId, pointsEarned } = e.detail;
+    const row = document.getElementById(`colony-habit-${habitId}`);
+    const planet = document.getElementById("colony-planet");
+    if (!row || !planet || !pointsEarned) return;
+
+    const rowRect = row.getBoundingClientRect();
+    const planetRect = planet.getBoundingClientRect();
+
+    const beam = document.createElement("div");
+    beam.className = "pointer-events-none fixed z-50 bg-accent";
+    beam.style.left = `${rowRect.right}px`;
+    beam.style.top = `${rowRect.top + rowRect.height / 2}px`;
+    beam.style.width = "4px";
+    beam.style.height = "4px";
+    beam.style.transition = "all 450ms ease-out";
+    document.body.appendChild(beam);
+
+    const label = document.createElement("div");
+    label.className = "pointer-events-none fixed z-50 font-mono text-sm text-accent";
+    label.style.left = `${rowRect.right}px`;
+    label.style.top = `${rowRect.top}px`;
+    label.textContent = `+${pointsEarned}`;
+    document.body.appendChild(label);
+
+    requestAnimationFrame(() => {
+      beam.style.left = `${planetRect.left + planetRect.width / 2}px`;
+      beam.style.top = `${planetRect.top + planetRect.height / 2}px`;
+      label.style.transition = "all 450ms ease-out";
+      label.style.top = `${rowRect.top - 24}px`;
+      label.style.opacity = "0";
+    });
+
+    setTimeout(() => {
+      beam.remove();
+      label.remove();
+      if (window.gsap) {
+        gsap.fromTo(planet, { scale: 1 }, { scale: 1.03, duration: 0.2, ease: "power2.out", yoyo: true, repeat: 1 });
+      }
+    }, 450);
+  });
+</script>
 {% endblock %}

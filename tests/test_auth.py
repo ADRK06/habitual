@@ -59,7 +59,7 @@ def test_login_ignores_external_next(client, db):
         data={"username": "aadhira", "password": VALID_PASSWORD, "next": "https://evil.com"},
     )
     assert response.status_code == 302
-    assert response.location == "/dashboard"
+    assert response.location == "/colony"
 
 
 # -- signup -------------------------------------------------------------------

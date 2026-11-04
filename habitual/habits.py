@@ -926,6 +926,31 @@ def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, 
     return resp
 
 
+def _colony_live_response(toast=None, celebration=None, badges_earned=None):
+    """If this check-in came from the colony home page itself (flagged
+    with a `colony_view` field, mirroring `_room_live_response`'s
+    `room_view`), re-renders the whole colony panel (planet, building
+    grid, today's habits) instead of the dashboard-shaped response below -
+    unlike the other three live-response helpers, this one isn't scoped
+    to one habit, since a check-in can move a building's unlock count or
+    settle a finished one, both colony-wide state."""
+    if not request.values.get("colony_view"):
+        return None
+    from habitual import colony  # local import avoids a circular import with colony.py
+    context = {**colony._colony_context(current_user), **nav_shell_context(current_user)}
+    resp = make_response(render_template("partials/colony_panel_response.html", **context))
+    trigger = {}
+    if toast:
+        trigger["toast"] = toast
+    if celebration:
+        trigger["checkinCelebration"] = celebration
+    if badges_earned:
+        trigger["badgesEarned"] = badges_earned
+    if trigger:
+        resp.headers["HX-Trigger"] = json.dumps(trigger)
+    return resp
+
+
 @habits.post("/habits/<int:habit_id>/checkin")
 @login_required
 def checkin(habit_id):
@@ -1009,7 +1034,7 @@ def checkin(habit_id):
             "message": f"+{points_earned} · {label}" if label else f"+{points_earned} Energy!",
             "type": "success",
         }
-        celebration = {"habitId": habit.id, "milestone": bool(bonus)}
+        celebration = {"habitId": habit.id, "milestone": bool(bonus), "pointsEarned": points_earned}
         newly_badges = badges.check_and_award(current_user)
 
     room_response = _room_live_response(habit, toast=toast, celebration=celebration, badges_earned=newly_badges)
@@ -1025,6 +1050,9 @@ def checkin(habit_id):
     )
     if detail_response is not None:
         return detail_response
+    colony_response = _colony_live_response(toast=toast, celebration=celebration, badges_earned=newly_badges)
+    if colony_response is not None:
+        return colony_response
 
     header = _header_stats(current_user)
     habit_rows = _user_habits(current_user)

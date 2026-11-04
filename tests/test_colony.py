@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime, timedelta, timezone as dt_timezone
 
 from habitual import game
@@ -379,3 +380,93 @@ def test_category_edit_moves_historical_checkins_into_the_new_categorys_count(cl
 
     assert _category_checkin_counts(user).get("fitness", 0) == 0
     assert _category_checkin_counts(user).get("study", 0) == 10
+
+
+# -- UI wiring (commit 6) -----------------------------------------------------
+
+
+def test_colony_home_renders_header_stats_and_habit_list(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Morning run", category="fitness")
+    _give_checkins(db, habit, 10)
+    _give_energy(db, user, 500)
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert "Morning run" in html
+    assert "Colony LV" in html
+    assert 'id="colony-planet"' in html
+    assert "Defense Tower" in html  # buildable tile, 10/10 fitness check-ins
+
+
+def test_colony_nav_item_links_to_colony_home(client, db):
+    _login(client, db)
+    html = client.get("/colony").get_data(as_text=True)
+    assert f'href="{"/colony"}"' in html
+
+
+def test_checkin_from_colony_page_swaps_the_colony_panel_and_carries_points_earned(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Morning run", category="fitness")
+
+    response = client.post(f"/habits/{habit.id}/checkin", data={"colony_view": "1"})
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'id="colony-panel"' in html
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert trigger["checkinCelebration"]["pointsEarned"] == 5
+    assert trigger["checkinCelebration"]["habitId"] == habit.id
+
+
+def test_build_menu_shows_a_locked_row_with_checkin_progress(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="study")
+    _give_checkins(db, habit, 4)
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert "Research Lab" in html
+    assert "4/10" in html
+
+
+def test_unlocked_but_unaffordable_building_shows_no_build_button(client, db):
+    # Unlocked (10+ check-ins) but 0 Energy - the route would 400 this,
+    # so the template must not offer the form at all (same "don't offer
+    # what will fail" fix as the ended-fleet Check in button).
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 10)
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert f'action="/colony/build"' not in html
+    assert str(game.next_level_cost(game.DEFENSE_TOWER, 1)) in html  # cost still shown, just not actionable
+
+
+def test_unlocked_and_affordable_building_shows_a_build_button(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 10)
+    _give_energy(db, user, 500)
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert 'action="/colony/build"' in html
+
+
+def test_built_but_unaffordable_upgrade_shows_no_upgrade_button(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 10)
+    _give_energy(db, user, game.next_level_cost(game.DEFENSE_TOWER, 1))
+    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
+    building = Building.query.filter_by(type=game.DEFENSE_TOWER).first()
+    building.level = 1
+    building.finishes_at = None
+    db.session.commit()
+    # Balance is 0 now - can't afford the LV2 upgrade.
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert f'action="/colony/upgrade/{building.id}"' not in html
