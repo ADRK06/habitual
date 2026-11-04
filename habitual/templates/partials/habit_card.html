@@ -280,10 +280,10 @@
     >
       {% if habit.room_id %}
       <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Leave <span class="font-body normal-case">"{{ habit.title }}"</span>?</h4>
-      <p class="mt-2 font-body text-sm text-text-muted">This removes your Fleet habit and its points. This can't be undone.</p>
+      <p class="mt-2 font-body text-sm text-text-muted">This removes your Fleet habit from the room. Energy you earned stays.</p>
       {% else %}
       <h4 id="confirm-heading-{{ habit.id }}" class="font-display text-base uppercase tracking-wide text-text">Delete <span class="font-body normal-case">"{{ habit.title }}"</span>?</h4>
-      <p class="mt-2 font-body text-sm text-text-muted">This removes {{ habit_points }} points from your total. This can't be undone.</p>
+      <p class="mt-2 font-body text-sm text-text-muted">This habit disappears from your list. Energy you earned stays.</p>
       {% endif %}
       <div class="mt-5 flex justify-end gap-3">
         <button type="button" @click="confirmOpen = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">

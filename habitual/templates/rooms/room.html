@@ -147,7 +147,7 @@
       class="w-full max-w-sm border border-border bg-surface p-6"
     >
       <h3 id="leave-room-heading" class="font-display text-base uppercase tracking-wide text-text">Leave <span class="font-body normal-case">"{{ room.title }}"</span>?</h3>
-      <p class="mt-2 font-body text-sm text-text-muted">This removes your Fleet habit and its points. This can't be undone.</p>
+      <p class="mt-2 font-body text-sm text-text-muted">This removes your Fleet habit from the room. Energy you earned stays.</p>
       <div class="mt-5 flex justify-end gap-3">
         <button type="button" @click="leaveOpen = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">Cancel</button>
         <form method="post" action="{{ url_for('rooms.leave_room', room_id=room.id) }}">
