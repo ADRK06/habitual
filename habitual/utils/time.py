@@ -8,9 +8,15 @@ def local_now(user):
     return datetime.now(ZoneInfo(user.timezone))
 
 
-def local_today(user):
-    """The current date in `user`'s timezone — never use server/UTC time for habit dates."""
-    return local_now(user).date()
+def local_today(user, at=None):
+    """The date in `user`'s timezone — never use server/UTC time for habit
+    dates. Defaults to right now; pass an aware UTC datetime (e.g. a stored
+    `archived_at`) via `at` to get the local date THAT instant fell on
+    instead - the one ZoneInfo conversion point for "was this on the
+    user's today", reused rather than re-implemented at each call site."""
+    if at is None:
+        return local_now(user).date()
+    return at.astimezone(ZoneInfo(user.timezone)).date()
 
 
 def midnight_epoch_ms(user):

@@ -1039,7 +1039,9 @@ def test_checkin_requires_ownership(client, db):
 # -- delete ---------------------------------------------------------------
 
 
-def test_delete_habit_removes_habit_and_its_points(client, db):
+def test_delete_habit_archives_it_but_keeps_its_points(client, db):
+    """Phase 3: delete archives in place - checkins/points survive, and the
+    earned total is unaffected. Only account deletion still hard-deletes."""
     user = _login(client, db)
     habit = _create_habit(db, user)
     client.post(f"/habits/{habit.id}/checkin")
@@ -1047,12 +1049,15 @@ def test_delete_habit_removes_habit_and_its_points(client, db):
 
     response = client.delete(f"/habits/{habit.id}")
     assert response.status_code == 200
-    assert db.session.get(Habit, habit.id) is None
-    assert PointTransaction.query.filter_by(habit_id=habit.id).count() == 0
-    assert Checkin.query.filter_by(habit_id=habit.id).count() == 0
+    stored = db.session.get(Habit, habit.id)
+    assert stored is not None
+    assert stored.archived_at is not None
+    assert PointTransaction.query.filter_by(habit_id=habit.id).count() > 0
+    assert Checkin.query.filter_by(habit_id=habit.id).count() > 0
+    assert Habit.active().filter_by(id=habit.id).first() is None  # gone from "current" habits
 
 
-def test_delete_habit_removes_a_freeze_used_on_it_but_not_unused_freezes(client, db):
+def test_delete_habit_keeps_freezes_used_on_it(client, db):
     user = _login(client, db)
     today = date.today()
     yesterday = today - timedelta(days=1)
@@ -1067,21 +1072,21 @@ def test_delete_habit_removes_a_freeze_used_on_it_but_not_unused_freezes(client,
 
     client.delete(f"/habits/{habit.id}")
 
-    assert Freeze.query.filter_by(habit_id=habit.id).count() == 0  # the used one went with the habit
-    assert Freeze.query.filter_by(user_id=user.id, used_on=None).count() == 1  # the unused one survives
+    assert Freeze.query.filter_by(habit_id=habit.id).count() == 1  # archiving doesn't touch freezes either
+    assert Freeze.query.filter_by(user_id=user.id, used_on=None).count() == 1  # the unused one is untouched
 
 
 def test_delete_response_includes_header_oob_with_correct_totals(client, db):
     user = _login(client, db)
     habit1 = _create_habit(db, user, title="Read")
     habit2 = _create_habit(db, user, title="Run")
-    client.post(f"/habits/{habit1.id}/checkin")  # +5, will be deleted
+    client.post(f"/habits/{habit1.id}/checkin")  # +5, habit archived after
     client.post(f"/habits/{habit2.id}/checkin")  # +5, stays
 
     response = client.delete(f"/habits/{habit1.id}")
     assert b'id="header-stats"' in response.data
     assert b'hx-swap-oob="true"' in response.data
-    assert b'data-counter="5"' in response.data  # only habit2's points remain
+    assert b'data-counter="10"' in response.data  # archived habit1's points still count toward the total
 
 
 def test_delete_last_habit_shows_empty_state_via_oob(client, db):

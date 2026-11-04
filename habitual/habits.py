@@ -1,6 +1,6 @@
 import calendar as calendar_module
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -321,8 +321,12 @@ def _user_habits(user):
     # reads (checkins, freezes, point_transactions) in one query apiece
     # instead of 3 lazy queries per habit - the N+1 that used to scale with
     # habit count on every dashboard load and checkin/undo/freeze response.
+    # Habit.active(): an archived habit is excluded from the dashboard and
+    # every stat derived from this list (streaks, success rate, habit
+    # count, health, heatmap, needs-attention) - see Habit.active()'s
+    # docstring for the deliberate exceptions elsewhere.
     return (
-        Habit.query.filter_by(user_id=user.id)
+        Habit.active().filter_by(user_id=user.id)
         .options(
             selectinload(Habit.checkins),
             selectinload(Habit.freezes),
@@ -330,6 +334,33 @@ def _user_habits(user):
         )
         .order_by(Habit.created_on.desc(), Habit.id.desc())
         .all()
+    )
+
+
+def _active_habit_or_404(habit_id, user):
+    """Shared fetch for every single-habit action route (checkin, undo,
+    use-freeze, edit-frequency, detail, delete) - 404s on a habit owned by
+    someone else exactly as before, and now also 404s on an archived one,
+    same as if it had been actually deleted."""
+    return Habit.active().filter_by(id=habit_id, user_id=user.id).first_or_404()
+
+
+def _normalize_title(title):
+    return " ".join(title.split()).casefold()
+
+
+def _recently_archived_same_title(user, title, today):
+    """True if `user` archived a habit (solo delete or leaving its room)
+    with the same normalized title earlier today, in their own local
+    timezone - the anti-farming check for create_habit/create_room/
+    join_room. A room's member-habit title is always room.title, so
+    "rejoin the same room today" is already covered by this same
+    title-match without a separate room_id check."""
+    normalized = _normalize_title(title)
+    candidates = Habit.query.filter(Habit.user_id == user.id, Habit.archived_at.isnot(None))
+    return any(
+        _normalize_title(h.title) == normalized and local_today(user, h.archived_at) == today
+        for h in candidates
     )
 
 
@@ -493,15 +524,18 @@ def dashboard():
 def create_habit():
     form = HabitForm()
     if form.validate_on_submit():
+        today = local_today(current_user)
+        title = form.title.data.strip()
         habit = Habit(
             user_id=current_user.id,
-            title=form.title.data.strip(),
+            title=title,
             emoji=form.emoji.data,
             tiny_version=(form.tiny_version.data or "").strip() or None,
-            created_on=local_today(current_user),
+            created_on=today,
             frequency_type=form.frequency_type.data,
             frequency_days=int(form.frequency_days.data) if form.frequency_type.data == "days" else None,
             frequency_target=int(form.frequency_target.data) if form.frequency_type.data == "weekly" else None,
+            first_day_points_suppressed=_recently_archived_same_title(current_user, title, today),
         )
         db.session.add(habit)
         db.session.commit()
@@ -521,9 +555,7 @@ def edit_habit_frequency(habit_id):
     entirely: a room's frequency is locked for every member and only ever
     set via the room itself (create_room/join_room), never per-member -
     mirrors delete_habit's existing `room_id is not None` guard."""
-    habit = db.get_or_404(Habit, habit_id)
-    if habit.user_id != current_user.id:
-        abort(404)
+    habit = _active_habit_or_404(habit_id, current_user)
     if habit.room_id is not None:
         abort(400)
 
@@ -716,9 +748,7 @@ def _month_calendar_context(habit, month_start, today):
 @habits.get("/habits/<int:habit_id>")
 @login_required
 def habit_detail(habit_id):
-    habit = db.get_or_404(Habit, habit_id)
-    if habit.user_id != current_user.id:
-        abort(404)
+    habit = _active_habit_or_404(habit_id, current_user)
 
     today = local_today(current_user)
     now_hour = local_now(current_user).hour
@@ -871,9 +901,7 @@ def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, 
 @habits.post("/habits/<int:habit_id>/checkin")
 @login_required
 def checkin(habit_id):
-    habit = db.get_or_404(Habit, habit_id)
-    if habit.user_id != current_user.id:
-        abort(404)
+    habit = _active_habit_or_404(habit_id, current_user)
     _room_gate_or_404(habit)
 
     today = local_today(current_user)
@@ -911,17 +939,24 @@ def checkin(habit_id):
             streak_day = points.streak_day_on(completed, bridge, today, effective_start)
             bonus = points.milestone_bonus(streak_day)
 
-        db.session.add(PointTransaction(
-            user_id=current_user.id, habit_id=habit.id,
-            amount=points.BASE_POINTS, reason="daily", date=today,
-        ))
-        if bonus:
+        # Anti-farming (see _recently_archived_same_title): a habit flagged
+        # at creation only ever has this matter on its own created_on date -
+        # the one day its predecessor could otherwise be double-paid for.
+        # The checkin itself (and the streak it extends) is unaffected;
+        # only the ledger write is skipped.
+        suppressed = habit.first_day_points_suppressed and today == habit.created_on
+        if not suppressed:
             db.session.add(PointTransaction(
                 user_id=current_user.id, habit_id=habit.id,
-                amount=bonus, reason="milestone", date=today,
+                amount=points.BASE_POINTS, reason="daily", date=today,
             ))
+            if bonus:
+                db.session.add(PointTransaction(
+                    user_id=current_user.id, habit_id=habit.id,
+                    amount=bonus, reason="milestone", date=today,
+                ))
         db.session.commit()
-        points_earned = points.BASE_POINTS + bonus
+        points_earned = 0 if suppressed else points.BASE_POINTS + bonus
 
     toast, celebration, newly_badges = None, None, []
     if points_earned:
@@ -971,9 +1006,7 @@ def checkin(habit_id):
 @habits.delete("/habits/<int:habit_id>/checkin")
 @login_required
 def undo_checkin(habit_id):
-    habit = db.get_or_404(Habit, habit_id)
-    if habit.user_id != current_user.id:
-        abort(404)
+    habit = _active_habit_or_404(habit_id, current_user)
     _room_gate_or_404(habit)
 
     today = local_today(current_user)
@@ -1055,9 +1088,7 @@ def buy_freeze():
 @habits.post("/habits/<int:habit_id>/freeze")
 @login_required
 def use_freeze(habit_id):
-    habit = db.get_or_404(Habit, habit_id)
-    if habit.user_id != current_user.id:
-        abort(404)
+    habit = _active_habit_or_404(habit_id, current_user)
     _room_gate_or_404(habit)
 
     # Same lock as buy_freeze: serializes this against a concurrent buy or
@@ -1166,16 +1197,18 @@ def use_freeze(habit_id):
 @habits.delete("/habits/<int:habit_id>")
 @login_required
 def delete_habit(habit_id):
-    habit = db.get_or_404(Habit, habit_id)
-    if habit.user_id != current_user.id:
-        abort(404)
+    habit = _active_habit_or_404(habit_id, current_user)
     if habit.room_id is not None:
         # A room habit only ever goes away through leave_room(), which also
         # cleans up the RoomMember row and (if needed) ownership transfer.
         abort(400)
 
+    # Archived, not deleted (Phase 3): checkins/freezes/point_transactions
+    # all survive, so earned points/balance are unaffected - see
+    # Habit.archived_at's docstring. Account deletion is the only path
+    # that still hard-deletes a habit (habitual.auth._delete_account).
     title = habit.title
-    db.session.delete(habit)
+    habit.archived_at = datetime.now(timezone.utc)
     db.session.commit()
 
     today = local_today(current_user)
