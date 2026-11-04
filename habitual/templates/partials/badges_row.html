@@ -1,7 +1,16 @@
 <div
   id="badges-row"
   {% if oob %}hx-swap-oob="true"{% endif %}
-  class="flex w-full flex-nowrap items-center gap-3 overflow-x-auto pb-6 font-body"
+  {# pt-1/pr-1: #badges-row scrolls horizontally, so overflow-x-auto
+     computes overflow-y to auto too (CSS overflow spec) - hover:scale-110
+     on a badge grows it ~2px past its resting box on every side, and with
+     zero top padding and (at 390px, where the row actually needs to
+     scroll) zero trailing space after the last badge, that 2px bled past
+     the row's own clip box and got shaved off: the top edge on every
+     badge, and the right edge on the last one specifically once scrolled
+     all the way to the end. pb-6/the ~57px "Badges" label before the
+     first badge already cover bottom and left with plenty of room. #}
+  class="flex w-full flex-nowrap items-center gap-3 overflow-x-auto pt-1 pr-1 pb-6 font-body"
 >
   <span class="shrink-0 font-display text-[10px] uppercase tracking-wide text-text-muted">Badges</span>
   {% for b in badge_rows %}
