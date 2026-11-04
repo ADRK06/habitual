@@ -41,13 +41,14 @@ def _login(client, db, username="aadhira", timezone="Asia/Kolkata"):
 
 def _create_room(
     db, creator, title="Morning Run", emoji="🏃", duration_days=14, start_date=None,
-    frequency_type="daily", frequency_days=None, frequency_target=None,
+    frequency_type="daily", frequency_days=None, frequency_target=None, category="other",
 ):
     start_date = start_date or date.today()
     room = Room(
         title=title, emoji=emoji, creator_id=creator.id, duration_days=duration_days,
         start_date=start_date, invite_token=secrets.token_urlsafe(16), join_code=generate_join_code(),
         frequency_type=frequency_type, frequency_days=frequency_days, frequency_target=frequency_target,
+        category=category,
     )
     db.session.add(room)
     db.session.flush()
@@ -55,6 +56,7 @@ def _create_room(
     db.session.add(Habit(
         user_id=creator.id, room_id=room.id, title=title, emoji=emoji, created_on=start_date,
         frequency_type=frequency_type, frequency_days=frequency_days, frequency_target=frequency_target,
+        category=category,
     ))
     db.session.commit()
     return room
@@ -507,6 +509,58 @@ def test_regenerate_invite_requires_creator(client, db):
     response = client.post(f"/rooms/{room.id}/regenerate-invite")
     assert response.status_code == 404
     assert db.session.get(Room, room.id).invite_token == old_token
+
+
+# -- edit room category --------------------------------------------------------
+
+
+def test_edit_room_category_creator_can_change_it(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, category="fitness")
+
+    response = client.post(f"/rooms/{room.id}/category", data={"category": "study"})
+    assert response.status_code == 302
+
+    room_after = db.session.get(Room, room.id)
+    assert room_after.category == "study"
+
+
+def test_edit_room_category_requires_creator(client, db):
+    creator = _create_user(db, username="creator")
+    room = _create_room(db, creator, category="fitness")
+    member = _login(client, db, username="member")
+    _join_room_direct(db, room, member)
+
+    response = client.post(f"/rooms/{room.id}/category", data={"category": "study"})
+    assert response.status_code == 404
+    assert db.session.get(Room, room.id).category == "fitness"
+
+
+def test_edit_room_category_propagates_to_every_current_members_habit(client, db):
+    creator = _login(client, db, username="creator")
+    room = _create_room(db, creator, category="fitness")
+    member = _create_user(db, username="member")
+    _join_room_direct(db, room, member)
+
+    client.post(f"/rooms/{room.id}/category", data={"category": "study"})
+
+    creator_habit = Habit.query.filter_by(room_id=room.id, user_id=creator.id).first()
+    member_habit = Habit.query.filter_by(room_id=room.id, user_id=member.id).first()
+    assert creator_habit.category == "study"
+    assert member_habit.category == "study"
+
+
+def test_join_room_copies_the_rooms_current_category(client, db):
+    creator = _create_user(db, username="creator")
+    room = _create_room(db, creator, category="fitness")
+    room.category = "study"  # changed after creation, before the new member joins
+    db.session.commit()
+
+    _login(client, db, username="joiner")
+    client.post(f"/join/{room.invite_token}")
+
+    joiner_habit = Habit.query.filter_by(room_id=room.id).filter(Habit.user_id != creator.id).first()
+    assert joiner_habit.category == "study"
 
 
 # -- crown finalization: lazy, idempotent, per-member local dates -----------

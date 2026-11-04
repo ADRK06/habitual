@@ -19,6 +19,7 @@ from habitual.habits import (
     _frequency_label,
     _habit_view,
     _recently_archived_same_title,
+    _validate_category,
     _validate_emoji,
     _validate_frequency_days,
     _validate_frequency_target,
@@ -55,6 +56,16 @@ class RoomForm(FlaskForm):
     frequency_type = HiddenField("Frequency", default="daily", validators=[DataRequired(), _validate_frequency_type])
     frequency_days = HiddenField("Days", validators=[Optional(), _validate_frequency_days])
     frequency_target = HiddenField("Target", validators=[Optional(), _validate_frequency_target])
+    # Unlike frequency, this one IS editable later (see RoomCategoryForm/
+    # edit_room_category below) - the default here only matters for a
+    # fleet created before a category picker exists in the create form.
+    category = HiddenField("Category", default="other", validators=[DataRequired(), _validate_category])
+
+
+class RoomCategoryForm(FlaskForm):
+    """Used only by edit_room_category - mirrors edit_habit_frequency's
+    standalone-form pattern (habitual/habits.py's FrequencyForm)."""
+    category = HiddenField("Category", default="other", validators=[DataRequired(), _validate_category])
 
 
 class JoinByCodeForm(FlaskForm):
@@ -805,6 +816,7 @@ def create_room():
         frequency_type=form.frequency_type.data,
         frequency_days=int(form.frequency_days.data) if form.frequency_type.data == "days" else None,
         frequency_target=int(form.frequency_target.data) if form.frequency_type.data == "weekly" else None,
+        category=form.category.data,
     )
     db.session.add(room)
     db.session.flush()  # need room.id before the member/habit rows below
@@ -813,7 +825,7 @@ def create_room():
     db.session.add(Habit(
         user_id=current_user.id, room_id=room.id, title=room.title, emoji=room.emoji, created_on=today,
         frequency_type=room.frequency_type, frequency_days=room.frequency_days,
-        frequency_target=room.frequency_target,
+        frequency_target=room.frequency_target, category=room.category,
         first_day_points_suppressed=_recently_archived_same_title(current_user, room.title, today),
     ))
     db.session.commit()
@@ -867,7 +879,7 @@ def join_room(token):
     db.session.add(Habit(
         user_id=current_user.id, room_id=room.id, title=room.title, emoji=room.emoji, created_on=today,
         frequency_type=room.frequency_type, frequency_days=room.frequency_days,
-        frequency_target=room.frequency_target,
+        frequency_target=room.frequency_target, category=room.category,
         first_day_points_suppressed=_recently_archived_same_title(current_user, room.title, today),
     ))
     db.session.commit()
@@ -1053,6 +1065,32 @@ def leave_room(room_id):
     # route/CSRF/archiving, just where the flash-turned-toast lands.
     next_path = safe_next_path(request.form.get("next"))
     return redirect(next_path or url_for("habits.dashboard"))
+
+
+@rooms.post("/rooms/<int:room_id>/category")
+@login_required
+def edit_room_category(room_id):
+    """Creator-only, mirrors habits.edit_habit_frequency's pattern: unlike
+    frequency (locked forever at creation), a fleet's category can be
+    changed any time, and re-copies onto every CURRENT member's Habit.
+    category in the same request - a new joiner gets whatever the room's
+    category is at join time (see join_room above), never retroactively."""
+    room = _room_or_404(room_id)
+    if room.creator_id != current_user.id:
+        abort(404)
+
+    form = RoomCategoryForm()
+    if not form.validate_on_submit():
+        abort(400)
+
+    room.category = form.category.data
+    members = _room_members(room)
+    for habit in _room_member_habits(room, members).values():
+        habit.category = room.category
+    db.session.commit()
+
+    flash("Fleet category updated.", "info")
+    return redirect(url_for("rooms.room_detail", room_id=room.id))
 
 
 @rooms.post("/rooms/<int:room_id>/regenerate-invite")
