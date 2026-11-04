@@ -94,8 +94,9 @@ habitual/
    from check-ins and freezes. Crowns are awarded at check-in time.
 2. **Points ledger.** Every point change is a row in `point_transactions`
    (`reason`: `daily`, `milestone`, `crown`, `freeze_purchase`).
-   - **Earned points** = sum of positive amounts. Never decreases (except when a habit is deleted).
-     Used for **all rankings**. Shown as the main number in the header.
+   - **Earned points** = sum of positive amounts. Never decreases — deleting a habit or leaving a
+     room archives it (see below), it never erases its ledger rows. Used for **all rankings**.
+     Shown as the main number in the header.
    - **Balance** = earned − spent. Used to buy streak freezes.
    - **Habit points** = earned points for that habit.
 3. **Room habits are normal habits** with a `room_id`. Joining a room creates a habit for that
@@ -110,7 +111,7 @@ habitual/
 | Table | Key fields |
 |---|---|
 | `users` | id, name, username (unique, case-insensitive), password_hash, timezone, theme (unused — reserved, dark-only v1), created_at |
-| `habits` | id, user_id, room_id (nullable), title, emoji, tiny_version (text), created_on (date) |
+| `habits` | id, user_id, room_id (nullable, `ON DELETE SET NULL`), title, emoji, tiny_version (text), created_on (date), archived_at (timestamp, nullable), first_day_points_suppressed (bool) |
 | `checkins` | id, habit_id, date, created_at (timestamp), proof_note (nullable) — **UNIQUE(habit_id, date)** |
 | `freezes` | id, user_id, habit_id (nullable until used), purchased_at, used_on (date, nullable) |
 | `point_transactions` | id, user_id, habit_id (nullable), amount, reason, date, created_at |
@@ -119,7 +120,17 @@ habitual/
 | `vouches` | id, checkin_id, user_id, emoji (✅ or 🔥) — UNIQUE(checkin_id, user_id) |
 | `badges` | id, user_id, type, earned_on — UNIQUE(user_id, type) |
 
-Deleting a habit cascades to its check-ins, vouches and point transactions (its points leave the total).
+**Deleting a habit or leaving a room archives it** (`archived_at` set), it does **not** delete it.
+Check-ins, freezes, point transactions and vouches on it all survive untouched, so earned points and
+balance are unaffected. An archived habit is excluded from everything "current" — dashboard, streaks,
+success rate, habit counts, analytics, room leaderboards/rankings/crowns/vouch-eligibility going
+forward — via `Habit.active()` (every such query must go through it; the deliberate exceptions are the
+room feed, which keeps a departed member's past check-ins/crown history, and `badges.check_and_award`'s
+lifetime achievement check). The **only** thing that still hard-deletes a habit (and its checkins,
+freezes, point transactions) is deleting the account itself. Anti-farming: creating a new habit, or
+joining a room, with the same normalized title as one archived earlier that same local day withholds
+that day's points (`first_day_points_suppressed`) so an archive-then-recreate same-day can't double-pay
+the day — it earns normally from the next day on.
 
 ---
 
@@ -184,8 +195,10 @@ For a completed day that is day **n** of the current streak:
 - **Room health meter**: % of members who have checked in today.
 - **Room streak**: consecutive days on which every member (as of that day) checked in. Freezes don't count.
 - Members can **vouch** (✅ / 🔥) on each other's check-ins, one per check-in per person.
-- **Leave room** (with confirmation) deletes that member's room habit and its points.
-  If the creator leaves, ownership passes to the top-ranked member. If the last member leaves, delete the room.
+- **Leave room** (with confirmation) archives that member's room habit (see "Deleting a habit or
+  leaving a room archives it" above) and removes their `room_members` row; its points stay earned, and
+  its past check-ins/crown history stay in the room's feed. If the creator leaves, ownership passes to
+  the top-ranked member. If the last member leaves, delete the room.
 
 ### Badges (v1)
 `first_checkin`, `first_week` (7-day streak), `fortnight` (14), `perfect_month` (30), `crown_collector` (10 crowns),
