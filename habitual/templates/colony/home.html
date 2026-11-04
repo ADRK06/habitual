@@ -1,0 +1,21 @@
+{% extends "app_base.html" %}
+
+{% block title %}Colony · Habitual{% endblock %}
+
+{% block app_content %}
+{#
+  Placeholder only - commit 5/8 of Phase 4a wires the routes/data this
+  page needs so they're testable via status code/DB state before the
+  real mock-matched layout (WebHome.dc.html/PhoneHome.dc.html) lands in
+  the next commit. Not for review at this commit.
+#}
+<div class="py-10">
+  <h1 class="font-display text-xl uppercase tracking-wide text-text">{{ colony.name }}</h1>
+  <p class="font-body text-sm text-text-muted">Colony LV {{ colony_level }} · {{ earned_points }} XP · {{ balance }} Energy</p>
+  <ul class="mt-4 flex flex-col gap-2">
+    {% for tile in building_tiles %}
+    <li class="font-body text-sm text-text">{{ tile.type }} - {{ tile.state }}{% if tile.level %} (LV {{ tile.level }}){% endif %}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

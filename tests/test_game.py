@@ -93,6 +93,11 @@ def test_is_max_level_true_above_max():
     assert game.is_max_level(game.DEFENSE_TOWER, game.MAX_LEVEL + 1) is True
 
 
+def test_default_slot_is_stable_and_unique_per_building():
+    slots = [game.default_slot(t) for t in game.BUILDING_TYPES]
+    assert slots == list(range(len(game.BUILDING_TYPES)))
+
+
 # -- colony level (decision 3: 1 + floor(sqrt(xp/25))) ------------------------
 
 COLONY_LEVEL_CASES = [

@@ -38,6 +38,7 @@ BUILDING_TYPE_FOR_CATEGORY = {
     "mind": OBSERVATORY,
     "other": CUSTOM_MODULE,
 }
+CATEGORY_FOR_BUILDING_TYPE = {building_type: category for category, building_type in BUILDING_TYPE_FOR_CATEGORY.items()}
 
 # How many check-ins (in the building's category, or any category for
 # Custom Module) unlock the ability to build it at all.
@@ -97,6 +98,14 @@ def is_unlocked(building_type: str, category_checkin_count: int, total_checkin_c
 
 def is_max_level(building_type: str, level: int) -> bool:
     return level >= MAX_LEVEL
+
+
+def default_slot(building_type: str) -> int:
+    """Fixed display position (0-5) on the planet's building grid - the
+    canonical order BUILDING_TYPES is already declared in. Not user-
+    editable in Phase 4a; a later rearrange feature would read/write the
+    stored slot instead of always deriving it from this."""
+    return BUILDING_TYPES.index(building_type)
 
 
 def colony_level(xp: int) -> int:
