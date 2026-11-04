@@ -900,13 +900,17 @@ def fleet_index():
 
 def fleet_card_context(room, viewer, habit=None, members=None, habits_by_user=None):
     """Everything one "My fleets" card (partials/fleet_card.html) needs:
-    member count, fleet streak, today's health, and whether `viewer` has
-    checked in today. Shared by fleet_list (every fleet at once) and
-    habits._fleet_list_live_response (one fleet, after a check-in/undo
-    made from that list) so both render the exact same card. `members`/
-    `habits_by_user` let a caller that already has them (fleet_list's
-    batched room_bundle_for_user) skip refetching; `habit` likewise for
-    a caller that already has the viewer's own room habit loaded."""
+    member count, fleet streak, today's health, whether `viewer` has
+    checked in today, and whether the room has ended for `viewer`
+    (member_ended) - without that last one the card would keep offering a
+    Check in button that habits.checkin() always 400s on via
+    _room_gate_or_404 once the room's final day has passed. Shared by
+    fleet_list (every fleet at once) and habits._fleet_list_live_response
+    (one fleet, after a check-in/undo made from that list) so both render
+    the exact same card. `members`/`habits_by_user` let a caller that
+    already has them (fleet_list's batched room_bundle_for_user) skip
+    refetching; `habit` likewise for a caller that already has the
+    viewer's own room habit loaded."""
     members = members if members is not None else _room_members(room)
     habits_by_user = habits_by_user if habits_by_user is not None else _room_member_habits(room, members)
     habit = habit if habit is not None else habits_by_user.get(viewer.id)
@@ -919,6 +923,7 @@ def fleet_card_context(room, viewer, habit=None, members=None, habits_by_user=No
         "room_streak_unit": room_streak_unit(room),
         "health_pct": room_health_pct(room, members, habits_by_user),
         "checked_in_today": habit is not None and any(c.date == today for c in habit.checkins),
+        "viewer_ended": member_ended(room, viewer),
     }
 
 

@@ -1,3 +1,4 @@
+import json
 import secrets
 from datetime import date, datetime, timedelta, timezone as dt_timezone
 from zoneinfo import ZoneInfo
@@ -1407,6 +1408,23 @@ def test_checkin_blocked_after_viewers_final_day(client, db):
     assert Checkin.query.filter_by(habit_id=habit.id).count() == 0
 
 
+def test_checkin_blocked_after_final_day_shows_a_toast_instead_of_failing_silently(client, db):
+    # The dashboard/fleet-list/detail-page controls all stop offering
+    # Check in once the room's ended (see the "Fleet ended" template
+    # branches) - this covers a page that's gone stale regardless (open
+    # from before the room ended, or before that fix shipped), so the
+    # 400 it still gets back is never silent.
+    user = _login(client, db)
+    _room, habit = _ended_room_habit(db, user)
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+
+    assert response.status_code == 400
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert trigger["toast"]["message"] == "This fleet has ended"
+    assert trigger["toast"]["type"] == "error"
+
+
 def test_undo_checkin_blocked_after_viewers_final_day(client, db):
     user = _login(client, db)
     room, habit = _ended_room_habit(db, user)
@@ -1447,6 +1465,47 @@ def test_vouch_blocked_after_viewers_final_day(client, db):
     response = client.post(f"/checkins/{checkin.id}/vouch", data={"emoji": "✅"})
     assert response.status_code == 400
     assert checkin.vouches == []
+
+
+# -- "Fleet ended" state instead of a dead Check in button -----------------
+
+
+def test_dashboard_card_shows_fleet_ended_instead_of_checkin_button(client, db):
+    user = _login(client, db)
+    _room, habit = _ended_room_habit(db, user)
+
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    card_start = response.index(f'id="habit-card-{habit.id}"')
+    card_html = response[card_start:card_start + 8000]  # past the 14-day trailing strip
+    assert f'hx-post="/habits/{habit.id}/checkin"' not in card_html
+    assert "Fleet ended" in card_html
+
+
+def test_fleet_list_card_shows_fleet_ended_instead_of_checkin_button(client, db):
+    user = _login(client, db)
+    room, habit = _ended_room_habit(db, user)
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    card_start = response.index(f'id="fleet-card-{room.id}"')
+    card_html = response[card_start:card_start + 5500]
+    assert f'hx-post="/habits/{habit.id}/checkin"' not in card_html
+    assert "Fleet ended" in card_html
+
+
+def test_habit_detail_page_shows_fleet_ended_instead_of_checkin_button(client, db):
+    # Same gap, found on the habit's own detail page (reachable for a room
+    # habit too - habit_detail() doesn't redirect those elsewhere) while
+    # fixing the two explicitly-reported spots - not named in the report,
+    # but the identical bug, so fixed alongside them.
+    user = _login(client, db)
+    _room, habit = _ended_room_habit(db, user)
+
+    response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+
+    assert f'hx-post="/habits/{habit.id}/checkin"' not in response
+    assert "Fleet ended" in response
 
 
 # -- vouch ----------------------------------------------------------------

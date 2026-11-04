@@ -8,6 +8,7 @@ from flask_wtf import FlaskForm
 from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
+from werkzeug.exceptions import BadRequest
 from wtforms import HiddenField, StringField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
@@ -779,9 +780,25 @@ def habit_detail(habit_id):
             frequency_type=habit.frequency_type, frequency_days=habit.frequency_days,
             frequency_target=habit.frequency_target,
         ),
+        "viewer_ended": _viewer_ended(habit),
         **nav_shell_context(current_user),
     }
     return render_template("habits/detail.html", **context)
+
+
+def _viewer_ended(habit):
+    """True if `habit` is a room habit whose room has ended for the
+    current viewer (rooms.member_ended) - False for a solo habit.
+    Dashboard cards get this from room_card_extra's own `viewer_ended`
+    (rooms.py); the habit detail page/panel has no equivalent context of
+    its own, so habit_detail() and _detail_live_response() compute it
+    here instead - feeds habit_panel.html's "Fleet ended" branch, so a
+    dead check-in control isn't offered once _room_gate_or_404 below
+    would always 400 it."""
+    if habit.room_id is None:
+        return False
+    from habitual import rooms  # local import avoids a circular import with rooms.py
+    return rooms.member_ended(habit.room, current_user)
 
 
 def _room_gate_or_404(habit):
@@ -882,6 +899,7 @@ def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, 
         "recent_checkins": (
             Checkin.query.filter_by(habit_id=habit.id).order_by(Checkin.date.desc()).limit(10).all()
         ),
+        "viewer_ended": _viewer_ended(habit),
         **nav_shell_context(current_user),
         "oob": True,
     }
@@ -902,7 +920,23 @@ def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, 
 @login_required
 def checkin(habit_id):
     habit = _active_habit_or_404(habit_id, current_user)
-    _room_gate_or_404(habit)
+    try:
+        _room_gate_or_404(habit)
+    except BadRequest:
+        # _room_gate_or_404 itself is unchanged (still a bare abort(400) -
+        # undo_checkin/use_freeze still get that plain response). This is
+        # the one route reachable from a dashboard/fleet/detail card that
+        # can go stale and silently fail - the fix above (habit_card.html/
+        # fleet_card.html/habit_panel.html's "Fleet ended" branch) stops
+        # offering the control in the first place, but a page already open
+        # from before a room ended (or before that fix shipped) can still
+        # submit this. HX-Trigger fires regardless of status code, so the
+        # toast shows even though htmx won't swap a 400's body.
+        resp = make_response("", 400)
+        resp.headers["HX-Trigger"] = json.dumps(
+            {"toast": {"message": "This fleet has ended", "type": "error"}}
+        )
+        return resp
 
     today = local_today(current_user)
     now_hour = local_now(current_user).hour
