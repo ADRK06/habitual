@@ -4,6 +4,7 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 
+from habitual import points
 from habitual.config import Config
 
 db = SQLAlchemy()
@@ -44,6 +45,14 @@ def create_app(config_class=Config):
     app.register_error_handler(403, forbidden)
     app.register_error_handler(429, rate_limited)
     app.register_error_handler(500, server_error)
+
+    @app.context_processor
+    def inject_freeze_constants():
+        # So templates never hard-code the price/cap as a copy of the
+        # numbers in points.py (the single source of truth) that could
+        # silently drift from them - available in every template, not just
+        # the handful that happen to pass them explicitly.
+        return {"FREEZE_COST": points.FREEZE_COST, "MAX_UNUSED_FREEZES": points.MAX_UNUSED_FREEZES}
 
     @app.get("/")
     def home():

@@ -1416,6 +1416,34 @@ def test_buy_freeze_rejected_at_max_held(client, db):
     assert Freeze.query.filter_by(user_id=user.id, used_on=None).count() == 2
 
 
+def test_freeze_price_and_cap_are_templated_from_points(client, db, monkeypatch):
+    # Regression: header_stats.html, dashboard.html, habit_card.html,
+    # habit_panel.html and room_my_panel.html used to hard-code the freeze
+    # price/cap as literal copies of points.FREEZE_COST/MAX_UNUSED_FREEZES
+    # - verify the rendered page actually reads from points.py (via the
+    # app-wide context processor) instead of a copy that could drift.
+    monkeypatch.setattr("habitual.points.FREEZE_COST", 60)
+    monkeypatch.setattr("habitual.points.MAX_UNUSED_FREEZES", 3)
+
+    user = _login(client, db)
+    today = date.today()
+    # A habit with yesterday missed and no freeze held - the same "Save your
+    # streak" disabled-button scenario as test_save_your_streak_is_disabled_
+    # without_a_freeze_held, whose tooltip carries the freeze price text.
+    habit = _create_habit(db, user, created_on=today - timedelta(days=3))
+    for i in (3, 2):
+        d = today - timedelta(days=i)
+        db.session.add(Checkin(habit_id=habit.id, date=d))
+        db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=5, reason="daily", date=d))
+    db.session.commit()
+
+    html = client.get("/dashboard").get_data(as_text=True)
+
+    assert "60 balance" in html  # habit_card.html's disabled-button tooltip
+    assert "0/3" in html  # header_stats.html's "held/cap" figure
+    assert "/3 shields ready" in html  # dashboard.html's freeze-shop card
+
+
 # -- use freeze -------------------------------------------------------------
 
 

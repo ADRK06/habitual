@@ -128,7 +128,7 @@
       <div class="flex items-center gap-3 border border-steel bg-surface p-3">
         <span class="shrink-0 text-2xl" aria-hidden="true">🧊</span>
         <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span class="font-body text-sm text-text"><span class="font-mono">{{ freezes_held }}</span>/2 shields ready</span>
+          <span class="font-body text-sm text-text"><span class="font-mono">{{ freezes_held }}</span>/{{ MAX_UNUSED_FREEZES }} shields ready</span>
           <span class="font-body text-xs text-text-muted">Used automatically on a missed day</span>
         </div>
         <button
