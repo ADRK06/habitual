@@ -75,11 +75,13 @@ habitual/
 │   ├── points.py           # ALL scoring/streak rules (pure functions, tested)
 │   ├── utils/time.py       # "today" for a user in their timezone
 │   ├── templates/          # base.html, partials/, pages
-│   └── static/             # css/, js/, img/
+│   └── static/             # css/, js/, img/, art/ (Colonies sprites - see Design → Sprite pipeline)
+├── scripts/                 # get-tailwind.sh, migrate-prod.sh, make_sprites.py
 ├── tailwind/input.css
 ├── migrations/
 ├── tests/
 ├── requirements.txt
+├── requirements-dev.txt    # dev-only deps (currently just Pillow, for make_sprites.py) - never installed on Vercel
 ├── .env.example
 └── CLAUDE.md
 ```
@@ -235,6 +237,41 @@ password checklist, show/hide password.
 ## Design
 
 UI source of truth: docs/reference/colonies/ (read README.md there). Match screens exactly; never restyle.
+
+### Sprite pipeline
+
+All Colonies pixel art lives in `habitual/static/art/`:
+- 80 sprites imported verbatim from `docs/reference/colonies/art/` (the UI reference's own PNGs), plus a
+  small set of **new** sprites the game plan needs but the reference never shipped (damage/shield-dome
+  overlays, scaffold frames, a check-in beam, the 3 fleet-station levels, the weekly boss, an open-crate
+  icon - 12 total right now).
+- `manifest.json` - one entry per sprite (`name`, `source_id`, `category`, `used_in`, `new`, plus `phase`/
+  `notes` on new ones). Generated and updated by `scripts/make_sprites.py` - never hand-edited.
+- `_sheet.png` - an **export-only** contact sheet (`scripts/make_sprites.py sheet`). Its thumbnails are
+  downscaled into a shared grid and will mislead you about real proportions - never judge a sprite from
+  it; it's for pasting into a PR, not for review. Use `/dev/styleguide` instead (see below).
+- `_composites/` - per-building PNGs testing the two overlay sprites (damage, shield dome) against each
+  of the 5 fixed buildings at true size (`scripts/make_sprites.py composites`). Dev-only, not referenced
+  by any real page.
+
+`scripts/make_sprites.py` only ever touches `docs/reference/colonies/art/` (read) and
+`habitual/static/art/` (write) - it never edits templates, by design (see next paragraph). Commands:
+```bash
+python scripts/make_sprites.py import          # copy+rename reference sprites, write manifest.json, print audit
+python scripts/make_sprites.py audit            # re-print the audit (no file changes)
+python scripts/make_sprites.py draw             # (re)draw the new (non-imported) sprites
+python scripts/make_sprites.py manifest-update  # stamp manifest.json with new=true/false
+python scripts/make_sprites.py sheet            # rebuild _sheet.png (export-only, see above)
+python scripts/make_sprites.py composites       # rebuild the per-building composite test PNGs
+```
+It depends on Pillow, which is **dev-only** (`requirements-dev.txt`) - never imported by the Flask app
+itself, so it's never installed on Vercel.
+
+**`/dev/styleguide`'s SPRITES section is the review surface**: every sprite as its own `<img>` at real
+pixel size x4 (nearest-neighbour, never squashed into a shared cell), grouped by category, new ones
+tagged, plus a composite-test row per overlay sprite against all 5 fixed buildings. **A new or redrawn
+sprite is reviewed there and approved by the developer before it is wired into any real template or
+page** - drawing a sprite and shipping it are two separate, deliberately separate steps.
 
 ---
 
