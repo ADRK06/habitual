@@ -359,3 +359,69 @@ class RateLimit(db.Model):
     scope = db.Column(db.String(30), nullable=False)
     attempts = db.Column(db.Integer, nullable=False, default=0)
     locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+
+
+class Colony(db.Model):
+    """One planet per user (Phase 4a, "Colony core") - auto-created on a
+    user's first GET /colony, never via a migration backfill or a signup
+    step (there's no onboarding flow yet - that's Phase 4b). `planet_type`
+    and `name` have no editor yet either: every colony is hardcoded "rust"
+    and a generated name at creation time, both columns existing now so
+    4b's migration only has to ADD the editor, not touch this table again."""
+
+    __tablename__ = "colonies"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    name = db.Column(db.String(60), nullable=False)
+    planet_type = db.Column(db.String(20), nullable=False, default="rust", server_default="rust")
+    created_on = db.Column(db.Date, nullable=False)
+
+    user = db.relationship(
+        "User", backref=db.backref("colony", uselist=False, cascade="all, delete-orphan", passive_deletes=False)
+    )
+    buildings = db.relationship("Building", backref="colony", cascade="all, delete-orphan", passive_deletes=False)
+
+
+class Building(db.Model):
+    """One row per building TYPE a colony has ever started (never one per
+    level - there's no history of past levels). `type` is one of the six
+    habitual.game building keys (defense_tower, research_lab,
+    power_reactor, biodome, observatory, custom_module), each mapped 1:1
+    from a Habit.category - never from a specific habit_id (see this
+    table's own docstring note in CLAUDE.md: a building belongs to the
+    colony, not to any one habit, so archiving/deleting the habit(s) that
+    unlocked or power it never touches this row).
+
+    level/finishes_at together encode what's happening, decided lazily on
+    read (habitual.colony._settle_finished_buildings) rather than any
+    background job:
+    - No row at all: not yet unlocked, or unlocked but never built.
+    - level=0, finishes_at in the future: the FIRST build is in progress
+      (not level 1 yet - this is what makes a first build distinguishable
+      from an upgrade, both of which otherwise just set finishes_at).
+    - level=N>=1, finishes_at NULL: settled at level N, nothing pending.
+    - level=N>=1, finishes_at in the future: upgrading from N to N+1 -
+      still reads/behaves as level N (old level) until settled.
+    - Either level, finishes_at in the past: due to settle (level += 1,
+      finishes_at/started_at cleared) - settlement is idempotent, so
+      landing on this state twice before a read settles it is harmless.
+
+    damaged_on is unused until Phase 5 (storms) - the column exists now
+    per the Game Plan's own schema so that phase's migration doesn't have
+    to touch this table."""
+
+    __tablename__ = "buildings"
+    __table_args__ = (db.UniqueConstraint("colony_id", "type", name="uq_building_colony_type"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    colony_id = db.Column(db.Integer, db.ForeignKey("colonies.id"), nullable=False, index=True)
+    type = db.Column(db.String(20), nullable=False)
+    level = db.Column(db.Integer, nullable=False)
+    # Fixed display position (0-5) on the planet's building grid, written
+    # once at creation from a canonical per-type order - not user-editable
+    # until a later phase's free-rearrange feature.
+    slot = db.Column(db.Integer, nullable=False)
+    started_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    finishes_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    damaged_on = db.Column(db.Date, nullable=True)
