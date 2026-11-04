@@ -5,25 +5,49 @@
 >
   <span class="shrink-0 font-display text-[10px] uppercase tracking-wide text-text-muted">Badges</span>
   {% for b in badge_rows %}
-  <div class="group relative shrink-0">
+  <div class="relative shrink-0" x-data="{ open: false }">
     <button
       type="button"
+      x-ref="btn"
       tabindex="0"
       aria-label="{{ b.label }}{{ ' - earned' if b.earned else ' (locked) - ' + b.hint }}"
+      @mouseenter="open = true; $nextTick(() => positionCardPopover($refs.btn, $refs.tip, 8, false))"
+      @mouseleave="open = false"
+      @focus="open = true; $nextTick(() => positionCardPopover($refs.btn, $refs.tip, 8, false))"
+      @blur="open = false"
       class="flex h-10 w-10 items-center justify-center border text-lg transition-transform duration-150 hover:scale-110
         {{ 'border-accent bg-accent/15' if b.earned else 'border-border bg-void grayscale opacity-40' }}"
     >
       {{ b.emoji }}
     </button>
-    <div
-      role="tooltip"
-      class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-44 -translate-x-1/2 border border-border bg-surface px-3 py-2 text-center opacity-0 transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-    >
-      <p class="font-display text-[11px] uppercase text-text">{{ b.label }}</p>
-      <p class="mt-0.5 text-[11px] text-text-muted">
-        {{ "Earned " + b.earned_on.strftime("%b %-d, %Y") if b.earned else b.hint }}
-      </p>
-    </div>
+    {# Teleported to <body> and positioned `fixed` (see positionCardPopover
+       in base.html) rather than absolute+group-hover: #badges-row scrolls
+       horizontally, and an overflow-x that isn't `visible` computes
+       overflow-y to `auto` too (CSS overflow spec), so an absolute tooltip
+       hanging below a badge was getting clipped to a sliver by the row's
+       own ~40px-tall box instead of floating above the stat cards below it. #}
+    <template x-teleport="body">
+      <div
+        x-ref="tip"
+        x-show="open"
+        x-cloak
+        role="tooltip"
+        @scroll.window="open && positionCardPopover($refs.btn, $refs.tip, 8, false)"
+        @resize.window="open && positionCardPopover($refs.btn, $refs.tip, 8, false)"
+        x-transition:enter="transition ease-out duration-150"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-100"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="pointer-events-none fixed z-40 w-44 border border-border bg-surface px-3 py-2 text-center"
+      >
+        <p class="font-display text-[11px] uppercase text-text">{{ b.label }}</p>
+        <p class="mt-0.5 text-[11px] text-text-muted">
+          {{ "Earned " + b.earned_on.strftime("%b %-d, %Y") if b.earned else b.hint }}
+        </p>
+      </div>
+    </template>
   </div>
   {% endfor %}
 </div>

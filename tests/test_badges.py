@@ -290,6 +290,28 @@ def test_dashboard_shows_badges_row(client, db):
     assert b'id="badges-row"' in response.data
 
 
+def test_badge_tooltip_is_teleported_and_not_clipped_by_the_row(client, db):
+    # Regression: #badges-row scrolls horizontally (overflow-x-auto), and
+    # per the CSS overflow spec, an overflow-x other than visible computes
+    # overflow-y to auto too - an absolute tooltip hanging below a badge was
+    # getting clipped to a sliver by the row's own ~40px-tall box instead of
+    # floating above the stat cards underneath it. Teleporting the tooltip
+    # to <body> and positioning it `fixed` (see positionCardPopover in
+    # base.html) sidesteps the clip entirely, same as the habit-card
+    # popovers.
+    user = _login(client, db)
+    habit = _create_habit(db, user)
+    _checkin(db, habit, date.today(), 1)
+
+    html = client.get("/dashboard").get_data(as_text=True)
+
+    assert 'x-teleport="body"' in html
+    tip_start = html.index('role="tooltip"')
+    tip_tag = html[tip_start:html.index(">", tip_start)]
+    assert "fixed" in tip_tag
+    assert "z-40" in tip_tag
+
+
 def test_checkin_response_triggers_badges_earned_event(client, db):
     user = _login(client, db)
     habit = _create_habit(db, user, created_on=date.today())
