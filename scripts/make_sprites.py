@@ -243,6 +243,444 @@ def print_mapping() -> None:
         print(f"  {old_id}  ->  {new_name}.png")
 
 
+# =========================================================================
+# Phase 2b: drawing the sprites the audit found missing.
+#
+# Every color below is sampled verbatim from the existing PNGs (see the
+# palette dump in the PR description) - nothing invented. Sprites are
+# authored as explicit pixel coordinates (not hand-typed ascii grids) to
+# avoid off-by-one row/column slips; print_new_sprite_grids() renders the
+# result back as a text grid for review, same format used to read the
+# reference sprites.
+# =========================================================================
+
+BG = (0x1A, 0x1F, 0x2A, 255)  # the opaque tile background every building_*/icon_*/ship_* sprite is drawn on
+GRAY_LIGHT = (0x8C, 0x96, 0xA8, 255)
+GRAY_MID = (0x4B, 0x55, 0x68, 255)
+GRAY_DARK = (0x2A, 0x31, 0x40, 255)
+AMBER = (0xFF, 0xB2, 0x38, 255)
+AMBER_LIGHT = (0xFF, 0xD2, 0x7A, 255)
+GREEN = (0x8B, 0xD7, 0xA0, 255)  # icon_shield's fill
+GREEN_DARK = (0x46, 0x8C, 0x64, 255)  # icon_shield's shade
+STEEL_LIGHT = (0x62, 0x84, 0xA8, 255)  # icon_shield's outline / biodome atmosphere
+STEEL_DARK = (0x3E, 0x5A, 0x7A, 255)
+RUST = (0xE2, 0x60, 0x3A, 255)  # the "LAB DAMAGED" / "SHIELD DOWN" badge color
+TRANSPARENT = (0, 0, 0, 0)
+
+SMOKE = GRAY_MID[:3] + (140,)  # semi-transparent wisp, reuses the existing mid-gray
+SHIELD_FILL = STEEL_LIGHT[:3] + (0,)  # placeholder, real alpha set per-pixel below
+
+
+def new_canvas(width: int, height: int, fill=TRANSPARENT):
+    return [[fill for _ in range(width)] for _ in range(height)]
+
+
+def set_px(canvas, x, y, color):
+    canvas[y][x] = color
+
+
+def hline(canvas, x0, x1, y, color):
+    for x in range(x0, x1 + 1):
+        canvas[y][x] = color
+
+
+def vline(canvas, x, y0, y1, color):
+    for y in range(y0, y1 + 1):
+        canvas[y][x] = color
+
+
+def rect(canvas, x0, y0, x1, y1, color, fill=True):
+    if fill:
+        for y in range(y0, y1 + 1):
+            hline(canvas, x0, x1, y, color)
+    else:
+        hline(canvas, x0, x1, y0, color)
+        hline(canvas, x0, x1, y1, color)
+        vline(canvas, x0, y0, y1, color)
+        vline(canvas, x1, y0, y1, color)
+
+
+def diag(canvas, x0, y0, x1, y1, color):
+    """One pixel per row/col step - matches the hand-drawn diagonals already
+    used in avatar/building art (e.g. building_defense_tower's antenna)."""
+    steps = max(abs(x1 - x0), abs(y1 - y0))
+    for i in range(steps + 1):
+        x = x0 + round((x1 - x0) * i / steps)
+        y = y0 + round((y1 - y0) * i / steps)
+        canvas[y][x] = color
+
+
+def canvas_to_image(canvas) -> "Image.Image":
+    from PIL import Image
+
+    height = len(canvas)
+    width = len(canvas[0])
+    im = Image.new("RGBA", (width, height), TRANSPARENT)
+    for y in range(height):
+        for x in range(width):
+            im.putpixel((x, y), canvas[y][x])
+    return im
+
+
+def canvas_to_grid_text(canvas) -> str:
+    """Render a canvas back as a labelled ascii grid, for human review."""
+    palette = {}
+    lines = []
+    for row in canvas:
+        line = []
+        for color in row:
+            if color[3] == 0:
+                line.append(".")
+                continue
+            key = color
+            if key not in palette:
+                palette[key] = chr(65 + len(palette))
+            line.append(palette[key])
+        lines.append("".join(line))
+    legend = ", ".join(f"{v}=#{k[0]:02X}{k[1]:02X}{k[2]:02X}(a{k[3]})" for k, v in palette.items())
+    return "\n".join(lines) + f"\nlegend: {legend}"
+
+
+# ---- building_damage_overlay (16x16) -----------------------------------
+# A reusable scorch+crack mark, transparent elsewhere, meant to be
+# alpha-composited on top of any of the 5 fixed building sprites.
+def draw_damage_overlay():
+    c = new_canvas(16, 16)
+    # scorch patch (reuses the tile's own bg color as full-opacity "soot",
+    # so it darkens whatever building color is underneath)
+    rect(c, 4, 9, 6, 10, BG)
+    # crack running up out of the scorch patch
+    diag(c, 6, 10, 7, 6, RUST)
+    set_px(c, 8, 6, RUST)
+    # smoke wisp rising off the top of the scorch patch
+    set_px(c, 9, 3, SMOKE)
+    set_px(c, 10, 2, SMOKE)
+    set_px(c, 10, 1, SMOKE)
+    set_px(c, 11, 1, SMOKE)
+    return c
+
+
+# ---- building_shield_dome (16x16) --------------------------------------
+# A translucent dome cap over the top of a building, reusing icon_shield's
+# own 3-color palette for thematic consistency with the other shield art.
+def draw_shield_dome():
+    c = new_canvas(16, 16)
+    outline = STEEL_LIGHT
+    fill = GREEN[:3] + (90,)
+    edge = GREEN_DARK
+    rows = [
+        (1, [7, 8]),
+        (2, [6, 9]),
+        (3, [5, 10]),
+        (4, [4, 11]),
+        (5, [4, 11]),
+        (6, [3, 12]),
+        (7, [3, 12]),
+    ]
+    for y, (left, right) in rows:
+        set_px(c, left, y, outline)
+        set_px(c, right, y, outline)
+        for x in range(left + 1, right):
+            c[y][x] = fill
+    set_px(c, 3, 8, edge)
+    set_px(c, 12, 8, edge)
+    return c
+
+
+# ---- building_shield_dome_biodome (16x16) ------------------------------
+# building_biodome IS already a dome in matching blue-green tones, so the
+# generic dome-cap overlay above is invisible on it (composite test
+# confirmed this - see PR notes). This variant is a glowing ring around
+# the dome's equator (its widest row) instead, which reads as distinct
+# from the building's own vertical shading.
+def draw_shield_dome_biodome():
+    c = new_canvas(16, 16)
+    band = GREEN[:3] + (70,)
+    for x in range(1, 15):
+        c[8][x] = band
+        c[10][x] = band
+        c[9][x] = STEEL_LIGHT
+    set_px(c, 1, 9, GREEN_DARK)
+    set_px(c, 14, 9, GREEN_DARK)
+    return c
+
+
+# ---- building_scaffold (16x16 x2, blink frames) ------------------------
+# Generic under-construction frame - not tied to any one building, so it
+# is opaque (matches building_*/icon_* convention) rather than an overlay.
+def draw_scaffold(beacon_on: bool):
+    c = new_canvas(16, 16, fill=BG)
+    post_left, post_right = 4, 11
+    top, mid, bottom = 3, 8, 13
+    vline(c, post_left, top, bottom, GRAY_LIGHT)
+    vline(c, post_right, top, bottom, GRAY_LIGHT)
+    hline(c, post_left, post_right, top, GRAY_MID)
+    hline(c, post_left, post_right, mid, GRAY_MID)
+    hline(c, post_left, post_right, bottom, GRAY_MID)
+    diag(c, post_left, top, post_right, mid, GRAY_DARK)
+    diag(c, post_right, mid, post_left, bottom, GRAY_DARK)
+    if beacon_on:
+        set_px(c, 7, 1, AMBER)
+        set_px(c, 8, 1, AMBER)
+    return c
+
+
+# ---- icon_supply_crate_open (16x16) ------------------------------------
+# Companion to the existing icon_supply_crate.png - same base, lid open.
+def draw_supply_crate_open():
+    c = new_canvas(16, 16, fill=BG)
+    # box: same footprint/colors as the closed crate's body (rows 7-13,
+    # cols 3-12), so it reads as the same object, just opened
+    rect(c, 3, 8, 12, 12, GRAY_MID)
+    hline(c, 3, 12, 7, AMBER_LIGHT)  # open mouth, glowing
+    set_px(c, 7, 10, AMBER)
+    set_px(c, 8, 10, AMBER)
+    hline(c, 2, 13, 13, GRAY_DARK)  # base trim
+    # lid, tilted back on its hinge (narrower at the top = leaning away)
+    hline(c, 6, 9, 2, GRAY_LIGHT)
+    hline(c, 5, 10, 3, GRAY_LIGHT)
+    hline(c, 4, 11, 4, GRAY_LIGHT)
+    hline(c, 4, 11, 5, GRAY_MID)
+    # light spilling out of the gap between lid and box
+    set_px(c, 6, 6, AMBER_LIGHT)
+    set_px(c, 9, 6, AMBER_LIGHT)
+    return c
+
+
+# ---- checkin_energy_beam (16x64 x2 frames) -----------------------------
+# Pixel version of PhoneCheckIn's hand-placed CSS beam (same two colors:
+# #FFB238 core, #FFD27A glow), transparent so it overlays scene_colony_home.
+def draw_energy_beam(frame: int):
+    c = new_canvas(16, 64)
+    vline(c, 7, 8, 62, AMBER)
+    vline(c, 8, 8, 62, AMBER)
+    rect(c, 6, 4, 9, 7, AMBER_LIGHT)
+    motes = [(3, 20), (12, 28), (2, 40), (13, 46), (4, 54)] if frame == 0 else [(4, 18), (11, 30), (3, 42), (12, 48), (5, 52)]
+    for x, y in motes:
+        set_px(c, x, y, AMBER_LIGHT if (x + y) % 2 == 0 else AMBER)
+    return c
+
+
+# ---- fleet_station_lv1/2/3 (32x32) -------------------------------------
+# Standalone hero sprites (opaque, like the building_* family) showing
+# real level progression - unlike buildings, the game plan wants distinct
+# art per station level rather than one sprite + a text label.
+def draw_fleet_station(level: int):
+    c = new_canvas(32, 32, fill=BG)
+    cx = 16
+    # central hub, every level
+    rect(c, cx - 5, 13, cx + 4, 19, GRAY_MID)
+    rect(c, cx - 5, 13, cx + 4, 13, GRAY_LIGHT, fill=False)
+    set_px(c, cx - 1, 16, AMBER)
+    set_px(c, cx, 16, AMBER)
+    vline(c, cx, 9, 12, GRAY_LIGHT)  # antenna, every level
+    set_px(c, cx, 8, AMBER_LIGHT)
+
+    if level >= 2:
+        # docking arms
+        hline(c, cx - 11, cx - 6, 16, GRAY_LIGHT)
+        hline(c, cx + 5, cx + 10, 16, GRAY_LIGHT)
+        set_px(c, cx - 11, 15, GRAY_DARK)
+        set_px(c, cx + 10, 15, GRAY_DARK)
+        set_px(c, cx - 7, 14, AMBER)
+        set_px(c, cx + 6, 14, AMBER)
+
+    if level >= 3:
+        # second antenna + two small docked ships, reusing the project's
+        # tiny-ship silhouette (nose + body + wing)
+        vline(c, cx - 4, 10, 12, GRAY_LIGHT)
+        set_px(c, cx - 4, 9, AMBER_LIGHT)
+        for ship_x in (cx - 15, cx + 11):
+            set_px(c, ship_x + 2, 14, GRAY_LIGHT)
+            hline(c, ship_x, ship_x + 4, 15, STEEL_LIGHT)
+            set_px(c, ship_x + 2, 16, AMBER)
+    return c
+
+
+# ---- boss_vx3 (48x32) ---------------------------------------------------
+# Standalone mothership silhouette - the mocks only ever show it baked
+# into scene_fleet_battle's composite, never as an isolated sprite.
+def draw_boss_vx3():
+    c = new_canvas(48, 32, fill=BG)
+    cx = 24
+    # wide angular hull, filled solid (half-width grows then shrinks)
+    half_widths = [4, 8, 12, 16, 20, 20, 16, 12, 8, 4]
+    top = 10
+    for row_i, half_width in enumerate(half_widths):
+        y = top + row_i
+        hline(c, cx - half_width, cx + half_width, y, RUST)
+    hline(c, cx - 20, cx + 20, top + 4, GRAY_DARK)  # dark belly stripe (widest row)
+    hline(c, cx - 20, cx + 20, top + 5, GRAY_DARK)
+    # weapon ports along the belly stripe
+    for x in (cx - 12, cx - 4, cx + 4, cx + 12):
+        set_px(c, x, top + 4, AMBER)
+    set_px(c, cx, top + 4, AMBER_LIGHT)
+    set_px(c, cx, top + 5, AMBER_LIGHT)
+    return c
+
+
+NEW_SPRITES = {
+    "building_damage_overlay": draw_damage_overlay,
+    "building_shield_dome": draw_shield_dome,
+    "building_shield_dome_biodome": draw_shield_dome_biodome,
+    "building_scaffold_1": lambda: draw_scaffold(beacon_on=True),
+    "building_scaffold_2": lambda: draw_scaffold(beacon_on=False),
+    "icon_supply_crate_open": draw_supply_crate_open,
+    "checkin_energy_beam_1": lambda: draw_energy_beam(0),
+    "checkin_energy_beam_2": lambda: draw_energy_beam(1),
+    "fleet_station_lv1": lambda: draw_fleet_station(1),
+    "fleet_station_lv2": lambda: draw_fleet_station(2),
+    "fleet_station_lv3": lambda: draw_fleet_station(3),
+    "boss_vx3": draw_boss_vx3,
+}
+
+NEW_SPRITE_META = {
+    "building_damage_overlay": {"category": "overlay", "phase": 5, "notes": "reusable on all 5 fixed buildings"},
+    "building_shield_dome": {"category": "overlay", "phase": 5, "notes": "reusable on 4 of 5 buildings (not biodome, see below)"},
+    "building_shield_dome_biodome": {"category": "overlay", "phase": 5, "notes": "biodome-only variant - the generic dome overlay is invisible on a building that's already a dome"},
+    "building_scaffold_1": {"category": "building", "phase": 4, "notes": "under-construction, beacon frame 1/2"},
+    "building_scaffold_2": {"category": "building", "phase": 4, "notes": "under-construction, beacon frame 2/2"},
+    "icon_supply_crate_open": {"category": "icon", "phase": 5, "notes": "open-state companion to icon_supply_crate"},
+    "checkin_energy_beam_1": {"category": "effect", "phase": 4, "notes": "check-in beam, frame 1/2"},
+    "checkin_energy_beam_2": {"category": "effect", "phase": 4, "notes": "check-in beam, frame 2/2"},
+    "fleet_station_lv1": {"category": "fleet", "phase": 6, "notes": "standalone, level 1 of 3"},
+    "fleet_station_lv2": {"category": "fleet", "phase": 6, "notes": "standalone, level 2 of 3"},
+    "fleet_station_lv3": {"category": "fleet", "phase": 6, "notes": "standalone, level 3 of 3"},
+    "boss_vx3": {"category": "fleet", "phase": 6, "notes": "weekly boss, named after the mocks' own 'Mothership VX-3'"},
+}
+
+FIXED_BUILDINGS = [
+    "building_research_lab",
+    "building_defense_tower",
+    "building_biodome",
+    "building_observatory",
+    "building_power_reactor",
+]
+
+SHEET_PATH = DEST_DIR / "_sheet.png"
+
+
+def draw_new_sprites() -> None:
+    for name, draw_fn in NEW_SPRITES.items():
+        canvas = draw_fn()
+        canvas_to_image(canvas).save(DEST_DIR / f"{name}.png")
+
+
+def print_new_sprite_grids() -> None:
+    print("\n=== new sprite pixel grids ===")
+    for name, draw_fn in NEW_SPRITES.items():
+        print(f"\n--- {name} ---")
+        print(canvas_to_grid_text(draw_fn()))
+
+
+def composite(base_name: str, overlay_canvas, scale: int = 1):
+    from PIL import Image
+
+    base = Image.open(DEST_DIR / f"{base_name}.png").convert("RGBA")
+    overlay = canvas_to_image(overlay_canvas)
+    if overlay.size != base.size:
+        overlay = overlay.resize(base.size, Image.NEAREST)
+    out = Image.alpha_composite(base, overlay)
+    if scale != 1:
+        out = out.resize((out.width * scale, out.height * scale), Image.NEAREST)
+    return out
+
+
+def update_manifest_with_new_sprites() -> None:
+    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    for entry in manifest:
+        entry["new"] = False
+    for name, meta in NEW_SPRITE_META.items():
+        manifest.append(
+            {
+                "name": name,
+                "source_id": None,
+                "category": meta["category"],
+                "used_in": [],
+                "new": True,
+                "phase": meta["phase"],
+                "notes": meta["notes"],
+            }
+        )
+    manifest.sort(key=lambda e: e["name"])
+    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+CELL = 96  # fixed cell footprint (thumbnail area); every sprite is scaled to fit inside it
+THUMB_MAX = 80  # leaves an 8px margin on each side within CELL
+LABEL_H = 16
+TITLE_H = 18
+
+
+def _font(size: int):
+    from PIL import ImageFont
+
+    return ImageFont.load_default(size=size)
+
+
+def _paste_thumb(sheet, draw, im, x, y, label, label_color=(236, 230, 216, 255)):
+    """Scale im (any size) to fit inside THUMB_MAX x THUMB_MAX, nearest-neighbour,
+    center it in the CELL x CELL box at (x, y), and print a label below it.
+    Always downscales oversized sprites - never lets one bleed into neighbours."""
+    from PIL import Image
+
+    im = im.convert("RGBA")
+    scale = min(THUMB_MAX / im.width, THUMB_MAX / im.height)
+    new_w = max(1, round(im.width * scale))
+    new_h = max(1, round(im.height * scale))
+    thumb = im.resize((new_w, new_h), Image.NEAREST)
+    ox = x + (CELL - new_w) // 2
+    oy = y + (CELL - new_h) // 2
+    sheet.paste(thumb, (ox, oy), thumb)
+    draw.text((x + 2, y + CELL - 2), label[:16], fill=label_color, font=_font(10))
+
+
+def build_sheet() -> None:
+    from PIL import Image, ImageDraw
+
+    all_sprites = sorted(p.stem for p in DEST_DIR.glob("*.png") if p.stem not in {"_sheet", "logo-mark"})
+    new_names = set(NEW_SPRITES)
+
+    cols = 8
+    row_h = CELL + LABEL_H
+    rows_needed = -(-len(all_sprites) // cols)
+
+    sheet_w = cols * CELL
+    grid_h = rows_needed * row_h
+    composite_h = 2 * (TITLE_H + row_h)
+    sheet_h = grid_h + composite_h
+    sheet = Image.new("RGBA", (sheet_w, sheet_h), BG)
+    draw = ImageDraw.Draw(sheet)
+
+    for i, name in enumerate(all_sprites):
+        col, row = i % cols, i // cols
+        x, y = col * CELL, row * row_h
+        im = Image.open(DEST_DIR / f"{name}.png")
+        is_new = name in new_names
+        label = ("* " + name) if is_new else name
+        color = (0x8B, 0xD7, 0xA0, 255) if is_new else (236, 230, 216, 255)
+        _paste_thumb(sheet, draw, im, x, y, label, label_color=color)
+
+    y = grid_h
+    draw.text((4, y + 3), "COMPOSITE TEST - damage overlay on all 5 buildings", fill=(0xE2, 0x60, 0x3A, 255), font=_font(12))
+    y += TITLE_H
+    for i, base_name in enumerate(FIXED_BUILDINGS):
+        x = i * CELL
+        out = composite(base_name, draw_damage_overlay())
+        _paste_thumb(sheet, draw, out, x, y, base_name.replace("building_", "") + " +dmg")
+    y += row_h
+
+    draw.text((4, y + 3), "COMPOSITE TEST - shield dome (biodome uses its ring variant)", fill=(0x8B, 0xD7, 0xA0, 255), font=_font(12))
+    y += TITLE_H
+    for i, base_name in enumerate(FIXED_BUILDINGS):
+        x = i * CELL
+        overlay = draw_shield_dome_biodome() if base_name == "building_biodome" else draw_shield_dome()
+        out = composite(base_name, overlay)
+        _paste_thumb(sheet, draw, out, x, y, base_name.replace("building_", "") + " +shd")
+
+    sheet.save(SHEET_PATH)
+
+
 if __name__ == "__main__":
     command = sys.argv[1] if len(sys.argv) > 1 else "import"
     if command == "import":
@@ -251,7 +689,17 @@ if __name__ == "__main__":
         print(f"Wrote {MANIFEST_PATH}")
         print_mapping()
         print_audit()
+    elif command == "draw":
+        draw_new_sprites()
+        print(f"Drew {len(NEW_SPRITES)} new sprites into {DEST_DIR}")
+        print_new_sprite_grids()
+    elif command == "manifest-update":
+        update_manifest_with_new_sprites()
+        print(f"Updated {MANIFEST_PATH} with new=true/false")
+    elif command == "sheet":
+        build_sheet()
+        print(f"Wrote {SHEET_PATH}")
     elif command == "audit":
         print_audit()
     else:
-        raise SystemExit(f"Unknown command: {command!r} (expected 'import' or 'audit')")
+        raise SystemExit(f"Unknown command: {command!r} (expected import/audit/draw/manifest-update/sheet)")

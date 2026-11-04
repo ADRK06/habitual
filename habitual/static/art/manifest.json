@@ -6,7 +6,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_acc_jetpack",
@@ -16,7 +17,8 @@
       "CustomizeFlow.dc.html",
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_acc_lights",
@@ -25,7 +27,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_acc_scarf",
@@ -34,7 +37,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_emblem_bolt",
@@ -43,7 +47,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_emblem_planet",
@@ -52,7 +57,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_emblem_star",
@@ -61,7 +67,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_face_1",
@@ -70,7 +77,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_face_2",
@@ -79,7 +87,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_face_3",
@@ -88,7 +97,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_face_4",
@@ -97,7 +107,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_face_5",
@@ -106,7 +117,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_hair_brown",
@@ -115,7 +127,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_hair_dark",
@@ -124,7 +137,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_hair_silver",
@@ -133,7 +147,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_helmet_box",
@@ -142,7 +157,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_helmet_crest",
@@ -152,7 +168,8 @@
       "CustomizeFlow.dc.html",
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_helmet_round",
@@ -161,7 +178,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_render_admiral",
@@ -170,7 +188,8 @@
     "used_in": [
       "PhoneShop.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_render_bone",
@@ -181,7 +200,8 @@
       "PhoneShop.dc.html",
       "WebFleet.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_render_phosphor",
@@ -199,7 +219,8 @@
       "WebFleet.dc.html",
       "WebProfile.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_render_rust",
@@ -210,7 +231,8 @@
       "PhoneShop.dc.html",
       "WebFleet.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_render_signal",
@@ -222,7 +244,8 @@
       "PhoneVisit.dc.html",
       "WebFleet.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_render_steel",
@@ -233,7 +256,8 @@
       "PhoneShop.dc.html",
       "WebFleet.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_suit_admiral",
@@ -242,7 +266,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_suit_bone",
@@ -251,7 +276,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_suit_phosphor",
@@ -260,7 +286,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_suit_signal",
@@ -269,7 +296,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_suit_steel",
@@ -279,7 +307,8 @@
       "CustomizeFlow.dc.html",
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_visor_amber",
@@ -289,7 +318,8 @@
       "CustomizeFlow.dc.html",
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_visor_mirror",
@@ -298,7 +328,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_visor_rust",
@@ -307,7 +338,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_visor_signal",
@@ -316,7 +348,8 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "avatar_visor_steel",
@@ -325,7 +358,17 @@
     "used_in": [
       "PhoneAvatar.dc.html",
       "WebAvatar.dc.html"
-    ]
+    ],
+    "new": false
+  },
+  {
+    "name": "boss_vx3",
+    "source_id": null,
+    "category": "fleet",
+    "used_in": [],
+    "new": true,
+    "phase": 6,
+    "notes": "weekly boss, named after the mocks' own 'Mothership VX-3'"
   },
   {
     "name": "building_biodome",
@@ -339,7 +382,8 @@
       "WebHabits.dc.html",
       "WebHome.dc.html",
       "WebLanding.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "building_custom_module",
@@ -350,7 +394,17 @@
       "WebHabits.dc.html",
       "WebHome.dc.html",
       "WebLanding.dc.html"
-    ]
+    ],
+    "new": false
+  },
+  {
+    "name": "building_damage_overlay",
+    "source_id": null,
+    "category": "overlay",
+    "used_in": [],
+    "new": true,
+    "phase": 5,
+    "notes": "reusable on all 5 fixed buildings"
   },
   {
     "name": "building_defense_tower",
@@ -364,7 +418,8 @@
       "WebHabits.dc.html",
       "WebHome.dc.html",
       "WebLanding.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "building_observatory",
@@ -377,7 +432,8 @@
       "WebHabits.dc.html",
       "WebHome.dc.html",
       "WebLanding.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "building_power_reactor",
@@ -390,7 +446,8 @@
       "WebHabits.dc.html",
       "WebHome.dc.html",
       "WebLanding.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "building_research_lab",
@@ -405,7 +462,89 @@
       "WebHabits.dc.html",
       "WebHome.dc.html",
       "WebLanding.dc.html"
-    ]
+    ],
+    "new": false
+  },
+  {
+    "name": "building_scaffold_1",
+    "source_id": null,
+    "category": "building",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "under-construction, beacon frame 1/2"
+  },
+  {
+    "name": "building_scaffold_2",
+    "source_id": null,
+    "category": "building",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "under-construction, beacon frame 2/2"
+  },
+  {
+    "name": "building_shield_dome",
+    "source_id": null,
+    "category": "overlay",
+    "used_in": [],
+    "new": true,
+    "phase": 5,
+    "notes": "reusable on 4 of 5 buildings (not biodome, see below)"
+  },
+  {
+    "name": "building_shield_dome_biodome",
+    "source_id": null,
+    "category": "overlay",
+    "used_in": [],
+    "new": true,
+    "phase": 5,
+    "notes": "biodome-only variant - the generic dome overlay is invisible on a building that's already a dome"
+  },
+  {
+    "name": "checkin_energy_beam_1",
+    "source_id": null,
+    "category": "effect",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "check-in beam, frame 1/2"
+  },
+  {
+    "name": "checkin_energy_beam_2",
+    "source_id": null,
+    "category": "effect",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "check-in beam, frame 2/2"
+  },
+  {
+    "name": "fleet_station_lv1",
+    "source_id": null,
+    "category": "fleet",
+    "used_in": [],
+    "new": true,
+    "phase": 6,
+    "notes": "standalone, level 1 of 3"
+  },
+  {
+    "name": "fleet_station_lv2",
+    "source_id": null,
+    "category": "fleet",
+    "used_in": [],
+    "new": true,
+    "phase": 6,
+    "notes": "standalone, level 2 of 3"
+  },
+  {
+    "name": "fleet_station_lv3",
+    "source_id": null,
+    "category": "fleet",
+    "used_in": [],
+    "new": true,
+    "phase": 6,
+    "notes": "standalone, level 3 of 3"
   },
   {
     "name": "icon_biodome",
@@ -414,7 +553,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "icon_custom_module",
@@ -423,7 +563,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "icon_defense_tower",
@@ -432,7 +573,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "icon_observatory",
@@ -441,7 +583,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "icon_power_reactor",
@@ -450,7 +593,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "icon_research_lab",
@@ -459,7 +603,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "icon_shield",
@@ -471,7 +616,8 @@
       "PhoneShop.dc.html",
       "WebHabits.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "icon_supply_crate",
@@ -482,7 +628,17 @@
       "PhoneStorm.dc.html",
       "WebHome.dc.html",
       "WebSector.dc.html"
-    ]
+    ],
+    "new": false
+  },
+  {
+    "name": "icon_supply_crate_open",
+    "source_id": null,
+    "category": "icon",
+    "used_in": [],
+    "new": true,
+    "phase": 5,
+    "notes": "open-state companion to icon_supply_crate"
   },
   {
     "name": "icon_trophy",
@@ -494,7 +650,8 @@
       "PhoneVisit.dc.html",
       "WebProfile.dc.html",
       "WebSector.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_atmo_amber",
@@ -503,7 +660,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_atmo_signal",
@@ -512,7 +670,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_atmo_steel",
@@ -521,7 +680,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_deco_moon_1",
@@ -530,7 +690,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_deco_moon_2",
@@ -539,7 +700,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_deco_ring_back",
@@ -548,7 +710,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_deco_ring_front",
@@ -557,7 +720,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_deco_stars",
@@ -566,7 +730,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_render_dust",
@@ -575,7 +740,8 @@
     "used_in": [
       "PhoneSector.dc.html",
       "WebSector.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_render_ice",
@@ -587,7 +753,8 @@
       "WebGalaxy.dc.html",
       "WebSector.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_render_inactive",
@@ -596,7 +763,8 @@
     "used_in": [
       "PhoneSector.dc.html",
       "WebSector.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_render_lava",
@@ -607,7 +775,8 @@
       "PhoneShop.dc.html",
       "WebSector.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_render_ringed_giant",
@@ -618,7 +787,8 @@
       "PhoneShop.dc.html",
       "WebSector.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_render_rust",
@@ -632,7 +802,8 @@
       "WebLanding.dc.html",
       "WebSector.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_render_verdant",
@@ -644,7 +815,8 @@
       "PhoneVisit.dc.html",
       "WebGalaxy.dc.html",
       "WebSector.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_world_dust",
@@ -653,7 +825,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_world_ice",
@@ -662,7 +835,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_world_lava",
@@ -671,7 +845,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_world_ringed_giant",
@@ -680,7 +855,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_world_rust",
@@ -689,7 +865,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "planet_world_verdant",
@@ -698,7 +875,8 @@
     "used_in": [
       "PhonePlanet.dc.html",
       "WebPlanet.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "scene_colony_home",
@@ -710,7 +888,8 @@
       "PhoneCheckIn.dc.html",
       "PhoneHome.dc.html",
       "WebHome.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "scene_colony_landing",
@@ -719,7 +898,8 @@
     "used_in": [
       "PhoneLanding.dc.html",
       "WebLanding.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "scene_colony_storm",
@@ -728,7 +908,8 @@
     "used_in": [
       "PhoneStorm.dc.html",
       "WebLanding.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "scene_fleet_battle",
@@ -739,7 +920,8 @@
       "PhoneVisit.dc.html",
       "WebFleet.dc.html",
       "WebLanding.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "scene_galaxy_map",
@@ -748,7 +930,8 @@
     "used_in": [
       "PhoneGalaxy.dc.html",
       "WebGalaxy.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "scene_isometric_alt",
@@ -756,7 +939,8 @@
     "category": "scene",
     "used_in": [
       "Isometric.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "scene_sideview_alt",
@@ -764,7 +948,8 @@
     "category": "scene",
     "used_in": [
       "SideView.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "ship_hauler",
@@ -773,7 +958,8 @@
     "used_in": [
       "PhoneShop.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "ship_lancer",
@@ -782,7 +968,8 @@
     "used_in": [
       "PhoneShop.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   },
   {
     "name": "ship_scout",
@@ -791,6 +978,7 @@
     "used_in": [
       "PhoneShop.dc.html",
       "WebShop.dc.html"
-    ]
+    ],
+    "new": false
   }
 ]
