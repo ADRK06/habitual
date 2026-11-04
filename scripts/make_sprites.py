@@ -266,6 +266,7 @@ AMBER = (0xFF, 0xB2, 0x38, 255)
 AMBER_LIGHT = (0xFF, 0xD2, 0x7A, 255)
 GREEN = (0x8B, 0xD7, 0xA0, 255)  # icon_shield's fill
 GREEN_DARK = (0x46, 0x8C, 0x64, 255)  # icon_shield's shade
+GREEN_LIGHT = (0xC5, 0xEB, 0xCF, 255)  # GREEN blended toward white, for a glassy specular highlight
 STEEL_LIGHT = (0x62, 0x84, 0xA8, 255)  # icon_shield's outline / biodome atmosphere
 STEEL_DARK = (0x3E, 0x5A, 0x7A, 255)
 RUST = (0xE2, 0x60, 0x3A, 255)  # the "LAB DAMAGED" / "SHIELD DOWN" badge color
@@ -363,56 +364,65 @@ def draw_damage_overlay():
     return c
 
 
-# ---- building_shield_dome (16x16) --------------------------------------
-# A see-through bubble over the top of a building: a 1px Signal-green arc
-# outline plus a sparse dithered fill (~25% of interior pixels), so the
-# building underneath stays readable through the dome instead of being
-# hidden under a flat wash of color.
-def draw_shield_dome():
-    c = new_canvas(16, 16)
-    outline = GREEN
-    fill = GREEN[:3] + (180,)
-    rows = [
-        (1, [7, 8]),
-        (2, [6, 9]),
-        (3, [5, 10]),
-        (4, [4, 11]),
-        (5, [4, 11]),
-        (6, [3, 12]),
-        (7, [3, 12]),
-    ]
-    for y, (left, right) in rows:
-        set_px(c, left, y, outline)
-        set_px(c, right, y, outline)
+# ---- building_shield_dome / building_shield_dome_biodome (22x22) -------
+# A see-through bubble that ENCLOSES a whole 16x16 building from the base
+# up, not a cap sitting on its roof. The overlay canvas is bigger than the
+# building (DOME_CANVAS > a building tile) so the dome can flare out past
+# the building's own silhouette and still arc all the way down to the
+# ground on both sides; composite() bottom-centers the building inside
+# the oversized canvas before compositing this on top (see composite()).
+#
+# The bubble is the upper half of an ellipse anchored at two base points
+# on the ground line (DOME_CANVAS - 1), so its outline runs base-to-base:
+# up one side, over the top, back down the other side. rx controls how
+# far those base points sit from the building's own edges - a plain
+# building needs less clearance than the biodome, which is already
+# full-width in its own tile (see docs/reference comparison in the PR).
+DOME_CANVAS = 22
+_DOME_X_OFFSET = (DOME_CANVAS - 16) // 2
+_DOME_Y_OFFSET = DOME_CANVAS - 16  # bottom-aligned: building's base sits on the dome's base line
+
+
+def _draw_shield_bubble(rx: float):
+    import math
+
+    c = new_canvas(DOME_CANVAS, DOME_CANVAS)
+    cx = _DOME_X_OFFSET + 16 / 2 - 0.5
+    base_y = DOME_CANVAS - 1
+    top_y = 1
+    ry = base_y - top_y
+    outline_left = []
+    for y in range(top_y, base_y + 1):
+        dy = base_y - y
+        frac = dy / ry
+        x_extent = rx * math.sqrt(max(0.0, 1 - frac**2))
+        left = max(0, round(cx - x_extent))
+        right = min(DOME_CANVAS - 1, round(cx + x_extent))
+        set_px(c, left, y, GREEN)
+        set_px(c, right, y, GREEN)
+        outline_left.append((y, left))
         for x in range(left + 1, right):
             # fixed dither pattern, ~1 pixel in 4, so the pattern is
             # deterministic across runs instead of random noise
             if (x * 7 + y * 13) % 4 == 0:
-                c[y][x] = fill
+                c[y][x] = GREEN[:3] + (180,)
+    # small highlight arc at top-left: brighten the first few outline
+    # pixels of the upper-left quadrant, like a glassy specular catch
+    for y, left in outline_left[:4]:
+        set_px(c, left, y, GREEN_LIGHT)
     return c
 
 
-# ---- building_shield_dome_biodome (16x16) ------------------------------
-# building_biodome IS already a dome in matching blue-green tones, so the
-# generic dome-cap overlay above is invisible on it (composite test
-# confirmed this - see PR notes). This variant is a glowing ring around
-# the dome's equator (its widest row) instead, which reads as distinct
-# from the building's own vertical shading. Same visual language as the
-# new draw_shield_dome() above: a 1px Signal-green outline (the ring's
-# top/bottom edges) plus a sparse dithered fill, not a flat opaque band.
+def draw_shield_dome():
+    return _draw_shield_bubble(rx=10)
+
+
+# building_biodome is already full-width in its own 16x16 tile (unlike the
+# other 4 fixed buildings, which have margin on both sides - see the PR's
+# per-row width comparison), so its bubble needs a larger rx to actually
+# clear the building's own silhouette at the base.
 def draw_shield_dome_biodome():
-    c = new_canvas(16, 16)
-    outline = GREEN
-    fill = GREEN[:3] + (180,)
-    for x in range(1, 15):
-        c[8][x] = outline
-        c[10][x] = outline
-    for x in range(2, 14):
-        if (x * 7 + 9 * 13) % 4 == 0:
-            c[9][x] = fill
-    set_px(c, 1, 9, GREEN_DARK)
-    set_px(c, 14, 9, GREEN_DARK)
-    return c
+    return _draw_shield_bubble(rx=10.8)
 
 
 # ---- building_scaffold (16x16 x2, blink frames) ------------------------
@@ -440,10 +450,14 @@ def draw_scaffold(beacon_on: bool):
 # colors as the closed crate (copied pixel-for-pixel: rows 7-12, cols
 # 2-13), with its lid propped open at the back instead of floating
 # disconnected above it, and a small glow rising out of the opening
-# (not a full-width lit mouth - that read as a lamp, not a crate).
+# (not a full-width lit mouth - that read as a lamp, not a crate). The
+# lid carries the same 4-row banding as the closed lid (tip rim -> orange
+# band -> amber-cornered trim -> hinge rim), just mapped onto its tilted
+# columns, so the amber accent and the box's own latch badge visually
+# match between the two sprites.
 def draw_supply_crate_open():
     c = new_canvas(16, 16, fill=BG)
-    # box - identical to icon_supply_crate.png's body
+    # box - identical to icon_supply_crate.png's body, latch badge included
     hline(c, 2, 6, 7, GRAY_MID)
     set_px(c, 7, 7, AMBER)
     set_px(c, 8, 7, AMBER)
@@ -453,13 +467,17 @@ def draw_supply_crate_open():
         hline(c, 2, 12, y, GRAY_MID)
         set_px(c, 13, y, GRAY_DARK)
     hline(c, 2, 13, 12, GRAY_DARK)
-    # lid, propped open at the box's back-right edge, leaning up and
-    # back - stays visually attached (overlaps the box's top row)
-    # rather than hovering with a gap underneath it
-    hline(c, 9, 13, 3, GRAY_LIGHT)
-    hline(c, 8, 13, 4, GRAY_LIGHT)
-    hline(c, 8, 13, 5, GRAY_MID)
-    hline(c, 8, 14, 6, GRAY_MID)
+    # lid, propped open at the box's back-right edge, leaning up and back -
+    # stays visually attached (overlaps the box's top row) rather than
+    # hovering with a gap underneath it
+    hline(c, 9, 13, 3, GRAY_LIGHT)  # tip rim
+    set_px(c, 8, 4, GRAY_LIGHT)
+    hline(c, 9, 12, 4, AMBER)  # orange lid band (matches the closed lid's)
+    set_px(c, 13, 4, GRAY_LIGHT)
+    set_px(c, 8, 5, AMBER)  # amber-cornered trim row
+    hline(c, 9, 12, 5, GRAY_MID)
+    set_px(c, 13, 5, AMBER)
+    hline(c, 8, 14, 6, GRAY_LIGHT)  # hinge rim
     set_px(c, 7, 5, GRAY_LIGHT)
     set_px(c, 14, 5, GRAY_DARK)
     # small glow rising out of the opening, under the propped lid
@@ -483,39 +501,112 @@ def draw_energy_beam(frame: int):
 
 
 # ---- fleet_station_lv1/2/3 (32x32) -------------------------------------
-# Standalone hero sprites (opaque, like the building_* family) showing
-# real level progression - unlike buildings, the game plan wants distinct
-# art per station level rather than one sprite + a text label.
-def draw_fleet_station(level: int):
+# Standalone hero sprites (opaque, like the building_* family) showing real
+# level progression - unlike buildings, the game plan wants distinct art
+# per station level rather than one sprite + a text label. Visual language
+# is lifted from the station baked into scene_fleet_battle.png: a grey
+# hull with an amber window grid, steel-blue solar-panel arrays (STEEL_DARK
+# fill, STEEL_LIGHT grid lines - sampled directly from that scene), and a
+# GRAY_LIGHT antenna with an amber tip. Each level fills the 32x32 canvas
+# rather than floating a small icon in the middle of it.
+def _panel_array(c, x0, y0, x1, y1, cols, rows):
+    """A solar-panel array: STEEL_DARK fill divided into cols x rows cells
+    by STEEL_LIGHT grid lines, GRAY_DARK outline - same texture language
+    as the station in scene_fleet_battle.png."""
+    rect(c, x0, y0, x1, y1, STEEL_DARK)
+    w, h = x1 - x0 + 1, y1 - y0 + 1
+    for i in range(1, cols):
+        vline(c, x0 + round(w * i / cols), y0, y1, STEEL_LIGHT)
+    for j in range(1, rows):
+        hline(c, x0, x1, y0 + round(h * j / rows), STEEL_LIGHT)
+    rect(c, x0, y0, x1, y1, GRAY_DARK, fill=False)
+
+
+def _draw_fleet_station_lv1():
+    # compact core + one small panel pair
     c = new_canvas(32, 32, fill=BG)
     cx = 16
-    # central hub, every level
-    rect(c, cx - 5, 13, cx + 4, 19, GRAY_MID)
-    rect(c, cx - 5, 13, cx + 4, 13, GRAY_LIGHT, fill=False)
-    set_px(c, cx - 1, 16, AMBER)
-    set_px(c, cx, 16, AMBER)
-    vline(c, cx, 9, 12, GRAY_LIGHT)  # antenna, every level
-    set_px(c, cx, 8, AMBER_LIGHT)
-
-    if level >= 2:
-        # docking arms
-        hline(c, cx - 11, cx - 6, 16, GRAY_LIGHT)
-        hline(c, cx + 5, cx + 10, 16, GRAY_LIGHT)
-        set_px(c, cx - 11, 15, GRAY_DARK)
-        set_px(c, cx + 10, 15, GRAY_DARK)
-        set_px(c, cx - 7, 14, AMBER)
-        set_px(c, cx + 6, 14, AMBER)
-
-    if level >= 3:
-        # second antenna + two small docked ships, reusing the project's
-        # tiny-ship silhouette (nose + body + wing)
-        vline(c, cx - 4, 10, 12, GRAY_LIGHT)
-        set_px(c, cx - 4, 9, AMBER_LIGHT)
-        for ship_x in (cx - 15, cx + 11):
-            set_px(c, ship_x + 2, 14, GRAY_LIGHT)
-            hline(c, ship_x, ship_x + 4, 15, STEEL_LIGHT)
-            set_px(c, ship_x + 2, 16, AMBER)
+    rect(c, 13, 11, 18, 22, GRAY_MID)
+    hline(c, 13, 18, 11, GRAY_LIGHT)
+    vline(c, 18, 11, 22, GRAY_DARK)
+    for wy in (14, 17, 20):
+        set_px(c, 14, wy, AMBER)
+        set_px(c, 17, wy, AMBER)
+    vline(c, cx, 3, 10, GRAY_LIGHT)
+    set_px(c, cx, 2, AMBER_LIGHT)
+    hline(c, 7, 12, 16, GRAY_LIGHT)
+    hline(c, 19, 24, 16, GRAY_LIGHT)
+    _panel_array(c, 1, 13, 6, 19, 2, 2)
+    _panel_array(c, 25, 13, 30, 19, 2, 2)
+    rect(c, 13, 23, 18, 24, GRAY_DARK)
+    rect(c, 14, 25, 17, 26, AMBER)
     return c
+
+
+def _draw_fleet_station_lv2():
+    # bigger core + two larger panel arrays
+    c = new_canvas(32, 32, fill=BG)
+    cx = 16
+    rect(c, 11, 8, 20, 23, GRAY_MID)
+    hline(c, 11, 20, 8, GRAY_LIGHT)
+    vline(c, 20, 8, 23, GRAY_DARK)
+    for wy in (11, 14, 17, 20):
+        for wx in (13, 16, 18):
+            set_px(c, wx, wy, AMBER)
+    vline(c, cx, 2, 7, GRAY_LIGHT)
+    set_px(c, cx, 1, AMBER_LIGHT)
+    hline(c, 2, 10, 15, GRAY_LIGHT)
+    hline(c, 2, 10, 16, GRAY_MID)
+    hline(c, 21, 29, 15, GRAY_LIGHT)
+    hline(c, 21, 29, 16, GRAY_MID)
+    _panel_array(c, 0, 10, 9, 21, 2, 3)
+    _panel_array(c, 22, 10, 31, 21, 2, 3)
+    rect(c, 12, 24, 19, 25, GRAY_DARK)
+    rect(c, 13, 26, 18, 27, AMBER)
+    return c
+
+
+def _draw_fleet_station_lv3():
+    # ring/hub + four panel arrays (one per quadrant, clear of the antenna
+    # cluster above and the engine glow below) + antenna cluster + extra
+    # glow lights at each array's outer corner
+    c = new_canvas(32, 32, fill=BG)
+    cx = cy = 16
+    diag(c, cx, 0, cx + 15, cy, GRAY_LIGHT)
+    diag(c, cx + 15, cy, cx, 31, GRAY_LIGHT)
+    diag(c, cx, 31, cx - 15, cy, GRAY_LIGHT)
+    diag(c, cx - 15, cy, cx, 0, GRAY_LIGHT)
+    rect(c, 12, 12, 19, 19, GRAY_MID)
+    rect(c, 12, 12, 19, 19, GRAY_DARK, fill=False)
+    for wy in (14, 17):
+        for wx in (14, 17):
+            set_px(c, wx, wy, AMBER)
+    vline(c, cx - 2, 5, 11, GRAY_LIGHT)
+    vline(c, cx, 3, 11, GRAY_LIGHT)
+    vline(c, cx + 2, 6, 11, GRAY_LIGHT)
+    set_px(c, cx - 2, 4, AMBER_LIGHT)
+    set_px(c, cx, 2, AMBER_LIGHT)
+    set_px(c, cx + 2, 5, AMBER_LIGHT)
+    diag(c, 11, 12, 9, 9, GRAY_LIGHT)
+    diag(c, 20, 12, 22, 9, GRAY_LIGHT)
+    diag(c, 11, 19, 9, 22, GRAY_LIGHT)
+    diag(c, 20, 19, 22, 22, GRAY_LIGHT)
+    _panel_array(c, 3, 3, 8, 8, 2, 2)
+    _panel_array(c, 23, 3, 28, 8, 2, 2)
+    _panel_array(c, 3, 23, 8, 28, 2, 2)
+    _panel_array(c, 23, 23, 28, 28, 2, 2)
+    set_px(c, 3, 3, AMBER_LIGHT)
+    set_px(c, 28, 3, AMBER_LIGHT)
+    set_px(c, 3, 28, AMBER_LIGHT)
+    set_px(c, 28, 28, AMBER_LIGHT)
+    rect(c, 14, 20, 17, 20, GRAY_DARK)
+    set_px(c, 15, 21, AMBER)
+    set_px(c, 16, 21, AMBER)
+    return c
+
+
+def draw_fleet_station(level: int):
+    return {1: _draw_fleet_station_lv1, 2: _draw_fleet_station_lv2, 3: _draw_fleet_station_lv3}[level]()
 
 
 # ---- boss_vx3 (48x32) ---------------------------------------------------
@@ -599,9 +690,22 @@ def composite(base_name: str, overlay_canvas, scale: int = 1):
 
     base = Image.open(DEST_DIR / f"{base_name}.png").convert("RGBA")
     overlay = canvas_to_image(overlay_canvas)
-    if overlay.size != base.size:
+    if overlay.size == base.size:
+        out = Image.alpha_composite(base, overlay)
+    elif overlay.width >= base.width and overlay.height >= base.height:
+        # overlay encloses an area bigger than the base (e.g. a shield
+        # bubble that must reach past the building's own silhouette) -
+        # bottom-center the base inside an overlay-sized canvas first, so
+        # the building's ground line lines up with the overlay's own base
+        # line, instead of squishing the overlay down to the base's size
+        canvas = Image.new("RGBA", overlay.size, (0, 0, 0, 0))
+        x_off = (overlay.width - base.width) // 2
+        y_off = overlay.height - base.height
+        canvas.paste(base, (x_off, y_off))
+        out = Image.alpha_composite(canvas, overlay)
+    else:
         overlay = overlay.resize(base.size, Image.NEAREST)
-    out = Image.alpha_composite(base, overlay)
+        out = Image.alpha_composite(base, overlay)
     if scale != 1:
         out = out.resize((out.width * scale, out.height * scale), Image.NEAREST)
     return out
