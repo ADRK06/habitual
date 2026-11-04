@@ -1162,7 +1162,7 @@ def test_fleet_list_shows_a_card_per_fleet_with_member_count_and_health(client, 
 
     assert "Night Owls" in response
     card_start = response.index(f'id="fleet-card-{room.id}"')
-    card_html = response[card_start:card_start + 2500]
+    card_html = response[card_start:card_start + 5500]
     # The number is IBM Plex Mono, the word is IBM Plex Sans - a nested
     # <span> for the number breaks "2 commanders" as one contiguous string.
     assert '<span class="font-mono">2</span> commander' in card_html
@@ -1180,7 +1180,7 @@ def test_fleet_list_shows_open_once_checked_in_today(client, db):
     response = client.get("/rooms").get_data(as_text=True)
 
     card_start = response.index(f'id="fleet-card-{room.id}"')
-    card_html = response[card_start:card_start + 2500]
+    card_html = response[card_start:card_start + 5500]
     assert "100%" in card_html
     assert "Open" in card_html
     assert "Check in" not in card_html
@@ -1190,23 +1190,31 @@ def test_fleet_list_card_title_links_to_the_fleet_page(client, db):
     # Bug fix: the whole card is clickable via its title's stretched link
     # (habit_card.html's pattern - a real, keyboard-focusable <a> whose
     # ::after covers the card - not a bare div @click, which no keyboard
-    # user could ever activate).
+    # user could ever activate). The card's own x-data (scoping the Leave
+    # control's confirm modal - see test_fleet_card_has_a_leave_control
+    # below) is unrelated to this - what matters is that the TITLE LINK
+    # itself needs no click handler to work.
     leader = _login(client, db, username="leader")
     room = _create_room(db, leader, title="Night Owls")
 
     response = client.get("/rooms").get_data(as_text=True)
 
     card_start = response.index(f'id="fleet-card-{room.id}"')
-    card_html = response[card_start:card_start + 2500]
+    card_html = response[card_start:card_start + 5500]
     assert f'href="/rooms/{room.id}"' in card_html
     assert "after:absolute" in card_html
-    assert "x-data" not in card_html
+    title_link_start = card_html.index(f'href="/rooms/{room.id}"')
+    title_link_html = card_html[title_link_start:card_html.index("</a>", title_link_start)]
+    assert "@click" not in title_link_html
+    assert "x-on" not in title_link_html
 
 
 def test_fleet_list_check_in_button_is_an_htmx_post_not_a_link(client, db):
     # Check in now checks the habit in on the spot (real HTMX POST to the
     # same endpoint the dashboard's cards use), not a navigate-away link -
-    # no openPopover/@click either, since it needs no Alpine scope at all.
+    # no openPopover/@click either, since the CHECK-IN BUTTON itself needs
+    # no Alpine scope (the card's own x-data, for the unrelated Leave
+    # control's confirm modal, is scoped separately below).
     user = _login(client, db)
     room = _create_room(db, user, title="Night Owls")
     habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
@@ -1214,12 +1222,14 @@ def test_fleet_list_check_in_button_is_an_htmx_post_not_a_link(client, db):
     response = client.get("/rooms").get_data(as_text=True)
 
     card_start = response.index(f'id="fleet-card-{room.id}"')
-    card_html = response[card_start:card_start + 2500]
+    card_html = response[card_start:card_start + 5500]
     assert f'hx-post="/habits/{habit.id}/checkin"' in card_html
     assert 'hx-vals=\'{"fleet_list_view": "1"}\'' in card_html
     assert f'hx-target="#fleet-card-{room.id}"' in card_html
-    assert "openPopover" not in card_html
-    assert "@click" not in card_html
+    checkin_button_start = card_html.index('hx-post=')
+    checkin_button_html = card_html[checkin_button_start:card_html.index("</button>", checkin_button_start)]
+    assert "openPopover" not in checkin_button_html
+    assert "@click" not in checkin_button_html
 
 
 def test_fleet_list_checkin_returns_the_updated_card_and_nav_stats(client, db):
@@ -1271,6 +1281,97 @@ def test_fleet_list_second_checkin_does_not_double_award(client, db):
     assert response.status_code == 200
     assert Checkin.query.filter_by(habit_id=habit.id).count() == 1
     assert sum(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id)) == 5
+
+
+# -- leave a fleet from /rooms -------------------------------------------------
+
+
+def test_fleet_card_has_a_leave_control(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, title="Night Owls")
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    card_start = response.index(f'id="fleet-card-{room.id}"')
+    card_html = response[card_start:card_start + 5500]
+    assert 'title="Leave Fleet"' in card_html
+    assert 'aria-label="Leave Night Owls"' in card_html
+    assert f'action="/rooms/{room.id}/leave"' in card_html
+    # Stacked above the stretched title link (explicit z-10, not DOM order
+    # alone - the title's ::after has no z-index of its own to out-rank).
+    assert "z-10" in card_html
+
+
+def test_fleet_list_leave_modal_warns_when_user_is_the_last_member(client, db):
+    user = _login(client, db)
+    _create_room(db, user, title="Solo Fleet")
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    assert "You're the last member, so this fleet will be deleted. Energy you earned stays." in response
+
+
+def test_fleet_list_leave_modal_uses_regular_wording_with_other_members(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, title="Crew Fleet")
+    _join_room_direct(db, room, _create_user(db, username="other"))
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    assert "It disappears from your list. Energy you earned stays." in response
+
+
+def test_leave_from_fleet_list_archives_habit_keeps_points_and_redirects_back(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, title="Night Owls")
+    _join_room_direct(db, room, _create_user(db, username="other"))  # keeps the room alive
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+    db.session.add(PointTransaction(user_id=user.id, habit_id=habit.id, amount=20, reason="daily", date=date.today()))
+    db.session.commit()
+    habit_id = habit.id
+
+    response = client.post(f"/rooms/{room.id}/leave", data={"next": "/rooms"})
+
+    assert response.status_code == 302
+    assert response.location == "/rooms"  # back to the fleet list, not the dashboard
+
+    stored = db.session.get(Habit, habit_id)
+    assert stored is not None  # archived, not deleted (Phase 3)
+    assert stored.archived_at is not None
+    assert RoomMember.query.filter_by(room_id=room.id, user_id=user.id).count() == 0
+    assert points.earned_points(
+        [pt.amount for pt in PointTransaction.query.filter_by(user_id=user.id)]
+    ) == 20  # earned points unaffected by leaving
+
+    # Sidebar Energy/streak come from the same unaffected ledger/habit
+    # queries every other page uses - nothing fleet-list-specific to break.
+    follow_up = client.get("/rooms").get_data(as_text=True)
+    assert "Left" in follow_up and "Night Owls" in follow_up  # flash -> toast bridge (base.html)
+
+
+def test_leave_from_fleet_list_rejects_a_non_member(client, db):
+    creator = _create_user(db, username="creator")
+    room = _create_room(db, creator)
+    _login(client, db, username="outsider")
+
+    response = client.post(f"/rooms/{room.id}/leave", data={"next": "/rooms"})
+
+    assert response.status_code == 404
+    assert RoomMember.query.filter_by(room_id=room.id, user_id=creator.id).count() == 1
+
+
+def test_leave_from_fleet_list_as_last_member_deletes_room_and_shows_empty_state(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, title="Solo Fleet")
+    room_id = room.id
+
+    response = client.post(f"/rooms/{room_id}/leave", data={"next": "/rooms"})
+    assert response.status_code == 302
+    assert response.location == "/rooms"
+    assert db.session.get(Room, room_id) is None  # deleted without an FK error
+
+    follow_up = client.get("/rooms").get_data(as_text=True)
+    assert "No fleets yet" in follow_up
 
 
 def test_dashboard_auto_open_fleet_modal_hook_is_present(client, db):

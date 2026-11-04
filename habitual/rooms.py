@@ -12,7 +12,7 @@ from wtforms import HiddenField, IntegerField, StringField
 from wtforms.validators import DataRequired, NumberRange, Optional
 
 from habitual import badges, db, frequency, points
-from habitual.auth import _aware_utc
+from habitual.auth import _aware_utc, safe_next_path
 from habitual.habits import (
     _analytics_context,
     _dashboard_context,
@@ -1042,7 +1042,12 @@ def leave_room(room_id):
 
     db.session.commit()
     flash(f'Left "{room.title}".', "info")
-    return redirect(url_for("habits.dashboard"))
+    # Every existing leave form (dashboard/room page) posts with no `next`
+    # and keeps landing on the dashboard, unchanged; the fleet_list card's
+    # form is the only one that sets it, to return there instead - same
+    # route/CSRF/archiving, just where the flash-turned-toast lands.
+    next_path = safe_next_path(request.form.get("next"))
+    return redirect(next_path or url_for("habits.dashboard"))
 
 
 @rooms.post("/rooms/<int:room_id>/regenerate-invite")

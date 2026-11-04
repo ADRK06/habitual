@@ -21,8 +21,21 @@
   and, being a real <button> (not an <a>), was never going to trigger the
   stretched link's navigation even without that: hx-post checks this
   habit in on the spot instead of navigating away.
+
+  Leave control: same small top-right icon button + confirm-modal pattern
+  as the dashboard room card (habit_card.html) - explicit z-10 (not just
+  DOM order) is what guarantees it wins over the title's ::after here,
+  since that pseudo-element has no z-index of its own to out-order. Posts
+  to the same rooms.leave_room route/CSRF pattern as every other leave
+  flow (no new leave logic) - the only addition there is an optional
+  `next` field so this page's leave redirects back to itself instead of
+  the dashboard.
 #}
-<div id="fleet-card-{{ fleet.room.id }}" class="relative flex flex-col gap-3 border border-border bg-surface p-3.5">
+<div
+  id="fleet-card-{{ fleet.room.id }}"
+  class="relative flex flex-col gap-3 border border-border bg-surface p-3.5"
+  x-data="{ confirmLeave: false }"
+>
   <div class="flex items-center gap-3">
     <span class="shrink-0 text-3xl" style="image-rendering: pixelated" aria-hidden="true">{{ fleet.room.emoji }}</span>
     <div class="min-w-0 flex-1">
@@ -39,6 +52,30 @@
     <div class="flex shrink-0 flex-col items-end">
       <span class="font-mono text-lg tabular-nums {{ 'text-streak' if fleet.streak_value else 'text-text-muted' }}">{{ fleet.streak_value }}{{ 'd' if fleet.room_streak_unit == 'day' else 'w' }}</span>
       <span class="font-display text-[9px] uppercase tracking-wide text-text-muted">streak</span>
+    </div>
+    {# In the flex row (not absolutely overlaid - the streak block above
+       already occupies the card's top-right corner, so stacking this on
+       top of it would visually collide with the streak number). The
+       border-l divider is what keeps it from reading as fused onto "0d" -
+       gap-3 alone wasn't enough breathing room at this icon's size.
+       `relative` with no offset keeps the button itself in normal flow
+       while still winning the stacking order (any positioned z-index
+       beats the title's z-auto ::after) over the stretched link, same
+       reasoning as habit_card.html's icon button. #}
+    <div class="flex shrink-0 items-center border-l border-border pl-3">
+      <button
+        type="button"
+        @click.stop="confirmLeave = true"
+        class="relative z-10 flex h-6 w-6 items-center justify-center text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+        title="Leave Fleet"
+        aria-label="Leave {{ fleet.room.title }}"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -73,4 +110,46 @@
     {{ spinner(size='4') }}
   </button>
   {% endif %}
+
+  <div
+    x-show="confirmLeave"
+    x-trap="confirmLeave"
+    x-cloak
+    onclick="event.stopPropagation()"
+    @keydown.escape.window="confirmLeave = false"
+    x-transition:enter="transition ease-out duration-150"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-100"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    class="fixed inset-0 z-40 flex items-center justify-center bg-void/80 p-4"
+  >
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="fleet-confirm-heading-{{ fleet.room.id }}"
+      class="w-full max-w-sm border border-border bg-surface p-6"
+    >
+      <h4 id="fleet-confirm-heading-{{ fleet.room.id }}" class="font-display text-base uppercase tracking-wide text-text">Leave <span class="font-body normal-case">"{{ fleet.room.title }}"</span>?</h4>
+      {% if fleet.member_count == 1 %}
+      <p class="mt-2 font-body text-sm text-text-muted">You're the last member, so this fleet will be deleted. Energy you earned stays.</p>
+      {% else %}
+      <p class="mt-2 font-body text-sm text-text-muted">It disappears from your list. Energy you earned stays.</p>
+      {% endif %}
+      <div class="mt-5 flex justify-end gap-3">
+        <button type="button" @click="confirmLeave = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">
+          Cancel
+        </button>
+        <form method="post" action="{{ url_for('rooms.leave_room', room_id=fleet.room.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ url_for('rooms.fleet_list') }}">
+          <button type="submit" class="relative bg-danger px-4 py-2 font-display text-xs uppercase text-void transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+            <span class="btn-label">Leave</span>
+            {{ spinner() }}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
