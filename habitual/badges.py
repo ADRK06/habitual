@@ -99,6 +99,10 @@ def check_and_award(user) -> list[dict]:
     today = local_today(user)
     existing_types = {b.type for b in Badge.query.filter_by(user_id=user.id)}
 
+    # Deliberately unfiltered (not Habit.active()) - badges are permanent,
+    # lifetime achievements (this module's own docstring), so a streak or
+    # crown count earned on a habit that's since been archived must still
+    # count toward them.
     habit_rows = (
         Habit.query.filter_by(user_id=user.id)
         .options(selectinload(Habit.checkins), selectinload(Habit.freezes))

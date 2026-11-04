@@ -619,9 +619,13 @@ def _crown_badge_for_checkin(room, members, checkin):
     eligible = [m for m in members if m.joined_on <= checkin.date]
     if not eligible:
         return None
+    # Habit.active(): same reasoning as _room_member_habits - without it, a
+    # same-day leave-then-rejoin would map this user_id to BOTH their old
+    # archived habit and their new one, letting a pre-leave check-in count
+    # toward today's crown race a second time.
     user_by_habit_id = dict(
         db.session.query(Habit.id, Habit.user_id)
-        .filter(Habit.room_id == room.id, Habit.user_id.in_([m.user_id for m in eligible]))
+        .filter(Habit.archived_at.is_(None), Habit.room_id == room.id, Habit.user_id.in_([m.user_id for m in eligible]))
     )
     if not user_by_habit_id:
         return None

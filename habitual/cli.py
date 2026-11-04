@@ -58,6 +58,8 @@ def dev_backdate(habit_id, days, skip_yesterday, include_today):
     without waiting real days. Refuses to run against production."""
     _refuse_if_production()
 
+    # Deliberately unfiltered (not Habit.active()) - a dev tool working on
+    # a specific habit id the developer already knows, archived or not.
     habit = db.session.get(Habit, habit_id)
     if habit is None:
         raise click.ClickException(f"No habit with id {habit_id}.")
