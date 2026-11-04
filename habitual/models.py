@@ -95,11 +95,30 @@ class Habit(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    room_id = db.Column(db.Integer, db.ForeignKey("rooms.id"), nullable=True, index=True)
+    # ON DELETE SET NULL: once leaving/archiving no longer deletes a room
+    # habit (see archived_at below), an archived member's habit can outlive
+    # its room (e.g. the last member leaving deletes the Room row while
+    # every past member's archived habit still points at it) - this lets
+    # that Room delete succeed instead of failing on a dangling FK.
+    room_id = db.Column(db.Integer, db.ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True, index=True)
     title = db.Column(db.String(60), nullable=False)
     emoji = db.Column(db.String(8), nullable=False)
     tiny_version = db.Column(db.String(120), nullable=True)
     created_on = db.Column(db.Date, nullable=False)
+    # Set when this habit is "deleted" from the user's perspective (solo
+    # delete, or leaving its room) - never when it's hard-deleted outright
+    # (only account deletion does that). Checkins/freezes/point_transactions
+    # are untouched: Phase 3's whole point is that the ledger survives, so
+    # earned points/balance never change from archiving. See Habit.active().
+    archived_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    # True only for a habit created the same local day an earlier habit of
+    # the same normalized title was archived for this user - the checkin
+    # route skips writing points for this habit on its created_on date only,
+    # so archive-then-recreate-same-day can't double-pay a day already paid
+    # out under the old habit. See habits._recently_archived_same_title.
+    first_day_points_suppressed = db.Column(
+        db.Boolean, nullable=False, default=False, server_default="false"
+    )
     # "daily" (default) | "days" (specific weekdays) | "weekly" (X times/week).
     # frequency_days: 7-bit mask (bit i = weekday i scheduled, Mon=0..Sun=6,
     # matching date.weekday()) - only meaningful for "days". frequency_target:
@@ -122,9 +141,30 @@ class Habit(db.Model):
         "PointTransaction", backref="habit", cascade="all, delete-orphan", passive_deletes=False
     )
     # No cascade here on purpose - a room habit is a normal habit, and when
-    # a member leaves, leave_room() deletes their own Habit directly. By
-    # that point no other Habit should still reference the deleted Room.
+    # a member leaves, their own Habit is now archived in place (not
+    # deleted) - see archived_at above and rooms._leave_room_as.
     room = db.relationship("Room", backref="habits")
+    # Read-only, one-directional (no backref) - User has no "habits"
+    # collection to keep in sync, so this can't conflict with anything on
+    # that side or with account deletion's own explicit delete loop (which
+    # deletes Habit rows directly, not through this relationship). Only
+    # needed so the room feed can attribute an archived habit's past
+    # check-ins to its owner without a surviving RoomMember row to read the
+    # name off of (see rooms._feed_context).
+    user = db.relationship("User", viewonly=True)
+
+    @classmethod
+    def active(cls):
+        """Every query call site that means "this user's/room's *current*
+        habits" (dashboard, streaks, success rates, analytics, room
+        leaderboards/rankings/crowns, vouch eligibility...) should start
+        here instead of bare `Habit.query`, so an archived habit (Phase 3:
+        delete/leave now archives instead of deleting) never resurfaces as
+        if it still existed. Deliberate exceptions that query Habit
+        unfiltered - the room feed's history, badges.check_and_award's
+        lifetime achievement check, and account deletion's hard-delete
+        sweep - are commented at their own call sites."""
+        return cls.query.filter(cls.archived_at.is_(None))
 
 
 class Checkin(db.Model):
