@@ -271,7 +271,7 @@ Show me the contact sheet and wait for approval before using any NEW sprite in a
 ### Phase 3 — Archive fix (schema)
 ```
 Plan then implement (plan first, wait for OK): replace hard-delete of habits with archiving.
-- habits.archived_on (nullable date). Deleting a habit or leaving a room archives instead; past point_transactions stay in the ledger.
+- habits.archived_at (nullable timestamp, not a date - this is what actually shipped). Deleting a habit or leaving a room archives instead; past point_transactions stay in the ledger.
 - Archived habits vanish from dashboard, streaks, scores, rankings, room leaderboards; a member's contribution to a room remains visible after they leave.
 - Creator handover when leaving a room stays as-is.
 - Unarchive is NOT needed. Account deletion still hard-deletes everything.

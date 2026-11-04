@@ -126,7 +126,7 @@ The fix is to **archive habits instead of deleting them.** An archived habit dis
 | Boss damage and station progress | Added inside the existing check-in route when the habit has a room_id |
 | Nudges | New nudges table: from_user, to_user, room_id, date, unique per pair per day |
 | Mission trophies | New trophies table: user_id, room_id, station_level, earned_on |
-| Archived habits | New habits.archived_on column, replacing the hard delete |
+| Archived habits | habits.archived_at column (already shipped in Phase 3), replacing the hard delete |
 
 ## Keeping users coming back
 
@@ -166,7 +166,7 @@ Colonies sits on top of what you already have: Flask, Neon Postgres, the points 
 
 | Table | Change |
 |---|---|
-| habits | Add category (fitness, study, sleep, water_food, mind, other) and archived_on (nullable date) |
+| habits | Add category (fitness, study, sleep, water_food, mind, other). archived_at already shipped in Phase 3 (nullable timestamp, not a date) |
 | users | Add last_seen_on (date), commander_class, equipped_suit, equipped_ship, current_tier |
 | point_transactions | No change to columns; new reason values: build, upgrade, repair, cosmetic, supply_drop, comeback, sector_reward, boss_reward |
 | rooms | No change; a room is now shown as a fleet |
