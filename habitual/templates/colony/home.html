@@ -10,28 +10,18 @@
   reachable from the HABITS nav item.
 #}
 {% block app_content %}
-<div x-data="{ buildOpen: false }">
+<div>
   <header class="flex flex-wrap items-center justify-between gap-4 pt-8 pb-4">
     <h1 class="font-display text-xl uppercase tracking-wide text-text lg:text-2xl">Colony</h1>
-    <div class="flex gap-2">
-      <a
-        href="{{ url_for('habits.dashboard') }}?open=create-habit"
-        class="flex h-11 items-center border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent"
-      >
-        + New habit
-      </a>
-      <button
-        type="button"
-        @click="buildOpen = true"
-        class="flex h-11 items-center bg-accent px-4 font-display text-xs uppercase tracking-wide text-bg transition-transform duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
-      >
-        Build
-      </button>
-    </div>
+    <a
+      href="{{ url_for('habits.dashboard') }}?open=create-habit"
+      class="flex h-11 items-center border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent"
+    >
+      + New habit
+    </a>
   </header>
 
   {% include "partials/colony_panel.html" %}
-  {% include "partials/colony_build_sheet.html" %}
 </div>
 
 <script>

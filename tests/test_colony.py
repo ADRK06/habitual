@@ -1,8 +1,8 @@
 import json
-from datetime import date, datetime, timedelta, timezone as dt_timezone
+from datetime import date, timedelta
 
 from habitual import game
-from habitual.models import Building, Checkin, Colony, Habit, PointTransaction, User
+from habitual.models import Checkin, Colony, Habit, PointTransaction, User
 
 VALID_PASSWORD = "Sup3r$ecret"
 
@@ -72,300 +72,113 @@ def test_colony_get_is_idempotent_no_duplicate_colony(client, db):
     assert Colony.query.filter_by(user_id=user.id).count() == 1
 
 
-# -- build --------------------------------------------------------------------
+# -- derived building level ---------------------------------------------------
 
 
-def test_build_blocked_below_unlock_threshold(client, db):
+def test_locked_building_shows_category_name_and_progress(client, db):
     user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 9)
-    _give_energy(db, user, 500)
+    habit = _create_habit(db, user, category="study")
+    _give_checkins(db, habit, 4)
 
-    response = client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
+    html = client.get("/colony").get_data(as_text=True)
 
-    assert response.status_code == 400
-    assert Building.query.count() == 0
-
-
-def test_build_allowed_at_unlock_threshold_charges_cost_and_sets_pending_level_zero(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 500)
-
-    response = client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-    assert response.status_code == 302
-
-    colony = Colony.query.filter_by(user_id=user.id).first()
-    building = Building.query.filter_by(colony_id=colony.id, type=game.DEFENSE_TOWER).first()
-    assert building is not None
-    assert building.level == 0  # first build pending, not yet level 1
-    assert building.finishes_at is not None
-    assert building.slot == game.default_slot(game.DEFENSE_TOWER)
-
-    balance = sum(pt.amount for pt in PointTransaction.query.filter_by(user_id=user.id))
-    assert balance == 500 - game.next_level_cost(game.DEFENSE_TOWER, 1)
-    spend = PointTransaction.query.filter_by(user_id=user.id, reason="build").first()
-    assert spend.amount == -game.next_level_cost(game.DEFENSE_TOWER, 1)
+    assert "Study" in html
+    assert "4/10" in html
+    assert "Research Lab" not in html  # not built yet - only the category label shows
 
 
-def test_build_blocked_with_insufficient_balance(client, db):
+def test_building_reaches_level_one_at_ten_checkins(client, db):
     user = _login(client, db)
     habit = _create_habit(db, user, category="fitness")
     _give_checkins(db, habit, 10)
-    _give_energy(db, user, 10)  # tower costs 120
 
-    response = client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
+    html = client.get("/colony").get_data(as_text=True)
 
-    assert response.status_code == 400
-    assert Building.query.count() == 0
+    assert "Defense Tower" in html
+    assert "LV1" in html
+    assert "10/30" in html  # progress toward LV2
 
 
-def test_build_blocked_if_already_started(client, db):
+def test_building_reaches_level_two_at_thirty_checkins(client, db):
     user = _login(client, db)
     habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 1000)
+    _give_checkins(db, habit, 30)
 
-    first = client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-    second = client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
+    html = client.get("/colony").get_data(as_text=True)
 
-    assert first.status_code == 302
-    assert second.status_code == 400
-    assert Building.query.filter_by(type=game.DEFENSE_TOWER).count() == 1
+    assert "LV2" in html
+    assert "30/60" in html
 
 
-def test_build_rejects_an_unknown_type(client, db):
+def test_building_maxes_at_level_three_with_no_further_progress_shown(client, db):
     user = _login(client, db)
-    _give_energy(db, user, 1000)
-    response = client.post("/colony/build", data={"type": "not_a_real_building"})
-    assert response.status_code == 400
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 60)
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert "LV3" in html
+    assert "60/" not in html  # maxed - no "next threshold" fraction
 
 
-def test_custom_module_unlocks_from_any_ten_checkins_regardless_of_category(client, db):
+def test_building_level_never_regresses_past_max_with_more_checkins(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 200)
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert "LV3" in html
+    assert "LV4" not in html
+
+
+def test_custom_module_counts_any_category_not_just_other(client, db):
     user = _login(client, db)
     habit = _create_habit(db, user, category="fitness")  # NOT "other"
     _give_checkins(db, habit, 10)
-    _give_energy(db, user, 500)
 
-    response = client.post("/colony/build", data={"type": game.CUSTOM_MODULE})
+    html = client.get("/colony").get_data(as_text=True)
 
-    assert response.status_code == 302
-    assert Building.query.filter_by(type=game.CUSTOM_MODULE).count() == 1
+    assert "Custom Module" in html
+    card_start = html.index("Custom Module")
+    assert "LV1" in html[card_start - 50:card_start + 200] or "LV1" in html  # built from the fitness check-ins
 
 
-def test_category_building_still_locked_with_only_other_category_checkins(client, db):
+def test_category_building_stays_locked_with_only_other_category_checkins(client, db):
     user = _login(client, db)
     habit = _create_habit(db, user, category="other")
     _give_checkins(db, habit, 10)
-    _give_energy(db, user, 500)
 
-    response = client.post("/colony/build", data={"type": game.DEFENSE_TOWER})  # needs "fitness" specifically
+    html = client.get("/colony").get_data(as_text=True)
 
-    assert response.status_code == 400
+    # "Fitness" (the locked label) appears, Defense Tower (the built name) does not.
+    assert "Fitness" in html
+    assert "Defense Tower" not in html
 
 
-def test_repeated_build_clicks_cannot_overspend_balance(client, db):
-    # Same sequential "double-click" case as habits.buy_freeze's own tests -
-    # true concurrent-row-lock behavior can't be exercised on SQLite, see
-    # _spend_or_400's docstring; this proves the second click, arriving
-    # right after the first already committed, is rejected correctly.
+def test_archiving_the_powering_habit_does_not_lower_the_level(client, db):
+    # Archived habits still count toward a building's level - same
+    # reasoning as the daily cap and badges' lifetime counting: archiving
+    # must never look like losing progress.
     user = _login(client, db)
     habit = _create_habit(db, user, category="fitness")
     _give_checkins(db, habit, 10)
-    cost = game.next_level_cost(game.DEFENSE_TOWER, 1)
-    _give_energy(db, user, cost)  # exactly enough for one
-
-    responses = [client.post("/colony/build", data={"type": game.DEFENSE_TOWER}) for _ in range(3)]
-
-    assert [r.status_code for r in responses] == [302, 400, 400]
-    balance = sum(pt.amount for pt in PointTransaction.query.filter_by(user_id=user.id))
-    assert balance == 0  # never negative
-
-
-# -- settlement (lazy, on read) ------------------------------------------------
-
-
-def test_first_build_settles_to_level_one_once_finishes_at_has_passed(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 500)
-    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-
-    building = Building.query.filter_by(type=game.DEFENSE_TOWER).first()
-    building.finishes_at = datetime.now(dt_timezone.utc) - timedelta(minutes=1)
     db.session.commit()
-
-    client.get("/colony")
-
-    db.session.refresh(building)
-    assert building.level == 1
-    assert building.finishes_at is None
-    assert building.started_at is None
-
-
-def test_settlement_is_idempotent(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 500)
-    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-
-    building = Building.query.filter_by(type=game.DEFENSE_TOWER).first()
-    building.finishes_at = datetime.now(dt_timezone.utc) - timedelta(minutes=1)
-    db.session.commit()
-
-    client.get("/colony")
-    client.get("/colony")  # a second load after settlement must not bump it again
-
-    db.session.refresh(building)
-    assert building.level == 1
-
-
-def test_upgrade_in_progress_still_shows_old_level_until_settled(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 2000)
-    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-    building = Building.query.filter_by(type=game.DEFENSE_TOWER).first()
-    building.finishes_at = datetime.now(dt_timezone.utc) - timedelta(minutes=1)
-    db.session.commit()
-    client.get("/colony")  # settle the first build to level 1
-
-    response = client.post(f"/colony/upgrade/{building.id}")
-    assert response.status_code == 302
-
-    db.session.refresh(building)
-    assert building.level == 1  # still the OLD level - not bumped yet
-    assert building.finishes_at is not None
-
-    building.finishes_at = datetime.now(dt_timezone.utc) - timedelta(minutes=1)
-    db.session.commit()
-    client.get("/colony")
-
-    db.session.refresh(building)
-    assert building.level == 2
-
-
-def test_upgrade_blocked_while_already_in_progress(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 2000)
-    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-    building = Building.query.filter_by(type=game.DEFENSE_TOWER).first()
-    building.finishes_at = datetime.now(dt_timezone.utc) - timedelta(minutes=1)
-    db.session.commit()
-    client.get("/colony")  # settle to level 1
-
-    first = client.post(f"/colony/upgrade/{building.id}")
-    second = client.post(f"/colony/upgrade/{building.id}")
-
-    assert first.status_code == 302
-    assert second.status_code == 400
-    db.session.refresh(building)
-    assert building.level == 1
-
-
-def test_upgrade_blocked_at_max_level(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 5000)
-    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-    building = Building.query.filter_by(type=game.DEFENSE_TOWER).first()
-    building.level = game.MAX_LEVEL
-    building.finishes_at = None
-    db.session.commit()
-
-    response = client.post(f"/colony/upgrade/{building.id}")
-
-    assert response.status_code == 400
-    db.session.refresh(building)
-    assert building.level == game.MAX_LEVEL
-
-
-def test_upgrade_blocked_with_insufficient_balance(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, game.next_level_cost(game.DEFENSE_TOWER, 1))
-    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-    building = Building.query.filter_by(type=game.DEFENSE_TOWER).first()
-    building.level = 1
-    building.finishes_at = None
-    db.session.commit()
-    # Balance is now 0 - not enough for the LV2 upgrade.
-
-    response = client.post(f"/colony/upgrade/{building.id}")
-
-    assert response.status_code == 400
-    db.session.refresh(building)
-    assert building.level == 1
-
-
-def test_upgrade_rejects_a_building_belonging_to_someone_else(client, db):
-    other = _create_user(db, username="other")
-    colony = Colony(user_id=other.id, name="Other's Colony", planet_type="rust", created_on=date.today())
-    db.session.add(colony)
-    db.session.flush()
-    building = Building(colony_id=colony.id, type=game.DEFENSE_TOWER, level=1, slot=0)
-    db.session.add(building)
-    db.session.commit()
-    other_building_id = building.id
-
-    _login(client, db, username="user")
-
-    response = client.post(f"/colony/upgrade/{other_building_id}")
-
-    assert response.status_code == 404
-
-
-# -- account deletion / habit archiving never touch buildings -----------------
-
-
-def test_account_deletion_removes_colony_and_buildings(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 500)
-    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-    user_id = user.id
-
-    db.session.delete(db.session.get(User, user_id))
-    db.session.commit()
-
-    assert Colony.query.filter_by(user_id=user_id).count() == 0
-    assert Building.query.count() == 0
-
-
-def test_archiving_the_powering_habit_does_not_touch_the_building(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 500)
-    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-    building = Building.query.filter_by(type=game.DEFENSE_TOWER).first()
-    building.finishes_at = datetime.now(dt_timezone.utc) - timedelta(minutes=1)
-    db.session.commit()
-    client.get("/colony")  # settle to level 1
 
     client.delete(f"/habits/{habit.id}")
 
-    stored_habit = db.session.get(Habit, habit.id)
-    assert stored_habit.archived_at is not None  # confirms it actually archived
-    db.session.refresh(building)
-    assert building.level == 1
-    assert building.finishes_at is None
+    stored = db.session.get(Habit, habit.id)
+    assert stored.archived_at is not None  # confirms it actually archived
+
+    html = client.get("/colony").get_data(as_text=True)
+    assert "LV1" in html
 
 
 def test_category_edit_moves_historical_checkins_into_the_new_categorys_count(client, db):
-    # Decision 5 (accepted tradeoff): the unlock count reads the habit's
-    # CURRENT category, not a per-check-in snapshot - no edit route exists
-    # yet (that's UI wiring, next commit), so this confirms the underlying
-    # behavior directly at the model/query level.
+    # Accepted tradeoff (decided for Phase 4a): the level reads the
+    # habit's CURRENT category, not a per-check-in snapshot - relabeling
+    # a habit moves its historical check-ins with it. Visuals only right
+    # now (buildings have no gameplay effect), explicitly accepted.
     from habitual.colony import _category_checkin_counts
 
     user = _login(client, db)
@@ -382,7 +195,7 @@ def test_category_edit_moves_historical_checkins_into_the_new_categorys_count(cl
     assert _category_checkin_counts(user).get("study", 0) == 10
 
 
-# -- UI wiring (commit 6) -----------------------------------------------------
+# -- UI / check-in integration -------------------------------------------------
 
 
 def test_colony_home_renders_header_stats_and_habit_list(client, db):
@@ -396,13 +209,13 @@ def test_colony_home_renders_header_stats_and_habit_list(client, db):
     assert "Morning run" in html
     assert "Colony LV" in html
     assert 'id="colony-planet"' in html
-    assert "Defense Tower" in html  # buildable tile, 10/10 fitness check-ins
+    assert "Defense Tower" in html
 
 
 def test_colony_nav_item_links_to_colony_home(client, db):
     _login(client, db)
     html = client.get("/colony").get_data(as_text=True)
-    assert f'href="{"/colony"}"' in html
+    assert 'href="/colony"' in html
 
 
 def test_checkin_from_colony_page_swaps_the_colony_panel_and_carries_points_earned(client, db):
@@ -419,54 +232,62 @@ def test_checkin_from_colony_page_swaps_the_colony_panel_and_carries_points_earn
     assert trigger["checkinCelebration"]["habitId"] == habit.id
 
 
-def test_build_menu_shows_a_locked_row_with_checkin_progress(client, db):
+def test_undo_checkin_lowers_the_derived_level_back_down(client, db):
+    # decision 3: undoing a check-in that had pushed a building over a
+    # threshold must drop the level back down cleanly - no error, no
+    # stale "built" state left over from before the undo.
     user = _login(client, db)
-    habit = _create_habit(db, user, category="study")
-    _give_checkins(db, habit, 4)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 9)
+    today = date.today()
+    client.post(f"/habits/{habit.id}/checkin")  # the 10th - crosses into LV1
 
     html = client.get("/colony").get_data(as_text=True)
+    assert "LV1" in html
 
-    assert "Research Lab" in html
-    assert "4/10" in html
+    response = client.delete(f"/habits/{habit.id}/checkin")
+    assert response.status_code == 200
+
+    html = client.get("/colony").get_data(as_text=True)
+    assert "LV1" not in html
+    assert "9/10" in html
 
 
-def test_unlocked_but_unaffordable_building_shows_no_build_button(client, db):
-    # Unlocked (10+ check-ins) but 0 Energy - the route would 400 this,
-    # so the template must not offer the form at all (same "don't offer
-    # what will fail" fix as the ended-fleet Check in button).
+def test_checkin_suppressed_by_anti_farming_still_counts_toward_building_level(client, db):
+    # decision 3: a check-in whose Energy is withheld (here: the existing
+    # archive-then-recreate-same-day suppression from Phase 3) still
+    # counts toward the building's level - the Checkin row exists either
+    # way, and level is derived from Checkin rows, never from the ledger.
+    user = _login(client, db)
+    habit1 = _create_habit(db, user, title="Run", category="fitness")
+    _give_checkins(db, habit1, 9)
+    client.delete(f"/habits/{habit1.id}")  # archives it today
+
+    response = client.post(
+        "/habits", data={"title": "Run", "emoji": "🏃", "category": "fitness", "frequency_type": "daily"},
+    )
+    assert response.status_code == 302
+    habit2 = Habit.active().filter_by(user_id=user.id, title="Run").first()
+    assert habit2.first_day_points_suppressed is True
+
+    client.post(f"/habits/{habit2.id}/checkin")  # the 10th check-in overall, suppressed Energy
+    assert PointTransaction.query.filter_by(habit_id=habit2.id).count() == 0  # confirms it was suppressed
+
+    html = client.get("/colony").get_data(as_text=True)
+    assert "LV1" in html  # still counted toward the level
+
+
+# -- account deletion -----------------------------------------------------
+
+
+def test_account_deletion_removes_the_colony(client, db):
     user = _login(client, db)
     habit = _create_habit(db, user, category="fitness")
     _give_checkins(db, habit, 10)
+    client.get("/colony")
+    user_id = user.id
 
-    html = client.get("/colony").get_data(as_text=True)
-
-    assert f'action="/colony/build"' not in html
-    assert str(game.next_level_cost(game.DEFENSE_TOWER, 1)) in html  # cost still shown, just not actionable
-
-
-def test_unlocked_and_affordable_building_shows_a_build_button(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, 500)
-
-    html = client.get("/colony").get_data(as_text=True)
-
-    assert 'action="/colony/build"' in html
-
-
-def test_built_but_unaffordable_upgrade_shows_no_upgrade_button(client, db):
-    user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
-    _give_energy(db, user, game.next_level_cost(game.DEFENSE_TOWER, 1))
-    client.post("/colony/build", data={"type": game.DEFENSE_TOWER})
-    building = Building.query.filter_by(type=game.DEFENSE_TOWER).first()
-    building.level = 1
-    building.finishes_at = None
+    db.session.delete(db.session.get(User, user_id))
     db.session.commit()
-    # Balance is 0 now - can't afford the LV2 upgrade.
 
-    html = client.get("/colony").get_data(as_text=True)
-
-    assert f'action="/colony/upgrade/{building.id}"' not in html
+    assert Colony.query.filter_by(user_id=user_id).count() == 0

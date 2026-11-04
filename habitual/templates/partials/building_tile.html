@@ -1,53 +1,23 @@
 {#
   One tile in the colony home's 6-slot building grid (WebHome.dc.html/
   PhoneHome.dc.html) - `tile` is one entry from colony._colony_context's
-  `building_tiles` list. Phase 4a: structural only, no sprite-per-level
-  (the art has exactly one generic icon per building type - see
-  habitual/game.py's MAX_LEVEL docstring), so level is a text label, not
-  different art.
+  `building_tiles` list. Level is DERIVED from check-in counts (habitual.
+  game.level_for_checkins) - there's no Build menu, no buttons here at
+  all. Phase 4a: no sprite-per-level (the art has exactly one generic
+  icon per building type - see habitual/game.py's MAX_LEVEL docstring),
+  so level is a text label, not different art.
 #}
-<div class="flex flex-col items-center gap-1 border bg-surface p-2 text-center {{ 'border-dashed border-accent' if tile.state == 'buildable' else 'border-border' }}">
-  {% if tile.state == 'locked' %}
+<div class="flex flex-col items-center gap-1 border border-border bg-surface p-2 text-center">
+  {% if tile.level == 0 %}
   <img src="{{ url_for('static', filename='art/icon_' ~ tile.type ~ '.png') }}" alt="" class="h-8 w-8 opacity-40" style="image-rendering: pixelated">
-  <span class="font-body text-[10px] text-text-muted">{{ tile.name }}</span>
-  <span class="font-mono text-[10px] text-text-muted">{{ tile.checkins }}/{{ tile.needed }}</span>
-
-  {% elif tile.state == 'buildable' %}
-  <img src="{{ url_for('static', filename='art/icon_' ~ tile.type ~ '.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
-  <span class="font-body text-[10px] text-accent">{{ tile.name }}</span>
-  {% if tile.can_afford %}
-  <form method="post" action="{{ url_for('colony.build') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="type" value="{{ tile.type }}">
-    <button type="submit" class="font-display text-[10px] uppercase text-accent transition hover:opacity-80">
-      Build <span class="font-mono normal-case">{{ tile.cost }}</span>
-    </button>
-  </form>
-  {% else %}
-  {# Not enough Energy yet - no button, since the route would just 400
-     (same "don't offer what will fail" fix as the ended-fleet Check in). #}
-  <span class="font-mono text-[10px] text-text-muted">{{ tile.cost }}</span>
-  {% endif %}
-
-  {% elif tile.state in ('first_build_in_progress', 'upgrade_in_progress') %}
-  <img src="{{ url_for('static', filename='art/building_scaffold_1.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
-  <span class="font-body text-[10px] text-text-muted">{{ tile.name }}</span>
-  <span class="font-display text-[9px] uppercase tracking-wide text-accent">Building…</span>
+  <span class="font-body text-[10px] text-text-muted">{{ tile.category_name }}</span>
+  <span class="font-mono text-[10px] text-text-muted">{{ tile.checkins }}/{{ tile.next_threshold }}</span>
 
   {% else %}
   <img src="{{ url_for('static', filename='art/building_' ~ tile.type ~ '.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
-  <span class="font-body text-[10px] text-text-muted">{{ tile.name }} LV <span class="font-mono text-text">{{ tile.level }}</span></span>
-  {% if tile.state == 'built' and tile.can_afford %}
-  <form method="post" action="{{ url_for('colony.upgrade', building_id=tile.building_id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="font-display text-[10px] uppercase text-accent transition hover:opacity-80">
-      Upgrade <span class="font-mono normal-case">{{ tile.cost }}</span>
-    </button>
-  </form>
-  {% elif tile.state == 'built' %}
-  <span class="font-mono text-[10px] text-text-muted">{{ tile.cost }}</span>
-  {% else %}
-  <span class="font-display text-[9px] uppercase tracking-wide text-text-muted">Max</span>
-  {% endif %}
+  <span class="font-body text-[10px] text-text-muted">{{ tile.name }}</span>
+  <span class="font-mono text-[10px] text-text">
+    LV{{ tile.level }}{% if not tile.maxed %} · {{ tile.checkins }}/{{ tile.next_threshold }}{% endif %}
+  </span>
   {% endif %}
 </div>

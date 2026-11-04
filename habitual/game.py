@@ -4,12 +4,16 @@ habitual/habits.py) do the querying and pass plain data in, so every rule
 here is testable in isolation and never depends on when or in what order
 a DB write happened.
 
-Phase 4a scope: buildings are structural only (buildable, levelable, cost
-Energy) and have no active gameplay effect yet - no storm defense, no
-Energy bonus, no population. Commander rank/class and colony-level
-population augmentation are explicitly deferred (rank/class to Phase 4b's
-avatar system; population isn't implemented anywhere yet). colony_level()
-below is XP-only on purpose - see CLAUDE.md for why.
+Phase 4a design (revised): buildings are not bought or timed - a
+building's level is DERIVED on read from the lifetime count of check-ins
+in its category (archived habits and fleet habits both count - see
+colony._category_checkin_counts). There's no Building table, no Energy
+spend on buildings, no construction timer. Energy keeps its other jobs
+(freezes now; repairs/cosmetics/shop in later phases). Commander rank/
+class and colony-level population augmentation are explicitly deferred
+(rank/class to Phase 4b's avatar system; population isn't implemented
+anywhere yet). colony_level() below is XP-only on purpose - see
+CLAUDE.md for why.
 """
 
 import math
@@ -28,8 +32,8 @@ CUSTOM_MODULE = "custom_module"
 BUILDING_TYPES = (DEFENSE_TOWER, RESEARCH_LAB, POWER_REACTOR, BIODOME, OBSERVATORY, CUSTOM_MODULE)
 
 # Habit.category -> the one building type it powers. "other" is the only
-# category whose building (Custom Module) unlocks from ANY 10 check-ins
-# rather than 10 in that specific category - see is_unlocked below.
+# category whose building (Custom Module) levels from ANY check-in rather
+# than one in that specific category - see level_for_checkins below.
 BUILDING_TYPE_FOR_CATEGORY = {
     "fitness": DEFENSE_TOWER,
     "study": RESEARCH_LAB,
@@ -40,72 +44,38 @@ BUILDING_TYPE_FOR_CATEGORY = {
 }
 CATEGORY_FOR_BUILDING_TYPE = {building_type: category for category, building_type in BUILDING_TYPE_FOR_CATEGORY.items()}
 
-# How many check-ins (in the building's category, or any category for
-# Custom Module) unlock the ability to build it at all.
-UNLOCK_CHECKINS = 10
-
-# Highest level a building can reach in Phase 4a. The art has exactly one
-# generic sprite per building type (no per-level variants at all - the mock
-# screens show higher levels with the same icon plus a text label), so
-# this isn't actually derived from the sprite manifest the way "sprites
-# exist up to level N" implies; it's a flat cap pending confirmation.
-MAX_LEVEL = 3
-
-# (base, step): cost to reach level L = base + step * (L - 1).
-BUILDING_COSTS = {
-    DEFENSE_TOWER: (120, 60),
-    RESEARCH_LAB: (100, 50),
-    POWER_REACTOR: (150, 75),
-    BIODOME: (100, 50),
-    OBSERVATORY: (140, 70),
-    CUSTOM_MODULE: (80, 40),
-}
-
-# Flat hours per build/upgrade action, regardless of level - the Game
-# Plan's Buildings table gives one time per building, not one per level.
-BUILD_TIME_HOURS = {
-    DEFENSE_TOWER: 4,
-    RESEARCH_LAB: 6,
-    POWER_REACTOR: 3,
-    BIODOME: 2,
-    OBSERVATORY: 5,
-    CUSTOM_MODULE: 1,
-}
+# Checkin counts that reach LV1/LV2/LV3 - index 0 is LV1's threshold, etc.
+# Same thresholds apply to Custom Module against the TOTAL count instead
+# of a single category's count (see level_for_checkins). Max level (3) is
+# len(LEVEL_THRESHOLDS) - still a guess pending real art, same reasoning
+# as before: the sprite manifest has exactly one generic icon per
+# building type, no per-level variants to derive a cap from.
+LEVEL_THRESHOLDS = (10, 30, 60)
+MAX_LEVEL = len(LEVEL_THRESHOLDS)
 
 DAILY_ENERGY_CAP = 100
 
 
-def next_level_cost(building_type: str, target_level: int) -> int:
-    """Energy cost of the single build/upgrade action that brings this
-    building TO `target_level` - 1 for a first build (level 0 -> 1), N+1
-    for an upgrade from level N. Linear: base + step * (target_level - 1)."""
-    base, step = BUILDING_COSTS[building_type]
-    return base + step * (target_level - 1)
+def level_for_checkins(count: int) -> int:
+    """0 (not built yet) through MAX_LEVEL, from a lifetime check-in
+    count - the same `count` means the same level regardless of which
+    building/category it's for; Custom Module just gets the total count
+    instead of one category's count as its `count` (see
+    colony._building_tile_context)."""
+    level = 0
+    for threshold in LEVEL_THRESHOLDS:
+        if count >= threshold:
+            level += 1
+    return level
 
 
-def build_time_hours(building_type: str) -> int:
-    return BUILD_TIME_HOURS[building_type]
-
-
-def is_unlocked(building_type: str, category_checkin_count: int, total_checkin_count: int) -> bool:
-    """Whether `building_type` can be built at all yet. Custom Module is
-    "any 10 check-ins" (any category); every other building needs 10
-    check-ins specifically in the category it's mapped from."""
-    if building_type == CUSTOM_MODULE:
-        return total_checkin_count >= UNLOCK_CHECKINS
-    return category_checkin_count >= UNLOCK_CHECKINS
-
-
-def is_max_level(building_type: str, level: int) -> bool:
-    return level >= MAX_LEVEL
-
-
-def default_slot(building_type: str) -> int:
-    """Fixed display position (0-5) on the planet's building grid - the
-    canonical order BUILDING_TYPES is already declared in. Not user-
-    editable in Phase 4a; a later rearrange feature would read/write the
-    stored slot instead of always deriving it from this."""
-    return BUILDING_TYPES.index(building_type)
+def next_threshold(count: int) -> int | None:
+    """The check-in count that reaches the NEXT level, or None if already
+    at MAX_LEVEL - for a progress display ("14/30")."""
+    for threshold in LEVEL_THRESHOLDS:
+        if count < threshold:
+            return threshold
+    return None
 
 
 def colony_level(xp: int) -> int:

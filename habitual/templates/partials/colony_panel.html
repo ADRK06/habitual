@@ -2,8 +2,8 @@
 {#
   The colony home's swappable main panel (planet + building grid + today's
   habits) - re-rendered whole on every check-in from this page (habits.
-  _colony_live_response), since a check-in can move a building's unlock
-  count or settle one that just finished, both colony-wide, not scoped to
+  _colony_live_response), since a check-in can move a building's derived
+  level (habitual.game.level_for_checkins), colony-wide, not scoped to
   one habit the way the dashboard/fleet/detail panels are.
 
   Phase 4a omissions from WebHome.dc.html/PhoneHome.dc.html (no mock data
@@ -29,23 +29,33 @@
 
   <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
     <div class="flex w-full flex-col gap-3 lg:w-[380px] lg:shrink-0">
-      <div id="colony-planet" class="relative border border-border bg-void" style="aspect-ratio: 358 / 310">
+      {# Source sprite is 48x48px. object-contain alone never crops, but
+         with no padding and a fractional (non-integer) scale factor, the
+         art's own antenna/glow - drawn right up to the sprite's own
+         canvas edge - reads as clipped against the frame, and a
+         fractional scale blurs pixel edges even with image-rendering:
+         pixelated. Fixed at an exact 5x (240px) with generous padding
+         fits inside both the phone (~358px) and desktop (380px) box
+         widths with room to spare - verified in a real browser at both. #}
+      <div id="colony-planet" class="relative flex items-center justify-center border border-border bg-void p-6" style="aspect-ratio: 358 / 310">
         <img
           src="{{ url_for('static', filename='art/planet_render_rust.png') }}"
           alt="{{ colony.name }}"
-          style="image-rendering: pixelated"
-          class="h-full w-full object-contain"
+          width="240"
+          height="240"
+          style="image-rendering: pixelated; width: 240px; height: 240px;"
         >
         <div class="absolute left-2 top-2 border border-border bg-void px-2 py-1 font-display text-[10px] uppercase tracking-wide text-text">
           {{ colony.name }}
         </div>
       </div>
 
-      {# PhoneHome.dc.html doesn't show this grid at all on phone - only
-         the planet + BUILD button, with the full building list living in
-         the build sheet (PhoneBuild.dc.html). WebHome.dc.html shows both.
-         Matching that exactly rather than showing it everywhere. #}
-      <div class="hidden grid-cols-3 gap-2 lg:grid">
+      {# PhoneHome.dc.html hides this grid on phone (its building list
+         lives in a separate Build sheet screen) - but this design has no
+         Build menu/screen at all, so the grid is the ONLY place building
+         progress is visible. Shown at every width on purpose, a
+         deliberate deviation from that mock. #}
+      <div class="grid grid-cols-3 gap-2">
         {% for tile in building_tiles %}
         {% include "partials/building_tile.html" %}
         {% endfor %}
