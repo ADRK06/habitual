@@ -3,7 +3,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from habitual import db, game
-from habitual.habits import _habit_view, _header_stats, _user_habits, nav_shell_context
+from habitual.habits import CATEGORY_DISPLAY_NAME, _habit_view, _header_stats, _user_habits, nav_shell_context
 from habitual.models import Checkin, Colony, Habit
 from habitual.utils.time import local_today
 
@@ -56,16 +56,9 @@ BUILDING_DISPLAY_NAME = {
     game.CUSTOM_MODULE: "Custom Module",
 }
 
-# Display only - the category label shown on a still-locked tile
-# ("Fitness 7/10"), not the building's own name (it isn't built yet).
-CATEGORY_DISPLAY_NAME = {
-    "fitness": "Fitness",
-    "study": "Study",
-    "sleep": "Sleep",
-    "water_food": "Water & Food",
-    "mind": "Mind",
-    "other": "Other",
-}
+# CATEGORY_DISPLAY_NAME (imported above, from habitual.habits) is the
+# label shown on a still-locked tile ("Fitness 7/10"), not the building's
+# own name (it isn't built yet).
 
 
 def _building_tile_context(building_type, category_checkins, total_checkins):

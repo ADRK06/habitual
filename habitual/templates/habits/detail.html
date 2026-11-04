@@ -9,6 +9,7 @@
       ← Back{{ " to room" if habit.room_id else " to dashboard" }}
     </a>
     {% if not habit.room_id %}
+    <div class="flex items-center gap-2">
     <div x-data="{
       editOpen: false,
       frequencyType: {{ (frequency_form.frequency_type.data or 'daily')|tojson|forceescape }},
@@ -108,6 +109,75 @@
           </form>
         </div>
       </div>
+    </div>
+
+    <div x-data="{ categoryEditOpen: false, category: {{ (category_form.category.data or 'other')|tojson|forceescape }} }">
+      <button
+        type="button"
+        @click="categoryEditOpen = true"
+        class="flex items-center gap-1.5 border border-border px-3 py-1.5 font-display text-[11px] uppercase text-text transition hover:border-accent"
+      >
+        <img
+          src="{{ url_for('static', filename='art/icon_' ~ category_icon_type ~ '.png') }}"
+          alt=""
+          class="h-4 w-4 shrink-0"
+          style="image-rendering: pixelated"
+        >
+        Edit category
+      </button>
+
+      <div
+        x-show="categoryEditOpen"
+        x-trap="categoryEditOpen"
+        x-cloak
+        @keydown.escape.window="categoryEditOpen = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-void/80 p-4"
+      >
+        <div
+          @click.outside="categoryEditOpen = false"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-category-heading"
+          class="w-full max-w-md border border-accent bg-surface p-6"
+        >
+          <h2 id="edit-category-heading" class="font-display text-lg uppercase tracking-wide text-text">Edit category</h2>
+
+          <form method="post" action="{{ url_for('habits.edit_habit_category', habit_id=habit.id) }}" class="mt-5 space-y-4">
+            {{ category_form.csrf_token }}
+
+            <div class="grid grid-cols-2 gap-2">
+              {% for value, label in category_choices %}
+              <button
+                type="button"
+                @click="category = {{ value|tojson|forceescape }}"
+                :class="category === {{ value|tojson|forceescape }} ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
+                class="flex items-center justify-center gap-1.5 border px-3 py-2 font-display text-[11px] uppercase transition-colors"
+              >
+                <img
+                  src="{{ url_for('static', filename='art/icon_' ~ building_type_for_category[value] ~ '.png') }}"
+                  alt=""
+                  class="h-4 w-4 shrink-0"
+                  style="image-rendering: pixelated"
+                >
+                {{ label }}
+              </button>
+              {% endfor %}
+            </div>
+
+            <input type="hidden" name="category" x-model="category">
+
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" @click="categoryEditOpen = false" class="border border-border px-4 py-2 font-display text-xs uppercase text-text hover:bg-void">
+                Cancel
+              </button>
+              <button type="submit" class="bg-accent px-5 py-2 font-display text-xs uppercase text-bg transition hover:opacity-90">
+                Save changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
     </div>
     {% endif %}
   </div>

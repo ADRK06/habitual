@@ -51,7 +51,15 @@
     <span class="shrink-0 text-3xl" style="image-rendering: pixelated" aria-hidden="true">{{ habit.emoji }}</span>
     <div class="min-w-0 flex-1">
       <h3 class="truncate font-body text-base font-medium text-text" title="{{ habit.title }}">{{ habit.title }}</h3>
-      <p class="truncate font-body text-xs text-text-muted">{{ frequency_label }}</p>
+      <p class="flex items-center gap-1 truncate font-body text-xs text-text-muted">
+        <img
+          src="{{ url_for('static', filename='art/icon_' ~ category_icon_type ~ '.png') }}"
+          alt=""
+          class="h-3.5 w-3.5 shrink-0"
+          style="image-rendering: pixelated"
+        >
+        {{ frequency_label }}
+      </p>
     </div>
     <div class="flex shrink-0 flex-col items-end">
       <span class="font-mono text-[15px] tabular-nums lg:text-lg {{ 'text-streak' if current_streak else 'text-text-muted' }}">{{ current_streak }}{{ 'd' if streak_unit == 'day' else 'w' }}</span>

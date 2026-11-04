@@ -12,7 +12,7 @@ from werkzeug.exceptions import BadRequest
 from wtforms import HiddenField, StringField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
-from habitual import analytics, badges, db, frequency, points
+from habitual import analytics, badges, db, frequency, game, points
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
 from habitual.utils.time import local_now, local_today, midnight_epoch_ms
 
@@ -20,6 +20,17 @@ FREQUENCY_CHOICES = ("daily", "days", "weekly")
 # Order matches the Game Plan's Buildings table - also the order the build
 # menu (Phase 4a UI, not yet wired) lists them in.
 CATEGORY_CHOICES = ("fitness", "study", "sleep", "water_food", "mind", "other")
+# Display label for the category picker (habit create/edit) - colony.py
+# imports this rather than keeping its own copy, since colony.py already
+# imports from here and the reverse would be circular.
+CATEGORY_DISPLAY_NAME = {
+    "fitness": "Fitness",
+    "study": "Study",
+    "sleep": "Sleep",
+    "water_food": "Water & Food",
+    "mind": "Mind",
+    "other": "Other",
+}
 
 habits = Blueprint("habits", __name__)
 
@@ -97,6 +108,12 @@ class FrequencyForm(FlaskForm):
     frequency_type = HiddenField("Frequency", default="daily", validators=[DataRequired(), _validate_frequency_type])
     frequency_days = HiddenField("Days", validators=[Optional(), _validate_frequency_days])
     frequency_target = HiddenField("Target", validators=[Optional(), _validate_frequency_target])
+
+
+class CategoryForm(FlaskForm):
+    """Just the category field - used by the standalone edit-category
+    route, mirroring FrequencyForm above."""
+    category = HiddenField("Category", default="other", validators=[DataRequired(), _validate_category])
 
 
 WEEKDAY_ABBREVIATIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -246,6 +263,7 @@ def _habit_view(habit, today, freezes_held):
         "frequency_badge_label": _frequency_badge_label(habit),
         "day_strip": _card_day_strip(completed, frozen, not_scheduled, effective_start, today),
         "streak_unit": streak_unit,
+        "category_icon_type": game.BUILDING_TYPE_FOR_CATEGORY.get(habit.category, game.CUSTOM_MODULE),
     }
 
 
@@ -587,6 +605,30 @@ def edit_habit_frequency(habit_id):
     return redirect(url_for("habits.habit_detail", habit_id=habit.id))
 
 
+@habits.post("/habits/<int:habit_id>/category")
+@login_required
+def edit_habit_category(habit_id):
+    """Edits a habit's category - unlike frequency, this never restarts
+    anything (category only decides which colony building the habit
+    powers - see game.py/colony.py). Room habits reject this entirely,
+    same as edit_habit_frequency: a fleet's category is locked for every
+    member and only ever set via the room itself (rooms.edit_room_
+    category/create_room/join_room), never per-member."""
+    habit = _active_habit_or_404(habit_id, current_user)
+    if habit.room_id is not None:
+        abort(400)
+
+    form = CategoryForm()
+    if not form.validate_on_submit():
+        abort(400)
+
+    habit.category = form.category.data
+    db.session.commit()
+
+    flash("Category updated.", "info")
+    return redirect(url_for("habits.habit_detail", habit_id=habit.id))
+
+
 WEEKDAY_LETTERS = "MTWTFSS"
 
 
@@ -790,6 +832,9 @@ def habit_detail(habit_id):
             frequency_type=habit.frequency_type, frequency_days=habit.frequency_days,
             frequency_target=habit.frequency_target,
         ),
+        "category_form": CategoryForm(category=habit.category),
+        "category_choices": [(c, CATEGORY_DISPLAY_NAME[c]) for c in CATEGORY_CHOICES],
+        "building_type_for_category": game.BUILDING_TYPE_FOR_CATEGORY,
         "viewer_ended": _viewer_ended(habit),
         **nav_shell_context(current_user),
     }

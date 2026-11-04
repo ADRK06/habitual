@@ -29,7 +29,7 @@ def _login(client, db, username="aadhira"):
 
 def _create_habit(
     db, user, title="Read", emoji="📚", created_on=None, frequency_type="daily", frequency_days=None,
-    frequency_target=None,
+    frequency_target=None, category="other",
 ):
     habit = Habit(
         user_id=user.id,
@@ -39,6 +39,7 @@ def _create_habit(
         frequency_type=frequency_type,
         frequency_days=frequency_days,
         frequency_target=frequency_target,
+        category=category,
     )
     db.session.add(habit)
     db.session.commit()
@@ -558,6 +559,84 @@ def test_edit_frequency_does_not_resurrect_a_pre_edit_broken_streak_or_pay_a_mil
     # day 7 of the old streak and pay a milestone bonus. It must not.
     amounts = sorted(pt.amount for pt in PointTransaction.query.filter_by(habit_id=habit.id, date=today))
     assert amounts == [5]
+
+
+# -- edit category -------------------------------------------------------------
+
+
+def test_edit_category_updates_it(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+
+    response = client.post(f"/habits/{habit.id}/category", data={"category": "study"})
+    assert response.status_code == 302
+
+    db.session.refresh(habit)
+    assert habit.category == "study"
+
+
+def test_edit_category_rejects_room_habit(client, db):
+    user = _login(client, db)
+    today = date.today()
+    room = Room(
+        title="Morning Run", emoji="🏃", creator_id=user.id, duration_days=14,
+        start_date=today, invite_token=secrets.token_urlsafe(16), join_code=generate_join_code(),
+    )
+    db.session.add(room)
+    db.session.flush()
+    db.session.add(RoomMember(room_id=room.id, user_id=user.id, joined_on=today))
+    habit = Habit(user_id=user.id, room_id=room.id, title="Morning Run", emoji="🏃", created_on=today, category="fitness")
+    db.session.add(habit)
+    db.session.commit()
+
+    response = client.post(f"/habits/{habit.id}/category", data={"category": "study"})
+    assert response.status_code == 400
+
+    db.session.refresh(habit)
+    assert habit.category == "fitness"
+
+
+def test_edit_category_requires_ownership(client, db):
+    owner = _create_user(db, username="owner")
+    habit = _create_habit(db, owner, category="fitness")
+
+    _login(client, db, username="intruder")
+    response = client.post(f"/habits/{habit.id}/category", data={"category": "study"})
+    assert response.status_code == 404
+
+    db.session.refresh(habit)
+    assert habit.category == "fitness"
+
+
+def test_edit_category_rejects_invalid_value(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+
+    response = client.post(f"/habits/{habit.id}/category", data={"category": "not-a-real-category"})
+    assert response.status_code == 400
+
+    db.session.refresh(habit)
+    assert habit.category == "fitness"
+
+
+# -- category icon on the dashboard card + detail page -------------------------
+
+
+def test_dashboard_card_shows_the_habits_category_icon(client, db):
+    user = _login(client, db)
+    _create_habit(db, user, category="fitness")
+
+    html = client.get("/dashboard").get_data(as_text=True)
+    assert "icon_defense_tower.png" in html
+
+
+def test_habit_detail_shows_the_habits_category_icon_and_edit_button(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="study")
+
+    html = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+    assert "icon_research_lab.png" in html
+    assert "Edit category" in html
 
 
 # -- habit detail / analytics page ---------------------------------------------
