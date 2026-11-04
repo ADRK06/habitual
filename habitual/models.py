@@ -242,6 +242,13 @@ class Room(db.Model):
     frequency_type = db.Column(db.String(10), nullable=False, default="daily", server_default="daily")
     frequency_days = db.Column(db.Integer, nullable=True)
     frequency_target = db.Column(db.Integer, nullable=True)
+    # Same copied-onto-every-member's-Habit idea as frequency_type above,
+    # but NOT locked the same way: the creator can edit it any time via a
+    # dedicated route (rooms.edit_room_category), which re-copies it onto
+    # every CURRENT member's Habit.category in the same request. A new
+    # joiner always gets whatever the room's category is at join time -
+    # see rooms.create_room/join_room. Existing rooms default to "other".
+    category = db.Column(db.String(20), nullable=False, default="other", server_default="other")
     # High-water mark for crown finalization - every date from start_date
     # through this one (inclusive) has already been decided for good
     # (crown awarded or not), so rooms.finalize_due_crowns never re-walks
