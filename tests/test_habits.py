@@ -1057,6 +1057,79 @@ def test_delete_habit_archives_it_but_keeps_its_points(client, db):
     assert Habit.active().filter_by(id=habit.id).first() is None  # gone from "current" habits
 
 
+# -- anti-farming (archive + recreate same day) ----------------------------
+
+
+def _post_create_habit(client, title, emoji="📚"):
+    return client.post("/habits", data={
+        "title": title, "emoji": emoji, "tiny_version": "",
+        "frequency_type": "daily", "frequency_days": "", "frequency_target": "",
+    })
+
+
+def test_recreating_same_title_same_day_suppresses_points_once(client, db):
+    """Through the real routes (not the _create_habit ORM shortcut, which
+    skips create_habit entirely and so can't exercise this check): archive
+    a habit, recreate it under a case/space variant of the same title the
+    same local day, and the recreated habit's first check-in must earn 0 -
+    otherwise delete+recreate is a free way to double the day's points.
+    The check-in itself still counts (the Checkin row exists) so the streak
+    isn't affected, only the ledger write."""
+    user = _login(client, db)
+    today = date.today()
+
+    _post_create_habit(client, "Archive test")
+    habit1 = Habit.query.filter_by(user_id=user.id, title="Archive test").first()
+    client.post(f"/habits/{habit1.id}/checkin")
+    assert PointTransaction.query.filter_by(habit_id=habit1.id, date=today).count() == 1
+
+    client.delete(f"/habits/{habit1.id}")
+
+    _post_create_habit(client, "  archive   test  ")  # case + extra whitespace, same normalized title
+    habit2 = Habit.active().filter_by(user_id=user.id).first()
+    assert habit2.id != habit1.id
+    assert habit2.first_day_points_suppressed is True
+
+    client.post(f"/habits/{habit2.id}/checkin")
+    assert Checkin.query.filter_by(habit_id=habit2.id, date=today).count() == 1  # the check-in still happened
+    assert PointTransaction.query.filter_by(habit_id=habit2.id, date=today).count() == 0  # but earned nothing
+
+
+def test_recreating_different_title_same_day_earns_normally(client, db):
+    """A genuinely different title (even one that merely LOOKS similar, e.g.
+    a typo) is not the same habit - no suppression, full points."""
+    user = _login(client, db)
+    today = date.today()
+
+    _post_create_habit(client, "Arcive test")  # typo
+    habit1 = Habit.query.filter_by(user_id=user.id, title="Arcive test").first()
+    client.post(f"/habits/{habit1.id}/checkin")
+    client.delete(f"/habits/{habit1.id}")
+
+    _post_create_habit(client, "Archive test")  # correctly spelled - a different title
+    habit2 = Habit.active().filter_by(user_id=user.id).first()
+    assert habit2.first_day_points_suppressed is False
+
+    client.post(f"/habits/{habit2.id}/checkin")
+    assert PointTransaction.query.filter_by(habit_id=habit2.id, date=today, reason="daily").first().amount == 5
+
+
+def test_unrelated_new_habit_is_never_suppressed(client, db):
+    user = _login(client, db)
+    today = date.today()
+
+    _post_create_habit(client, "Archive test")
+    habit1 = Habit.query.filter_by(user_id=user.id, title="Archive test").first()
+    client.delete(f"/habits/{habit1.id}")  # archived without ever checking in
+
+    _post_create_habit(client, "Totally different habit")
+    habit2 = Habit.active().filter_by(user_id=user.id).first()
+    assert habit2.first_day_points_suppressed is False
+
+    client.post(f"/habits/{habit2.id}/checkin")
+    assert PointTransaction.query.filter_by(habit_id=habit2.id, date=today, reason="daily").first().amount == 5
+
+
 def test_delete_habit_keeps_freezes_used_on_it(client, db):
     user = _login(client, db)
     today = date.today()
