@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Dev-only: used by scripts/make_sprites.py to draw new Colonies sprites and
+# build the /dev/styleguide contact sheet. Never imported by the Flask app
+# itself, so it stays out of requirements.txt (the Vercel production install).
+Pillow==12.3.0
