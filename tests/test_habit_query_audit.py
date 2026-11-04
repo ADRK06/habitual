@@ -20,7 +20,7 @@ from pathlib import Path
 APP_ROOT = Path(__file__).resolve().parent.parent / "habitual"
 
 ALLOWED_BARE_HABIT_QUERY = {
-    ("habits.py", 361): "scans archived habits specifically (anti-farming title match)",
+    ("habits.py", 370): "scans archived habits specifically (anti-farming title match)",
     ("rooms.py", 669): "room feed wants every habit ever created for the room, archived included",
     ("auth.py", 328): "account deletion must hard-delete archived habits too",
     ("auth.py", 339): "account deletion must hard-delete archived habits too",

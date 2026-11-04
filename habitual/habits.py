@@ -17,6 +17,9 @@ from habitual.models import Checkin, Freeze, Habit, PointTransaction, User
 from habitual.utils.time import local_now, local_today, midnight_epoch_ms
 
 FREQUENCY_CHOICES = ("daily", "days", "weekly")
+# Order matches the Game Plan's Buildings table - also the order the build
+# menu (Phase 4a UI, not yet wired) lists them in.
+CATEGORY_CHOICES = ("fitness", "study", "sleep", "water_food", "mind", "other")
 
 habits = Blueprint("habits", __name__)
 
@@ -51,6 +54,11 @@ def _validate_frequency_type(form, field):
         raise ValidationError("Pick a frequency.")
 
 
+def _validate_category(form, field):
+    if field.data not in CATEGORY_CHOICES:
+        raise ValidationError("Pick a category.")
+
+
 def _validate_frequency_days(form, field):
     if form.frequency_type.data != "days":
         return
@@ -77,6 +85,7 @@ class HabitForm(FlaskForm):
     title = StringField("Title", validators=[DataRequired(), _validate_title])
     emoji = HiddenField("Emoji", validators=[DataRequired(), _validate_emoji])
     tiny_version = StringField("Tiny version", validators=[Optional(), Length(max=120)])
+    category = HiddenField("Category", default="other", validators=[DataRequired(), _validate_category])
     frequency_type = HiddenField("Frequency", default="daily", validators=[DataRequired(), _validate_frequency_type])
     frequency_days = HiddenField("Days", validators=[Optional(), _validate_frequency_days])
     frequency_target = HiddenField("Target", validators=[Optional(), _validate_frequency_target])
@@ -532,6 +541,7 @@ def create_habit():
             title=title,
             emoji=form.emoji.data,
             tiny_version=(form.tiny_version.data or "").strip() or None,
+            category=form.category.data,
             created_on=today,
             frequency_type=form.frequency_type.data,
             frequency_days=int(form.frequency_days.data) if form.frequency_type.data == "days" else None,

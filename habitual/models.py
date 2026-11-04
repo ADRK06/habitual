@@ -119,6 +119,15 @@ class Habit(db.Model):
     first_day_points_suppressed = db.Column(
         db.Boolean, nullable=False, default=False, server_default="false"
     )
+    # "fitness" | "study" | "sleep" | "water_food" | "mind" | "other" (default,
+    # and what every pre-Colonies habit backfills to). Decides which building
+    # (habitual/game.py) the habit's check-ins power - plain string, app-
+    # validated, same convention as frequency_type below (no DB-level enum).
+    # Editable after creation (habits.edit_habit_frequency's sibling route),
+    # which means a habit's historical check-ins move with it if its category
+    # changes - see habitual/game.py's category-count docstring for why that's
+    # an accepted, flagged tradeoff rather than a bug.
+    category = db.Column(db.String(20), nullable=False, default="other", server_default="other")
     # "daily" (default) | "days" (specific weekdays) | "weekly" (X times/week).
     # frequency_days: 7-bit mask (bit i = weekday i scheduled, Mon=0..Sun=6,
     # matching date.weekday()) - only meaningful for "days". frequency_target:
