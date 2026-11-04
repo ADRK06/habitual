@@ -4,6 +4,7 @@ all when that flag is on, so there is no route to probe for in prod even
 with the flag absent.
 """
 
+import json
 import struct
 from pathlib import Path
 
@@ -12,7 +13,34 @@ from flask_login import current_user
 
 dev = Blueprint("dev", __name__)
 
-SPRITE_SHEET_PATH = Path(__file__).parent / "static" / "art" / "_sheet.png"
+ART_DIR = Path(__file__).parent / "static" / "art"
+SPRITE_SHEET_PATH = ART_DIR / "_sheet.png"
+COMPOSITES_DIR = ART_DIR / "_composites"
+MANIFEST_PATH = ART_DIR / "manifest.json"
+
+# manifest.json "category" -> display heading, in the order sections appear.
+CATEGORY_LABELS = {
+    "avatar_part": "Avatar parts",
+    "avatar_render": "Avatar renders",
+    "building": "Buildings",
+    "overlay": "Building overlays",
+    "icon": "Icons",
+    "planet_material": "Planet materials",
+    "planet_decoration": "Planet decorations",
+    "planet_render": "Planet renders",
+    "scene": "Scenes",
+    "ship": "Ships",
+    "fleet": "Fleet",
+    "effect": "Effects",
+}
+
+FIXED_BUILDINGS = [
+    "building_research_lab",
+    "building_defense_tower",
+    "building_biodome",
+    "building_observatory",
+    "building_power_reactor",
+]
 
 
 def _png_size(path: Path) -> tuple[int, int] | None:
@@ -27,6 +55,70 @@ def _png_size(path: Path) -> tuple[int, int] | None:
     return width, height
 
 
+def _sprite_groups() -> tuple[list[dict], list[dict]]:
+    """Every sprite from manifest.json, grouped by category, plus a
+    separate flat list of the new (Phase 2b) ones for a dedicated review
+    section. Each sprite carries its own natural pixel size so the template
+    can render it at that exact size x4 - never stretched or squeezed."""
+    if not MANIFEST_PATH.exists():
+        return [], []
+
+    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    by_category: dict[str, list[dict]] = {key: [] for key in CATEGORY_LABELS}
+    new_sprites: list[dict] = []
+
+    for entry in sorted(manifest, key=lambda e: e["name"]):
+        size = _png_size(ART_DIR / f"{entry['name']}.png")
+        if size is None:
+            continue
+        sprite = {
+            "name": entry["name"],
+            "filename": f"art/{entry['name']}.png",
+            "width": size[0],
+            "height": size[1],
+            "is_new": bool(entry.get("new")),
+        }
+        by_category.setdefault(entry["category"], []).append(sprite)
+        if sprite["is_new"]:
+            new_sprites.append(sprite)
+
+    sprite_groups = [
+        {"label": CATEGORY_LABELS[key], "sprites": by_category[key]}
+        for key in CATEGORY_LABELS
+        if by_category.get(key)
+    ]
+    return sprite_groups, new_sprites
+
+
+def _composite_rows() -> list[dict]:
+    """The damage-overlay and shield-dome composite tests, as individual
+    per-building PNGs (built by `scripts/make_sprites.py composites`) so
+    each can be shown at its own true proportions instead of packed into a
+    shared thumbnail cell."""
+    rows = []
+    for kind, title in [("damage", "Damage overlay"), ("shield", "Shield dome")]:
+        entries = []
+        for building in FIXED_BUILDINGS:
+            filename = f"{building}_{kind}.png"
+            size = _png_size(COMPOSITES_DIR / filename)
+            if size is None:
+                continue
+            entries.append(
+                {
+                    "name": building.removeprefix("building_").replace("_", " ").title(),
+                    "filename": f"art/_composites/{filename}",
+                    "width": size[0],
+                    "height": size[1],
+                }
+            )
+        if entries:
+            # "entries", not "items" - Jinja's `row.items` would resolve to
+            # dict.items (the builtin method) via attribute lookup before
+            # ever trying key lookup, since dicts have an `items` method.
+            rows.append({"title": title, "entries": entries})
+    return rows
+
+
 @dev.get("/dev/styleguide")
 def styleguide():
     # No @login_required - the styleguide itself must work logged out
@@ -36,5 +128,14 @@ def styleguide():
     from habitual.habits import nav_shell_context
 
     nav_context = nav_shell_context(current_user) if current_user.is_authenticated else {}
+    sprite_groups, new_sprites = _sprite_groups()
+    composite_rows = _composite_rows()
     sheet_size = _png_size(SPRITE_SHEET_PATH)
-    return render_template("dev/styleguide.html", sheet_size=sheet_size, **nav_context)
+    return render_template(
+        "dev/styleguide.html",
+        sprite_groups=sprite_groups,
+        new_sprites=new_sprites,
+        composite_rows=composite_rows,
+        sheet_size=sheet_size,
+        **nav_context,
+    )

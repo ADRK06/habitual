@@ -2,8 +2,12 @@
 """Colonies sprite pipeline (Phase 2).
 
 Usage:
-    python scripts/make_sprites.py import    # copy+rename reference sprites, write manifest.json, print audit
-    python scripts/make_sprites.py audit      # just re-print the audit (no file changes)
+    python scripts/make_sprites.py import       # copy+rename reference sprites, write manifest.json, print audit
+    python scripts/make_sprites.py audit         # just re-print the audit (no file changes)
+    python scripts/make_sprites.py draw          # (re)draw the new (non-imported) sprites
+    python scripts/make_sprites.py manifest-update  # stamp manifest.json with new=true/false
+    python scripts/make_sprites.py sheet         # build _sheet.png, an export-only contact sheet
+    python scripts/make_sprites.py composites    # build the per-building composite test PNGs
 
 This script only ever touches docs/reference/colonies/art/ (read) and
 habitual/static/art/ (write). It never edits templates - wiring sprites into
@@ -268,7 +272,6 @@ RUST = (0xE2, 0x60, 0x3A, 255)  # the "LAB DAMAGED" / "SHIELD DOWN" badge color
 TRANSPARENT = (0, 0, 0, 0)
 
 SMOKE = GRAY_MID[:3] + (140,)  # semi-transparent wisp, reuses the existing mid-gray
-SHIELD_FILL = STEEL_LIGHT[:3] + (0,)  # placeholder, real alpha set per-pixel below
 
 
 def new_canvas(width: int, height: int, fill=TRANSPARENT):
@@ -361,13 +364,14 @@ def draw_damage_overlay():
 
 
 # ---- building_shield_dome (16x16) --------------------------------------
-# A translucent dome cap over the top of a building, reusing icon_shield's
-# own 3-color palette for thematic consistency with the other shield art.
+# A see-through bubble over the top of a building: a 1px Signal-green arc
+# outline plus a sparse dithered fill (~25% of interior pixels), so the
+# building underneath stays readable through the dome instead of being
+# hidden under a flat wash of color.
 def draw_shield_dome():
     c = new_canvas(16, 16)
-    outline = STEEL_LIGHT
-    fill = GREEN[:3] + (90,)
-    edge = GREEN_DARK
+    outline = GREEN
+    fill = GREEN[:3] + (180,)
     rows = [
         (1, [7, 8]),
         (2, [6, 9]),
@@ -381,9 +385,10 @@ def draw_shield_dome():
         set_px(c, left, y, outline)
         set_px(c, right, y, outline)
         for x in range(left + 1, right):
-            c[y][x] = fill
-    set_px(c, 3, 8, edge)
-    set_px(c, 12, 8, edge)
+            # fixed dither pattern, ~1 pixel in 4, so the pattern is
+            # deterministic across runs instead of random noise
+            if (x * 7 + y * 13) % 4 == 0:
+                c[y][x] = fill
     return c
 
 
@@ -392,14 +397,19 @@ def draw_shield_dome():
 # generic dome-cap overlay above is invisible on it (composite test
 # confirmed this - see PR notes). This variant is a glowing ring around
 # the dome's equator (its widest row) instead, which reads as distinct
-# from the building's own vertical shading.
+# from the building's own vertical shading. Same visual language as the
+# new draw_shield_dome() above: a 1px Signal-green outline (the ring's
+# top/bottom edges) plus a sparse dithered fill, not a flat opaque band.
 def draw_shield_dome_biodome():
     c = new_canvas(16, 16)
-    band = GREEN[:3] + (70,)
+    outline = GREEN
+    fill = GREEN[:3] + (180,)
     for x in range(1, 15):
-        c[8][x] = band
-        c[10][x] = band
-        c[9][x] = STEEL_LIGHT
+        c[8][x] = outline
+        c[10][x] = outline
+    for x in range(2, 14):
+        if (x * 7 + 9 * 13) % 4 == 0:
+            c[9][x] = fill
     set_px(c, 1, 9, GREEN_DARK)
     set_px(c, 14, 9, GREEN_DARK)
     return c
@@ -426,24 +436,35 @@ def draw_scaffold(beacon_on: bool):
 
 
 # ---- icon_supply_crate_open (16x16) ------------------------------------
-# Companion to the existing icon_supply_crate.png - same base, lid open.
+# Companion to the existing icon_supply_crate.png - same box body and
+# colors as the closed crate (copied pixel-for-pixel: rows 7-12, cols
+# 2-13), with its lid propped open at the back instead of floating
+# disconnected above it, and a small glow rising out of the opening
+# (not a full-width lit mouth - that read as a lamp, not a crate).
 def draw_supply_crate_open():
     c = new_canvas(16, 16, fill=BG)
-    # box: same footprint/colors as the closed crate's body (rows 7-13,
-    # cols 3-12), so it reads as the same object, just opened
-    rect(c, 3, 8, 12, 12, GRAY_MID)
-    hline(c, 3, 12, 7, AMBER_LIGHT)  # open mouth, glowing
-    set_px(c, 7, 10, AMBER)
-    set_px(c, 8, 10, AMBER)
-    hline(c, 2, 13, 13, GRAY_DARK)  # base trim
-    # lid, tilted back on its hinge (narrower at the top = leaning away)
-    hline(c, 6, 9, 2, GRAY_LIGHT)
-    hline(c, 5, 10, 3, GRAY_LIGHT)
-    hline(c, 4, 11, 4, GRAY_LIGHT)
-    hline(c, 4, 11, 5, GRAY_MID)
-    # light spilling out of the gap between lid and box
-    set_px(c, 6, 6, AMBER_LIGHT)
-    set_px(c, 9, 6, AMBER_LIGHT)
+    # box - identical to icon_supply_crate.png's body
+    hline(c, 2, 6, 7, GRAY_MID)
+    set_px(c, 7, 7, AMBER)
+    set_px(c, 8, 7, AMBER)
+    hline(c, 9, 12, 7, GRAY_MID)
+    set_px(c, 13, 7, GRAY_DARK)
+    for y in range(8, 12):
+        hline(c, 2, 12, y, GRAY_MID)
+        set_px(c, 13, y, GRAY_DARK)
+    hline(c, 2, 13, 12, GRAY_DARK)
+    # lid, propped open at the box's back-right edge, leaning up and
+    # back - stays visually attached (overlaps the box's top row)
+    # rather than hovering with a gap underneath it
+    hline(c, 9, 13, 3, GRAY_LIGHT)
+    hline(c, 8, 13, 4, GRAY_LIGHT)
+    hline(c, 8, 13, 5, GRAY_MID)
+    hline(c, 8, 14, 6, GRAY_MID)
+    set_px(c, 7, 5, GRAY_LIGHT)
+    set_px(c, 14, 5, GRAY_DARK)
+    # small glow rising out of the opening, under the propped lid
+    set_px(c, 7, 6, AMBER)
+    set_px(c, 7, 5, AMBER_LIGHT)
     return c
 
 
@@ -681,6 +702,25 @@ def build_sheet() -> None:
     sheet.save(SHEET_PATH)
 
 
+COMPOSITES_DIR = DEST_DIR / "_composites"
+
+
+def build_composites() -> None:
+    """Write each composite test (damage overlay / shield dome on each of
+    the 5 fixed buildings) as its own full-resolution PNG, for /dev/styleguide
+    to display as a plain <img> at true proportions (natural size x4) -
+    unlike _sheet.png, these are never squeezed into a shared thumbnail cell.
+    """
+    COMPOSITES_DIR.mkdir(parents=True, exist_ok=True)
+    for base_name in FIXED_BUILDINGS:
+        damage = composite(base_name, draw_damage_overlay())
+        damage.save(COMPOSITES_DIR / f"{base_name}_damage.png")
+
+        shield_overlay = draw_shield_dome_biodome() if base_name == "building_biodome" else draw_shield_dome()
+        shield = composite(base_name, shield_overlay)
+        shield.save(COMPOSITES_DIR / f"{base_name}_shield.png")
+
+
 if __name__ == "__main__":
     command = sys.argv[1] if len(sys.argv) > 1 else "import"
     if command == "import":
@@ -699,7 +739,12 @@ if __name__ == "__main__":
     elif command == "sheet":
         build_sheet()
         print(f"Wrote {SHEET_PATH}")
+    elif command == "composites":
+        build_composites()
+        print(f"Wrote composite test PNGs into {COMPOSITES_DIR}")
     elif command == "audit":
         print_audit()
     else:
-        raise SystemExit(f"Unknown command: {command!r} (expected import/audit/draw/manifest-update/sheet)")
+        raise SystemExit(
+            f"Unknown command: {command!r} (expected import/audit/draw/manifest-update/sheet/composites)"
+        )
