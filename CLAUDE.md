@@ -110,7 +110,7 @@ habitual/
 
 | Table | Key fields |
 |---|---|
-| `users` | id, name, username (unique, case-insensitive), password_hash, timezone, theme (unused — reserved, dark-only v1), created_at |
+| `users` | id, name, username (unique, case-insensitive), password_hash, timezone, theme (unused — reserved, dark-only v1), created_at, avatar (JSON, nullable — see Colonies below) |
 | `habits` | id, user_id, room_id (nullable, `ON DELETE SET NULL`), title, emoji, category (see Colonies below), tiny_version (text), created_on (date), archived_at (timestamp, nullable), first_day_points_suppressed (bool) |
 | `checkins` | id, habit_id, date, created_at (timestamp), proof_note (nullable) — **UNIQUE(habit_id, date)** |
 | `freezes` | id, user_id, habit_id (nullable until used), purchased_at, used_on (date, nullable) |
@@ -119,7 +119,7 @@ habitual/
 | `room_members` | id, room_id, user_id, joined_on — UNIQUE(room_id, user_id) |
 | `vouches` | id, checkin_id, user_id, emoji (✅ or 🔥) — UNIQUE(checkin_id, user_id) |
 | `badges` | id, user_id, type, earned_on — UNIQUE(user_id, type) |
-| `colonies` | id, user_id (unique), name, planet_type, created_on — **no `buildings` table**, see Colonies below |
+| `colonies` | id, user_id (unique), name, planet_type (**legacy, unused since Phase 4b — superseded by `look["world"]`, see Colonies below; dropping it is tracked cleanup, not yet done**), created_on, look (JSON) — **no `buildings` table**, see Colonies below |
 
 **Deleting a habit or leaving a room archives it** (`archived_at` set), it does **not** delete it.
 Check-ins, freezes, point transactions and vouches on it all survive untouched, so earned points and
@@ -448,3 +448,6 @@ design and implement the Habitual logo (SVG, nav/footer/favicon) - reference ima
 `docs/reference/logo-reference.png`, keep its stacked-capsules + checkmark concept, simplified to our
 palette and fonts (see "Logo" under Design direction). 3 icon-variation exploration (not yet picked) lives
 on the `logo-exploration` branch - a dev-only `/dev/logos` page, not merged into main.
+
+**Cleanup TODO**: drop `colonies.planet_type` (its own migration) - superseded by `colonies.look["world"]` as of
+Phase 4b; left in place rather than dropped in 4b's own migration, but nothing reads or writes it any more.

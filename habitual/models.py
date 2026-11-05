@@ -43,6 +43,13 @@ class User(UserMixin, db.Model):
     pending_email = db.Column(db.String(255), nullable=True)
     email_verified_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
+    # NULL until the user finishes (or skips) the commander step - this is
+    # the ONLY "has this user onboarded yet" sentinel for the whole Phase
+    # 4b flow (see habitual.avatar.onboarding_redirect_or_none). Once set,
+    # a dict with one key per slot (helmet/visor/face/hair/suit/gear/
+    # emblem) - see habitual.game.AVATAR_SLOTS - never NULL again.
+    avatar = db.Column(db.JSON, nullable=True)
+
     __table_args__ = (
         # Uniqueness only among VERIFIED emails - see the `email` column's
         # comment. Both dialects this app runs on (Postgres in prod/dev,
@@ -370,11 +377,14 @@ class RateLimit(db.Model):
 
 class Colony(db.Model):
     """One planet per user (Phase 4a, "Colony core") - auto-created on a
-    user's first GET /colony, never via a migration backfill or a signup
-    step (there's no onboarding flow yet - that's Phase 4b). `planet_type`
-    and `name` have no editor yet either: every colony is hardcoded "rust"
-    and a generated name at creation time, both columns existing now so
-    4b's migration only has to ADD the editor, not touch this table again.
+    user's first GET /colony. `name` is user-editable from Phase 4b's
+    planet editor (habitual.colony.edit_planet).
+
+    `look` (Phase 4b) is the single source of truth for which world/
+    atmosphere/ring/moons this colony displays - see habitual.game.
+    LOOK_STARTER_VALUES/DEFAULT_LOOK. It's never NULL (a brand-new
+    Colony row is never "mid-onboarding" with respect to its look, only
+    the owning User's `avatar` can be - see User.avatar's comment).
 
     No buildings table: a building's level is DERIVED on read from
     lifetime check-in counts (habitual.game.level_for_checkins), not
@@ -388,8 +398,18 @@ class Colony(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True, index=True)
     name = db.Column(db.String(60), nullable=False)
+    # Legacy, unused since Phase 4b - look["world"] is the single source
+    # of truth for which world this colony shows (see the class
+    # docstring). Nothing reads or writes this column any more; it's
+    # kept only because dropping it is a separate migration of its own
+    # (tracked in CLAUDE.md's Roadmap as cleanup, not done here).
     planet_type = db.Column(db.String(20), nullable=False, default="rust", server_default="rust")
     created_on = db.Column(db.Date, nullable=False)
+    look = db.Column(
+        db.JSON, nullable=False,
+        default=lambda: {"world": "rust", "atmosphere": "steel", "ring": "none", "moons": "none"},
+        server_default=db.text('\'{"world": "rust", "atmosphere": "steel", "ring": "none", "moons": "none"}\''),
+    )
 
     user = db.relationship(
         "User", backref=db.backref("colony", uselist=False, cascade="all, delete-orphan", passive_deletes=False)
