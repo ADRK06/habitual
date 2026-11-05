@@ -11,15 +11,18 @@ colony = Blueprint("colony", __name__)
 
 
 def _get_or_create_colony(user):
-    """One colony per user, auto-created on first visit (no onboarding
-    step yet - that's Phase 4b) rather than a migration backfill, so a
-    user created before this phase shipped gets one the moment they load
-    the page, same idea as every other lazily-computed thing in this app."""
+    """One colony per user, auto-created on first visit rather than a
+    migration backfill, so a user created before this phase shipped gets
+    one the moment they load the page, same idea as every other lazily-
+    computed thing in this app. `look` is set explicitly to the starter
+    default (same explicitness the pre-4b code used for planet_type, now
+    legacy - see Colony's docstring) rather than relying solely on the
+    column's own default."""
     existing = Colony.query.filter_by(user_id=user.id).first()
     if existing is not None:
         return existing
     new_colony = Colony(
-        user_id=user.id, name=f"{user.name}'s Colony", planet_type="rust", created_on=local_today(user),
+        user_id=user.id, name=f"{user.name}'s Colony", created_on=local_today(user), look=dict(game.DEFAULT_LOOK),
     )
     db.session.add(new_colony)
     db.session.commit()

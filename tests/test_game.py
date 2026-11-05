@@ -84,3 +84,135 @@ def test_energy_awarded_with_cap_exact_fill_awards_full_amount():
 
 def test_energy_awarded_with_cap_well_under_cap_awards_full_amount():
     assert game.energy_awarded_with_cap(already_earned_today=0, amount=5) == 5
+
+
+# -- commander rank (XP-derived, same metric colony_level() uses) -----------
+
+RANK_CASES = [
+    (0, "Cadet"),
+    (149, "Cadet"),
+    (150, "Pilot"),
+    (499, "Pilot"),
+    (500, "Captain"),
+    (1199, "Captain"),
+    (1200, "Commander"),
+    (2999, "Commander"),
+    (3000, "Admiral"),
+    (50000, "Admiral"),
+]
+
+
+@pytest.mark.parametrize("xp, expected_rank", RANK_CASES)
+def test_rank_for_xp(xp, expected_rank):
+    assert game.rank_for_xp(xp) == expected_rank
+
+
+# -- commander class (derived on read from strongest classed category) -----
+
+
+def test_class_for_category_counts_empty_dict_has_no_class():
+    assert game.class_for_category_counts({}) is None
+
+
+def test_class_for_category_counts_single_classed_category():
+    assert game.class_for_category_counts({"fitness": 10}) == "Guardian"
+
+
+def test_class_for_category_counts_strongest_category_wins():
+    counts = {"fitness": 5, "study": 20, "sleep": 3}
+    assert game.class_for_category_counts(counts) == "Scientist"
+
+
+def test_class_for_category_counts_tie_goes_to_first_declared():
+    # fitness and study tied at 10 - CLASS_FOR_CATEGORY declares fitness first.
+    assert game.class_for_category_counts({"fitness": 10, "study": 10}) == "Guardian"
+
+
+def test_class_for_category_counts_other_only_has_no_class():
+    # "other" has no matching class (same reasoning Custom Module has no
+    # real-world building analog) - counts there never produce a class.
+    assert game.class_for_category_counts({"other": 50}) is None
+
+
+# -- avatar/look starter-only validation (Phase 4b) --------------------------
+
+
+def test_default_avatar_is_valid():
+    # Skip's own default must always pass its own validator.
+    assert game.validate_avatar_payload(game.DEFAULT_AVATAR) == (True, None)
+
+
+def test_default_look_is_valid():
+    assert game.validate_look_payload(game.DEFAULT_LOOK) == (True, None)
+
+
+def test_valid_avatar_payload_with_every_slot_set():
+    payload = {"helmet": "box", "visor": "rust", "face": "3", "hair": "silver",
+               "suit": "phosphor", "gear": "antenna", "emblem": "bolt"}
+    assert game.validate_avatar_payload(payload) == (True, None)
+
+
+def test_avatar_payload_missing_a_slot_is_rejected():
+    payload = dict(game.DEFAULT_AVATAR)
+    del payload["emblem"]
+    assert game.validate_avatar_payload(payload) == (False, "emblem")
+
+
+def test_avatar_payload_with_unknown_slot_is_rejected():
+    payload = dict(game.DEFAULT_AVATAR)
+    payload["wings"] = "none"
+    assert game.validate_avatar_payload(payload) == (False, "wings")
+
+
+def test_avatar_payload_with_non_string_value_is_rejected():
+    payload = dict(game.DEFAULT_AVATAR)
+    payload["face"] = 3
+    assert game.validate_avatar_payload(payload) == (False, "face")
+
+
+def test_avatar_payload_with_locked_value_is_rejected():
+    # "steel" suit is real (bought, 150 Energy) but not a starter value -
+    # nothing is ownable yet in Phase 4b, so locked == invalid.
+    payload = dict(game.DEFAULT_AVATAR)
+    payload["suit"] = "steel"
+    assert game.validate_avatar_payload(payload) == (False, "suit")
+
+
+def test_avatar_payload_with_bogus_value_is_rejected():
+    payload = dict(game.DEFAULT_AVATAR)
+    payload["helmet"] = "xyz"
+    assert game.validate_avatar_payload(payload) == (False, "helmet")
+
+
+def test_avatar_payload_non_dict_is_rejected():
+    assert game.validate_avatar_payload("not a dict") == (False, None)
+
+
+def test_valid_look_payload_with_every_slot_set():
+    payload = {"world": "verdant", "atmosphere": "steel", "ring": "none", "moons": "one"}
+    assert game.validate_look_payload(payload) == (True, None)
+
+
+def test_look_payload_missing_a_slot_is_rejected():
+    payload = dict(game.DEFAULT_LOOK)
+    del payload["moons"]
+    assert game.validate_look_payload(payload) == (False, "moons")
+
+
+def test_look_payload_with_unknown_slot_is_rejected():
+    payload = dict(game.DEFAULT_LOOK)
+    payload["layout"] = "default"
+    assert game.validate_look_payload(payload) == (False, "layout")
+
+
+def test_look_payload_with_locked_world_is_rejected():
+    # "lava" world is real (bought, 400 Energy) but not a starter value.
+    payload = dict(game.DEFAULT_LOOK)
+    payload["world"] = "lava"
+    assert game.validate_look_payload(payload) == (False, "world")
+
+
+def test_look_payload_with_bogus_moons_value_is_rejected():
+    payload = dict(game.DEFAULT_LOOK)
+    payload["moons"] = "two"
+    assert game.validate_look_payload(payload) == (False, "moons")
