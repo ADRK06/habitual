@@ -1,6 +1,9 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from flask_wtf import FlaskForm
 from sqlalchemy import func
+from wtforms import HiddenField, StringField
+from wtforms.validators import DataRequired, Length, ValidationError
 
 from habitual import db, game
 from habitual.habits import CATEGORY_DISPLAY_NAME, _habit_view, _header_stats, _user_habits, nav_shell_context
@@ -131,6 +134,14 @@ BUILDING_SLOTS = {
     game.CUSTOM_MODULE: (23, 6, 3, 4),
 }
 
+# Phase 4b: same shape as BUILDING_SLOTS, for the single starter moon
+# overlay (habitual/static/art/planet_moon_one.png) - a static mirror
+# of scripts/make_sprites.py's MOON_PREVIEW_ANCHOR, chosen there to
+# clear every box above with margin (proven with the all-six-at-LV3 +
+# moon composites reviewed at /dev/styleguide). Shown only when
+# colony.look["moons"] != "none".
+MOON_SLOT = (40, 5, 6, 6)
+
 
 def _building_tile_context(building_type, category_checkins):
     """Level is DERIVED from check-in counts, never stored - no Build
@@ -181,6 +192,7 @@ def _colony_context(user):
         "habit_cards": habit_cards,
         "building_type_for_category": game.BUILDING_TYPE_FOR_CATEGORY,
         "planet_scale": PLANET_SCALE,
+        "moon_slot": MOON_SLOT,
         **header,
     }
 
@@ -188,8 +200,150 @@ def _colony_context(user):
 @colony.get("/colony")
 @login_required
 def colony_home():
+    from habitual import avatar  # local import avoids a circular import with avatar.py
+    gate = avatar.onboarding_redirect_or_none(current_user)
+    if gate is not None:
+        return gate
+
     context = {
         **_colony_context(current_user),
         **nav_shell_context(current_user),
     }
     return render_template("colony/home.html", **context)
+
+
+# -- Phase 4b: planet look editor --------------------------------------------
+
+# Every value a slot can show in the picker grid, starter and locked
+# alike (same "visible and try-on-able, blocked from saving" design as
+# habitual.avatar.AVATAR_CATALOG - see that dict's comment for why both
+# exist alongside game.py's starter-only validation constants).
+# Transcribed from docs/COLONIES_GAME_PLAN.md's table, not invented.
+PLANET_LOOK_CATALOG = {
+    "world": [
+        ("rust", "Rust", None), ("dust", "Dust", None), ("verdant", "Verdant", None),
+        ("lava", "Lava", "400 Energy"), ("ice", "Ice", "30-day streak"), ("ringed_giant", "Ringed Giant", "Season 1"),
+    ],
+    "atmosphere": [
+        ("steel", "Steel", None),
+        ("amber", "Amber", "100 Energy"), ("signal", "Signal", "Observatory LV 1"),
+    ],
+    "ring": [
+        ("none", "None", None), ("ring", "Ring", "Colony LV 10"),
+    ],
+    "moons": [
+        ("none", "None", None), ("one", "One", None), ("two", "Two", "Observatory LV 2"),
+    ],
+}
+PLANET_LOOK_SLOT_LABELS = {"world": "World", "atmosphere": "Atmosphere", "ring": "Ring", "moons": "Moons"}
+
+# Picker-grid swatch per (slot, value) - explicit, not built from a
+# prefix + value (the three asset families involved - planet_world_*,
+# planet_atmo_*, planet_deco_* - don't share one naming scheme, and an
+# explicit table is itself an allowlist: every filename here is one we
+# wrote ourselves, never assembled from a request value - see
+# PLANET_LOOK_CATALOG's comment and habitual.avatar's same pattern).
+# None means that value draws no swatch thumbnail (a bare "off" state).
+PLANET_LOOK_SWATCHES = {
+    ("world", "rust"): "planet_world_rust.png", ("world", "dust"): "planet_world_dust.png",
+    ("world", "verdant"): "planet_world_verdant.png", ("world", "lava"): "planet_world_lava.png",
+    ("world", "ice"): "planet_world_ice.png", ("world", "ringed_giant"): "planet_world_ringed_giant.png",
+    ("atmosphere", "steel"): "planet_atmo_steel.png", ("atmosphere", "amber"): "planet_atmo_amber.png",
+    ("atmosphere", "signal"): "planet_atmo_signal.png",
+    ("ring", "none"): None, ("ring", "ring"): "planet_deco_ring_front.png",
+    ("moons", "none"): None, ("moons", "one"): "planet_deco_moon_1.png", ("moons", "two"): "planet_deco_moon_2.png",
+}
+
+
+class CSRFOnlyForm(FlaskForm):
+    """Mirrors habitual.auth.CSRFOnlyForm/habitual.avatar.CSRFOnlyForm -
+    see either's comment for why this is duplicated, not imported."""
+
+
+def _validate_known_look_value(slot):
+    """Same two-layer design as habitual.avatar._validate_known_avatar_
+    value: accept anything in this slot's FULL catalog here (so a
+    legitimate "try on a locked look" submission doesn't hard-fail at
+    the form layer) - habitual.game.validate_look_payload, called in
+    edit_planet() below, is the SEPARATE, authoritative starter-only
+    check that actually decides whether a save is allowed."""
+    known_values = {value for value, _, _ in PLANET_LOOK_CATALOG[slot]}
+
+    def validator(form, field):
+        if field.data not in known_values:
+            raise ValidationError("Pick a known option.")
+    return validator
+
+
+class PlanetLookForm(FlaskForm):
+    world = HiddenField(default=lambda: game.DEFAULT_LOOK["world"], validators=[DataRequired(), _validate_known_look_value("world")])
+    atmosphere = HiddenField(default=lambda: game.DEFAULT_LOOK["atmosphere"], validators=[DataRequired(), _validate_known_look_value("atmosphere")])
+    ring = HiddenField(default=lambda: game.DEFAULT_LOOK["ring"], validators=[DataRequired(), _validate_known_look_value("ring")])
+    moons = HiddenField(default=lambda: game.DEFAULT_LOOK["moons"], validators=[DataRequired(), _validate_known_look_value("moons")])
+    # Rendered in IBM Plex Sans, the user's own case, everywhere it's
+    # shown (colony_panel.html, this form's own title/input) - same
+    # rule usernames already get; never forced through the Silkscreen/
+    # uppercase treatment static labels around it get.
+    name = StringField("Planet name", validators=[DataRequired(), Length(max=60)])
+
+
+def _edit_planet_success_redirect(onboarding: bool):
+    if not onboarding:
+        flash("Planet saved.", "success")
+        return redirect(url_for("colony.edit_planet"))
+    if Habit.active().filter_by(user_id=current_user.id).first() is None:
+        return redirect(url_for("habits.dashboard", open="create-habit", onboarding=1))
+    return redirect(url_for("colony.colony_home"))
+
+
+@colony.route("/colony/edit", methods=["GET", "POST"])
+@login_required
+def edit_planet():
+    onboarding = bool(request.args.get("onboarding"))
+    colony_row = _get_or_create_colony(current_user)
+    current_look = colony_row.look
+    form = PlanetLookForm(data={**current_look, "name": colony_row.name})
+
+    if form.validate_on_submit():
+        payload = {slot: getattr(form, slot).data for slot in game.LOOK_SLOTS}
+        ok, failing_slot = game.validate_look_payload(payload)
+        if ok:
+            colony_row.name = form.name.data.strip()
+            colony_row.look = payload
+            db.session.commit()
+            return _edit_planet_success_redirect(onboarding)
+        # Soft block, not a hard error - same reasoning as habitual.
+        # avatar.commander_locker: keep showing exactly what they tried
+        # on, not their last-saved look.
+        current_look = payload
+        flash(
+            f"\"{PLANET_LOOK_SLOT_LABELS.get(failing_slot, failing_slot)}\" isn't unlocked yet - "
+            "use unlocked looks or pick a different option to save.",
+            "info",
+        )
+
+    return render_template(
+        "colony/edit_planet.html",
+        form=form,
+        skip_form=CSRFOnlyForm(),
+        onboarding=onboarding,
+        colony=colony_row,
+        look=current_look,
+        look_catalog=PLANET_LOOK_CATALOG,
+        look_slot_labels=PLANET_LOOK_SLOT_LABELS,
+        look_swatches=PLANET_LOOK_SWATCHES,
+        moon_slot=MOON_SLOT,
+        planet_scale=PLANET_SCALE,
+        **nav_shell_context(current_user),
+    )
+
+
+@colony.post("/colony/edit/skip")
+@login_required
+def skip_planet_step():
+    if not CSRFOnlyForm().validate_on_submit():
+        abort(400)
+    if current_user.avatar is None:
+        current_user.avatar = dict(game.DEFAULT_AVATAR)
+        db.session.commit()
+    return _edit_planet_success_redirect(onboarding=True)

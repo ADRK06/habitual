@@ -13,12 +13,20 @@
 <div>
   <header class="flex flex-wrap items-center justify-between gap-4 pt-8 pb-4">
     <h1 class="font-display text-xl uppercase tracking-wide text-text lg:text-2xl">Colony</h1>
-    <a
-      href="{{ url_for('habits.dashboard') }}?open=create-habit"
-      class="flex h-11 items-center border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent"
-    >
-      + New habit
-    </a>
+    <div class="flex flex-wrap gap-2">
+      <a
+        href="{{ url_for('colony.edit_planet') }}"
+        class="flex h-11 items-center border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent"
+      >
+        Edit planet
+      </a>
+      <a
+        href="{{ url_for('habits.dashboard') }}?open=create-habit"
+        class="flex h-11 items-center border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent"
+      >
+        + New habit
+      </a>
+    </div>
   </header>
 
   {% include "partials/colony_panel.html" %}

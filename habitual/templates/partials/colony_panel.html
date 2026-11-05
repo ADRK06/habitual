@@ -59,10 +59,19 @@
            pasted directly onto the clean planet at its fixed real
            position - no background, no outline. A locked building draws
            NOTHING (the developer's approved call over a faint marker -
-           it read as visual noise at this pixel scale). #}
+           it read as visual noise at this pixel scale).
+
+           Phase 4b: the background swaps to colony.look.world's own
+           clean variant (habitual.colony.PLANET_LOOK_CATALOG's "world"
+           values - only Rust/Dust/Verdant have one drawn so far, the
+           three starter options) - every world shares BUILDING_SLOTS'
+           coordinate system unchanged (confirmed identical silhouette/
+           rim during the Phase 4b art audit). The moon overlay
+           (habitual.colony.MOON_SLOT) shows only when look.moons is
+           not "none". #}
         <div class="relative" style="width: 240px; height: 240px;">
           <img
-            src="{{ url_for('static', filename='art/planet_render_rust_clean.png') }}"
+            src="{{ url_for('static', filename='art/planet_render_' ~ colony.look.world ~ '_clean.png') }}"
             alt="{{ colony.name }}"
             width="240"
             height="240"
@@ -83,8 +92,23 @@
           >
           {% endif %}
           {% endfor %}
+          {% if colony.look.moons != 'none' %}
+          <img
+            src="{{ url_for('static', filename='art/planet_moon_one.png') }}"
+            alt=""
+            class="absolute"
+            style="
+              left: {{ moon_slot[0] * planet_scale }}px; top: {{ moon_slot[1] * planet_scale }}px;
+              width: {{ moon_slot[2] * planet_scale }}px; height: {{ moon_slot[3] * planet_scale }}px;
+              image-rendering: pixelated;
+            "
+          >
+          {% endif %}
         </div>
-        <div class="absolute left-2 top-2 border border-border bg-void px-2 py-1 font-display text-[10px] uppercase tracking-wide text-text">
+        {# Planet name is user-entered text - IBM Plex Sans, the user's
+           own case, never the Silkscreen/uppercase treatment static
+           labels get (same rule usernames already follow). #}
+        <div class="absolute left-2 top-2 border border-border bg-void px-2 py-1 font-body text-xs text-text">
           {{ colony.name }}
         </div>
       </div>

@@ -1,0 +1,165 @@
+{% extends "app_base.html" %}
+{% from "_macros.html" import spinner %}
+
+{% block title %}{{ 'Customize your planet' if onboarding else 'Edit planet' }} · Habitual{% endblock %}
+
+{#
+  Phase 4b planet-look editor - ported from docs/reference/colonies/
+  screens/PhonePlanet.dc.html (onboarding, step 2 of 3) and WebPlanet.
+  dc.html (reached later from Colony > Edit planet) - same dual-purpose
+  pattern as avatar/editor.html.
+
+  Deliberately scoped down from both mocks (approved decision #2):
+  NO "Building layout" tab, no draggable/clickable building slots -
+  buildings are anchored to the Rust planet's own rim (habitual.
+  colony.BUILDING_SLOTS) and never rearranged in this phase. This
+  preview also shows world + moon only, not the user's actual built
+  buildings (colony_panel.html is the one place those render) - kept
+  simple on purpose, this page is about the LOOK, not progress.
+#}
+{% block app_content %}
+<div
+  class="py-10"
+  {# x-data is SINGLE-quoted deliberately - see avatar/editor.html's
+     identical comment for why (Flask's |tojson escapes ' but not ",
+     so a double-quoted attribute would break on the very first key of
+     any embedded JSON blob). Every static JS string literal here uses
+     double quotes for the same reason. #}
+  x-data='{
+    look: {{ look|tojson }},
+    catalog: {{ look_catalog|tojson }},
+    tab: "world",
+    isStarter(slot, value) {
+      const opt = this.catalog[slot].find((o) => o[0] === value);
+      return opt ? opt[2] === null : false;
+    },
+    hasLocked() {
+      return Object.keys(this.look).some((slot) => !this.isStarter(slot, this.look[slot]));
+    },
+    worldSrc() {
+      return {{ url_for('static', filename='art/planet_render_') | tojson }} + this.look.world + "_clean.png";
+    },
+    useUnlockedOnly() {
+      for (const slot in this.catalog) {
+        this.look[slot] = this.catalog[slot].find((o) => o[2] === null)[0];
+      }
+    },
+  }'
+>
+  {% if onboarding %}
+  <div class="flex gap-1.5 pb-3">
+    <div class="h-1 flex-1 bg-accent"></div>
+    <div class="h-1 flex-1 bg-accent"></div>
+    <div class="h-1 flex-1 bg-border"></div>
+  </div>
+  <p class="font-display text-[11px] uppercase tracking-wide text-text-muted">Step 2 of 3 · Planet</p>
+  <h1 class="mt-1 font-display text-2xl uppercase tracking-wide text-text">Customize your planet</h1>
+  {% else %}
+  <a href="{{ url_for('colony.colony_home') }}" class="inline-flex items-center gap-1 font-display text-xs uppercase tracking-wide text-text-muted transition-colors hover:text-accent">
+    ← Back to colony
+  </a>
+  <h1 class="mt-4 font-display text-2xl uppercase tracking-wide text-text">Edit planet</h1>
+  {% endif %}
+
+  <div class="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
+    <div class="relative flex shrink-0 items-center justify-center border border-border bg-void p-6" style="width: 292px; height: 292px;">
+      <div class="relative" style="width: 240px; height: 240px; image-rendering: pixelated;">
+        <img :src="worldSrc()" alt="" style="width: 240px; height: 240px; image-rendering: pixelated;">
+        <img
+          x-show="look.moons !== 'none'" x-cloak
+          src="{{ url_for('static', filename='art/planet_moon_one.png') }}"
+          alt=""
+          class="absolute"
+          style="
+            left: {{ moon_slot[0] * planet_scale }}px; top: {{ moon_slot[1] * planet_scale }}px;
+            width: {{ moon_slot[2] * planet_scale }}px; height: {{ moon_slot[3] * planet_scale }}px;
+            image-rendering: pixelated;
+          "
+        >
+      </div>
+    </div>
+
+    <div class="min-w-0 flex-1">
+      <form method="post">
+      {{ form.csrf_token }}
+      <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Planet name</label>
+      {# User-entered text - IBM Plex Sans, original case, never
+         Silkscreen/uppercase (same rule usernames follow; only the
+         static "Planet name" label above stays Silkscreen). #}
+      {{ form.name(class_='input font-body normal-case', maxlength=60) }}
+      {% for error in form.name.errors %}
+      <p class="mt-1 border border-danger bg-danger/10 px-3 py-1.5 font-body text-sm text-danger">⚠ {{ error }}</p>
+      {% endfor %}
+
+      <div class="mt-4 flex flex-wrap gap-1.5">
+        {% for slot, label in look_slot_labels.items() %}
+        <button
+          type="button"
+          @click="tab = '{{ slot }}'"
+          :class="tab === '{{ slot }}' ? 'border-accent text-accent' : 'border-border text-text-muted'"
+          class="h-9 border px-3 font-display text-[11px] uppercase tracking-wide transition-colors hover:border-accent"
+        >{{ label }}</button>
+        {% endfor %}
+      </div>
+
+      {% for slot, options in look_catalog.items() %}
+      <div x-show="tab === '{{ slot }}'" x-cloak class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {% for value, label, lock_reason in options %}
+        <button
+          type="button"
+          @click="look.{{ slot }} = '{{ value }}'"
+          :class="look.{{ slot }} === '{{ value }}' ? 'border-accent' : 'border-border'"
+          class="flex flex-col items-center gap-1 border bg-void p-2 hover:border-accent"
+        >
+          {% set swatch = look_swatches.get((slot, value)) %}
+          {% if swatch %}
+          <img src="{{ url_for('static', filename='art/' ~ swatch) }}" alt="" class="h-8 w-10 object-cover" style="image-rendering: pixelated">
+          {% else %}
+          <span class="h-8 w-10"></span>
+          {% endif %}
+          <span class="font-body text-[11px] text-text">{{ label }}</span>
+          {% if lock_reason %}
+          <span class="font-display text-[9px] uppercase tracking-wide text-text-muted" title="{{ lock_reason }}">Locked</span>
+          {% else %}
+          <span class="font-display text-[9px] uppercase tracking-wide text-success">Free</span>
+          {% endif %}
+        </button>
+        {% endfor %}
+      </div>
+      {% endfor %}
+
+      <p class="mt-3 font-body text-xs text-text-muted" x-show="hasLocked()" x-cloak>
+        Previewing a locked look - it can be tried on but not saved yet. Use unlocked looks or pick a different
+        option to save.
+      </p>
+
+      <div class="mt-4 flex flex-wrap items-center gap-2">
+        {% for slot in look_slot_labels %}
+        <input type="hidden" name="{{ slot }}" :value="look.{{ slot }}">
+        {% endfor %}
+        <button
+          type="button" @click="useUnlockedOnly()" x-show="hasLocked()" x-cloak
+          class="h-11 border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent"
+        >
+          Use unlocked only
+        </button>
+        <button
+          type="submit" x-show="!hasLocked()"
+          class="relative h-11 bg-accent px-5 font-display text-xs uppercase tracking-wide text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          <span class="btn-label">{{ 'Save planet' if onboarding else 'Save' }}</span>
+          {{ spinner() }}
+        </button>
+      </div>
+      </form>
+
+      {% if onboarding %}
+      <form method="post" action="{{ url_for('colony.skip_planet_step') }}" class="mt-2">
+        {{ skip_form.csrf_token }}
+        <button type="submit" class="font-body text-xs text-text-muted underline hover:text-text">Skip for now</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

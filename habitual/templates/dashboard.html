@@ -179,12 +179,24 @@
       aria-labelledby="create-habit-heading"
       class="w-full max-w-md border border-accent bg-surface p-6"
     >
-      <h2 id="create-habit-heading" class="font-display text-lg uppercase tracking-wide text-text">New habit</h2>
+      <h2 id="create-habit-heading" class="font-display text-lg uppercase tracking-wide text-text">
+        {{ 'Add your first habit' if request.args.get('onboarding') else 'New habit' }}
+      </h2>
       <p class="mt-1 font-body text-sm text-text-muted">Teacher tip: make it tiny enough you could do it half-asleep. You can always do more.</p>
+      {% if request.args.get('onboarding') %}
+      {# Phase 4b, onboarding step 3 - zero habits is a fine starting
+         place too (the dashboard's own empty state already handles
+         it), so this step is skippable like the two editors before it. #}
+      <p class="mt-2">
+        <a href="{{ url_for('colony.colony_home') }}" class="font-body text-xs text-text-muted underline hover:text-text">
+          Skip for now, go to my colony
+        </a>
+      </p>
+      {% endif %}
 
       <form
         method="post"
-        action="{{ url_for('habits.create_habit') }}"
+        action="{{ url_for('habits.create_habit', onboarding=request.args.get('onboarding')) }}"
         x-data="{
           emoji: {{ (form.emoji.data or '')|tojson|forceescape }},
           title: {{ (form.title.data or '')|tojson|forceescape }},

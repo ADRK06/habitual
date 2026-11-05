@@ -544,6 +544,11 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
 @habits.get("/dashboard")
 @login_required
 def dashboard():
+    from habitual import avatar  # local import avoids a circular import with avatar.py
+    gate = avatar.onboarding_redirect_or_none(current_user)
+    if gate is not None:
+        return gate
+
     context = _dashboard_context()
     context["new_habit_id"] = request.args.get("new", type=int)
     return render_template("dashboard.html", **context)
@@ -571,6 +576,11 @@ def create_habit():
         db.session.add(habit)
         db.session.commit()
         flash(f'"{habit.title}" added - go check in!', "success")
+        # Phase 4b, onboarding step 3: land on the colony instead of
+        # the dashboard - the whole point of this step was getting a
+        # first habit created, not showing the dashboard specifically.
+        if request.args.get("onboarding"):
+            return redirect(url_for("colony.colony_home"))
         return redirect(url_for("habits.dashboard", new=habit.id))
 
     context = _dashboard_context(form=form)
