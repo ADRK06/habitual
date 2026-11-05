@@ -1,0 +1,169 @@
+{% extends "app_base.html" %}
+{% from "_macros.html" import spinner %}
+
+{% block title %}{{ 'Create your commander' if onboarding else 'Commander' }} · Habitual{% endblock %}
+
+{#
+  Phase 4b commander editor - ported from docs/reference/colonies/
+  screens/PhoneAvatar.dc.html (onboarding, step 1 of 3) and WebAvatar.
+  dc.html (the permanent locker, reached later from Colonies > the
+  "Commander" nav item) - one route/template serves both, the
+  `onboarding` flag only changes copy/buttons/the next redirect, never
+  the save rule (habitual.game.validate_avatar_payload: every equipped
+  slot must be a STARTER value - no shop, no owned_items in this
+  phase, so a locked/bought/earned-only option can be tried on but
+  never saved).
+
+  Omitted from the mocks (deliberate Phase 4b scope cuts, not oversights):
+  - the "Call sign" text field - not in the Game Plan's authoritative
+    7-slot table, and not part of the approved decisions for this phase.
+  - price tags / a BUY flow on locked options - nothing is purchasable
+    yet (Phase 8), so a locked swatch just says "Locked", not a price.
+#}
+{% block app_content %}
+<div
+  class="py-10"
+  {#
+     x-data is SINGLE-quoted deliberately: Flask's |tojson filter escapes
+     a literal ' (so dynamic JSON data can never break out of a single-
+     quoted attribute) but leaves " raw (JSON's own string delimiter) -
+     so every embedded tojson blob below would otherwise prematurely
+     close a double-quoted attribute at its very first key. Every
+     static JS string literal in this expression uses double quotes for
+     the same reason - mixing quote styles here is required, not a
+     stylistic choice.
+  #}
+  x-data='{
+    av: {{ avatar|tojson }},
+    catalog: {{ avatar_catalog|tojson }},
+    noLayer: {{ avatar_no_layer_value|tojson }},
+    layerOrder: {{ avatar_layer_order|list|tojson }},
+    tab: "helmet",
+    isStarter(slot, value) {
+      const opt = this.catalog[slot].find((o) => o[0] === value);
+      return opt ? opt[2] === null : false;
+    },
+    hasLocked() {
+      return Object.keys(this.av).some((slot) => !this.isStarter(slot, this.av[slot]));
+    },
+    layerSrc(slot) {
+      const value = this.av[slot];
+      if (this.noLayer[slot] === value) return null;
+      return {{ url_for('static', filename='art/') | tojson }} + "avatar_" + slot + "_" + value + ".png";
+    },
+    useFreeParts() {
+      for (const slot in this.catalog) {
+        this.av[slot] = this.catalog[slot].find((o) => o[2] === null)[0];
+      }
+    },
+  }'
+>
+  {% if onboarding %}
+  <div class="flex gap-1.5 pb-3">
+    <div class="h-1 flex-1 bg-accent"></div>
+    <div class="h-1 flex-1 bg-border"></div>
+    <div class="h-1 flex-1 bg-border"></div>
+  </div>
+  <p class="font-display text-[11px] uppercase tracking-wide text-text-muted">Step 1 of 3 · Commander</p>
+  <h1 class="mt-1 font-display text-2xl uppercase tracking-wide text-text">Create your commander</h1>
+  <p class="mt-1 font-body text-sm text-text-muted">Your class is set later by the habits you do most.</p>
+  {% else %}
+  <h1 class="font-display text-2xl uppercase tracking-wide text-text">Commander</h1>
+  <p class="mt-1 font-body text-sm text-text-muted">
+    {{ rank }}{% if commander_class %} · {{ commander_class }} class{% endif %}
+  </p>
+  {# Addition: "Commander" now owns this nav slot (was auth.account_
+     security) - keep password/email/delete-account settings reachable
+     from here instead, on both desktop and phone (this page is
+     responsive, so one link covers both). #}
+  <a href="{{ url_for('auth.account_security') }}" class="mt-2 inline-block font-body text-xs text-text-muted underline hover:text-text">
+    Account security
+  </a>
+  {% endif %}
+
+  <div class="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
+    <div class="flex shrink-0 flex-col items-center gap-2 border border-border bg-surface p-4">
+      <div class="relative" style="width: 96px; height: 96px; image-rendering: pixelated;">
+        <template x-for="slot in layerOrder" :key="slot">
+          <img x-show="layerSrc(slot)" :src="layerSrc(slot)" alt="" class="absolute inset-0" style="width: 96px; height: 96px;">
+        </template>
+      </div>
+    </div>
+
+    <div class="min-w-0 flex-1">
+      <div class="flex flex-wrap gap-1.5 pb-3">
+        {% for slot, label in avatar_slot_labels.items() %}
+        <button
+          type="button"
+          @click="tab = '{{ slot }}'"
+          :class="tab === '{{ slot }}' ? 'border-accent text-accent' : 'border-border text-text-muted'"
+          class="h-9 border px-3 font-display text-[11px] uppercase tracking-wide transition-colors hover:border-accent"
+        >{{ label }}</button>
+        {% endfor %}
+      </div>
+
+      {% for slot, options in avatar_catalog.items() %}
+      <div x-show="tab === '{{ slot }}'" x-cloak class="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {% for value, label, lock_reason in options %}
+        <button
+          type="button"
+          @click="av.{{ slot }} = '{{ value }}'"
+          :class="av.{{ slot }} === '{{ value }}' ? 'border-accent' : 'border-border'"
+          class="flex flex-col items-center gap-1 border bg-void p-2 hover:border-accent"
+        >
+          {% if avatar_no_layer_value.get(slot) != value %}
+          <img
+            src="{{ url_for('static', filename='art/avatar_' ~ slot ~ '_' ~ value ~ '.png') }}"
+            alt=""
+            class="h-6 w-6"
+            style="image-rendering: pixelated"
+          >
+          {% else %}
+          <span class="h-6 w-6"></span>
+          {% endif %}
+          <span class="font-body text-[11px] text-text">{{ label }}</span>
+          {% if lock_reason %}
+          <span class="font-display text-[9px] uppercase tracking-wide text-text-muted" title="{{ lock_reason }}">Locked</span>
+          {% else %}
+          <span class="font-display text-[9px] uppercase tracking-wide text-success">Free</span>
+          {% endif %}
+        </button>
+        {% endfor %}
+      </div>
+      {% endfor %}
+
+      <p class="mt-3 font-body text-xs text-text-muted" x-show="hasLocked()" x-cloak>
+        You start with free parts - locked parts unlock later (streaks, rank, Energy). Use free parts or pick a
+        different option to save.
+      </p>
+
+      <form method="post" class="mt-4 flex flex-wrap items-center gap-2">
+        {{ form.csrf_token }}
+        {% for slot in avatar_slot_labels %}
+        <input type="hidden" name="{{ slot }}" :value="av.{{ slot }}">
+        {% endfor %}
+        <button
+          type="button" @click="useFreeParts()" x-show="hasLocked()" x-cloak
+          class="h-11 border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent"
+        >
+          Use free parts
+        </button>
+        <button
+          type="submit" x-show="!hasLocked()"
+          class="relative h-11 bg-accent px-5 font-display text-xs uppercase tracking-wide text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          <span class="btn-label">{{ 'Next: your planet' if onboarding else 'Save' }}</span>
+          {{ spinner() }}
+        </button>
+      </form>
+
+      {% if onboarding %}
+      <form method="post" action="{{ url_for('avatar.skip_commander_step') }}" class="mt-2">
+        {{ skip_form.csrf_token }}
+        <button type="submit" class="font-body text-xs text-text-muted underline hover:text-text">Skip for now</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,6 +1,7 @@
 import secrets
 from datetime import date
 
+from habitual import game
 from habitual.models import Checkin, Habit, Room, RoomMember, User
 from habitual.rooms import generate_join_code
 
@@ -8,7 +9,9 @@ VALID_PASSWORD = "Sup3r$ecret"
 
 
 def _create_user(db, username="aadhira"):
-    user = User(name="Aadhira Kamal", username=username, timezone="Asia/Kolkata")
+    # avatar set (not the Phase 4b onboarding NULL sentinel) - this
+    # file tests the persistent nav shell, not onboarding itself.
+    user = User(name="Aadhira Kamal", username=username, timezone="Asia/Kolkata", avatar=dict(game.DEFAULT_AVATAR))
     user.set_password(VALID_PASSWORD)
     db.session.add(user)
     db.session.commit()
@@ -118,12 +121,15 @@ def test_habits_nav_item_is_active_on_habit_detail_too(client, db):
     assert "text-accent" in _active_nav_classes(html, "/dashboard", "HABITS")
 
 
-def test_commander_nav_item_is_active_on_account_security(client, db):
+def test_commander_nav_item_is_active_on_the_commander_locker(client, db):
+    # Phase 4b: "Commander" now points to avatar.commander_locker, not
+    # auth.account_security (which stays reachable via a link on the
+    # commander page itself - see tests/test_onboarding.py).
     _login(client, db)
 
-    html = client.get("/account/security").get_data(as_text=True)
+    html = client.get("/commander").get_data(as_text=True)
 
-    assert "text-accent" in _active_nav_classes(html, "/account/security", "COMMANDER")
+    assert "text-accent" in _active_nav_classes(html, "/commander", "COMMANDER")
 
 
 def test_fleet_nav_item_is_active_on_room_detail(client, db):

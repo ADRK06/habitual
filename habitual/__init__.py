@@ -25,6 +25,7 @@ def create_app(config_class=Config):
 
     from habitual import models  # noqa: F401 registers models with SQLAlchemy/Migrate
     from habitual.auth import auth as auth_blueprint
+    from habitual.avatar import avatar as avatar_blueprint
     from habitual.colony import colony as colony_blueprint
     from habitual.habits import habits as habits_blueprint
     from habitual.rooms import rooms as rooms_blueprint
@@ -32,6 +33,7 @@ def create_app(config_class=Config):
     from habitual.errors import forbidden, not_found, rate_limited, server_error
 
     app.register_blueprint(auth_blueprint)
+    app.register_blueprint(avatar_blueprint)
     app.register_blueprint(colony_blueprint)
     app.register_blueprint(habits_blueprint)
     app.register_blueprint(rooms_blueprint)
@@ -55,6 +57,22 @@ def create_app(config_class=Config):
         # silently drift from them - available in every template, not just
         # the handful that happen to pass them explicitly.
         return {"FREEZE_COST": points.FREEZE_COST, "MAX_UNUSED_FREEZES": points.MAX_UNUSED_FREEZES}
+
+    @app.context_processor
+    def inject_avatar_layers():
+        # The header avatar (sidebar.html/phone_hud.html) needs this on
+        # EVERY authenticated page - computed here, not threaded through
+        # each route's own context dict, since nav_balance/nav_streak
+        # already shows that approach is easy to miss at some call sites
+        # (habits._dashboard_context and a few room views set those two
+        # independently, bypassing habits.nav_shell_context entirely).
+        # A context processor is always correct regardless of which
+        # route rendered the page.
+        if not current_user.is_authenticated:
+            return {}
+        from habitual import game
+        from habitual.avatar import avatar_layer_filenames
+        return {"nav_avatar_layers": avatar_layer_filenames(current_user.avatar or game.DEFAULT_AVATAR)}
 
     @app.get("/")
     def home():

@@ -11,6 +11,11 @@
   where PhoneNav has no such item at all (shop, profile - reached from
   PhoneHud instead). `also_active` lists other endpoints that should
   still highlight this item (e.g. the habit detail page under Habits).
+
+  Phase 4b: "profile"'s endpoint is avatar.commander_locker, not auth.
+  account_security - account_security stays reachable via a link ON
+  that page instead (avatar/editor.html), so it's never left with no
+  nav entry at all.
 #}
 {% set NAV_ITEMS = [
   {
@@ -38,7 +43,7 @@
     "d": "M4 7h12l-1 9H5zM7 7a3 3 0 0 1 6 0",
   },
   {
-    "key": "profile", "label_web": "COMMANDER", "label_phone": None, "endpoint": "auth.account_security",
+    "key": "profile", "label_web": "COMMANDER", "label_phone": None, "endpoint": "avatar.commander_locker",
     "also_active": [], "d": "M10 3a3 3 0 1 0 0 6a3 3 0 1 0 0-6M4 17c1-4 11-4 12 0",
   },
 ] %}
