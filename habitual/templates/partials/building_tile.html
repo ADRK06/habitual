@@ -3,21 +3,65 @@
   PhoneHome.dc.html) - `tile` is one entry from colony._colony_context's
   `building_tiles` list. Level is DERIVED from check-in counts (habitual.
   game.level_for_checkins) - there's no Build menu, no buttons here at
-  all. Phase 4a: no sprite-per-level (the art has exactly one generic
-  icon per building type - see habitual/game.py's MAX_LEVEL docstring),
-  so level is a text label, not different art.
-#}
-<div id="building-tile-{{ tile.type }}" class="flex flex-col items-center gap-1 border border-border bg-surface p-2 text-center">
-  {% if tile.level == 0 %}
-  <img src="{{ url_for('static', filename='art/icon_' ~ tile.type ~ '.png') }}" alt="" class="h-8 w-8 opacity-40" style="image-rendering: pixelated">
-  <span class="font-body text-[10px] text-text-muted">{{ tile.category_name }}</span>
-  <span class="font-mono text-[10px] text-text-muted">{{ tile.checkins }}/{{ tile.next_threshold }}</span>
+  all beyond the hover/tap info card below. Phase 4a: no sprite-per-level
+  (the art has exactly one generic icon per building type - see
+  habitual/game.py's MAX_LEVEL docstring), so level is a text badge, not
+  different art.
 
-  {% else %}
-  <img src="{{ url_for('static', filename='art/building_' ~ tile.type ~ '.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
-  <span class="font-body text-[10px] text-text-muted">{{ tile.name }}</span>
-  <span class="font-mono text-[10px] text-text">
-    LV{{ tile.level }}{% if not tile.maxed %} · {{ tile.checkins }}/{{ tile.next_threshold }}{% endif %}
-  </span>
-  {% endif %}
+  Hover/tap card mirrors badges_row.html's tooltip pattern exactly
+  (mouseenter/focus to open, mouseleave/blur to close, teleported +
+  positionCardPopover(..., false) since this tile's own width is far
+  narrower than the card's content) - no separate @click toggle, since a
+  tap already focuses the button in every mobile browser this app
+  targets, and adding one on top of that double-toggles it shut again.
+#}
+<div id="building-tile-{{ tile.type }}" class="relative" x-data="{ open: false }">
+  <button
+    type="button"
+    x-ref="btn"
+    @mouseenter="open = true; $nextTick(() => positionCardPopover($refs.btn, $refs.tip, 8, false))"
+    @mouseleave="open = false"
+    @focus="open = true; $nextTick(() => positionCardPopover($refs.btn, $refs.tip, 8, false))"
+    @blur="open = false"
+    class="relative flex w-full flex-col items-center gap-1 border border-border bg-surface p-2 text-center transition-colors hover:border-accent"
+  >
+    {% if tile.level == 0 %}
+    <img src="{{ url_for('static', filename='art/icon_' ~ tile.type ~ '.png') }}" alt="" class="h-8 w-8 opacity-40" style="image-rendering: pixelated">
+    <span class="font-body text-[10px] text-text-muted">{{ tile.category_name }}</span>
+    <span class="font-mono text-[10px] text-text-muted">{{ tile.checkins }}/{{ tile.next_threshold }}</span>
+
+    {% else %}
+    <span class="absolute right-1 top-1 border border-accent bg-void px-1 font-mono text-[9px] leading-tight text-accent">LV{{ tile.level }}</span>
+    <img src="{{ url_for('static', filename='art/building_' ~ tile.type ~ '.png') }}" alt="" class="h-8 w-8" style="image-rendering: pixelated">
+    <span class="font-body text-[10px] text-text">{{ tile.name }}</span>
+    <span class="font-mono text-[9px] text-text-muted">
+      {{ tile.category_name }}{% if not tile.maxed %} {{ tile.checkins }}/{{ tile.next_threshold }}{% else %} · MAX{% endif %}
+    </span>
+    {% endif %}
+  </button>
+
+  <template x-teleport="body">
+    <div
+      x-ref="tip"
+      x-show="open"
+      x-cloak
+      role="tooltip"
+      @scroll.window="open && positionCardPopover($refs.btn, $refs.tip, 8, false)"
+      @resize.window="open && positionCardPopover($refs.btn, $refs.tip, 8, false)"
+      x-transition:enter="transition ease-out duration-150"
+      x-transition:enter-start="opacity-0"
+      x-transition:enter-end="opacity-100"
+      x-transition:leave="transition ease-in duration-100"
+      x-transition:leave-start="opacity-100"
+      x-transition:leave-end="opacity-0"
+      class="pointer-events-none fixed z-40 w-56 border border-border bg-surface px-3 py-2"
+    >
+      <p class="font-display text-[11px] uppercase text-text">{{ tile.name }}</p>
+      <p class="mt-1 text-[11px] text-text-muted">Powered by {{ tile.category_name }} check-ins</p>
+      <p class="mt-1 font-mono text-[11px] text-text">
+        {% if tile.maxed %}Max level reached{% else %}{{ tile.checkins }}/{{ tile.next_threshold }} to LV{{ tile.level + 1 }}{% endif %}
+      </p>
+      <p class="mt-1 text-[11px] text-accent">{{ tile.effect_note }}</p>
+    </div>
+  </template>
 </div>
