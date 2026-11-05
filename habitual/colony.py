@@ -46,6 +46,24 @@ def _category_checkin_counts(user):
     return {category: count for category, count in rows}
 
 
+def level_up_for_checkin(habit, user):
+    """(building_type, old_level, new_level) for the building `habit`'s
+    category powers, comparing habitual.game.level_for_checkins just
+    before and after the check-in that was just committed. Must only be
+    called once, right after habits.checkin() commits a genuinely NEW
+    Checkin row (never on a duplicate/suppressed attempt, and never from
+    a GET route/page load - decision 4) - that guarantee is what lets
+    this derive "before" as count-1 instead of re-querying a snapshot
+    from before the commit."""
+    building_type = game.BUILDING_TYPE_FOR_CATEGORY.get(habit.category, game.CUSTOM_MODULE)
+    category_counts = _category_checkin_counts(user)
+    count_after = (
+        sum(category_counts.values()) if building_type == game.CUSTOM_MODULE
+        else category_counts.get(habit.category, 0)
+    )
+    return building_type, game.level_for_checkins(count_after - 1), game.level_for_checkins(count_after)
+
+
 # Display only (not a game rule, so it lives here rather than game.py).
 BUILDING_DISPLAY_NAME = {
     game.DEFENSE_TOWER: "Defense Tower",

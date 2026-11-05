@@ -134,6 +134,7 @@
     x-init="
       JSON.parse(document.getElementById('flashed-messages').textContent).forEach(([category, message]) => push(message, category));
       window.addEventListener('toast', (e) => push(e.detail.message, e.detail.type || 'info'));
+      window.addEventListener('buildingProgress', (e) => push(e.detail.message, 'success'));
     "
     role="status"
     aria-live="polite"

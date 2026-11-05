@@ -270,11 +270,110 @@ def test_checkin_suppressed_by_anti_farming_still_counts_toward_building_level(c
     habit2 = Habit.active().filter_by(user_id=user.id, title="Run").first()
     assert habit2.first_day_points_suppressed is True
 
-    client.post(f"/habits/{habit2.id}/checkin")  # the 10th check-in overall, suppressed Energy
+    response = client.post(f"/habits/{habit2.id}/checkin")  # the 10th check-in overall, suppressed Energy
     assert PointTransaction.query.filter_by(habit_id=habit2.id).count() == 0  # confirms it was suppressed
 
     html = client.get("/colony").get_data(as_text=True)
     assert "LV1" in html  # still counted toward the level
+
+    # decision 3 + 4 together: the level-up event fires even though Energy
+    # was withheld - it's driven by the Checkin row, never the ledger.
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert trigger["buildingProgress"]["buildingType"] == "defense_tower"
+    assert trigger["buildingProgress"]["level"] == 1
+
+
+# -- check-in level-up event (toast/pulse, decision 4) -----------------------
+
+
+def test_checkin_that_crosses_a_threshold_fires_building_level_up_event(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 9)
+
+    response = client.post(f"/habits/{habit.id}/checkin")  # the 10th - crosses into LV1
+
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert trigger["buildingProgress"] == {
+        "buildingType": "defense_tower", "level": 1, "message": "Defense Tower built!",
+    }
+
+
+def test_checkin_that_reaches_a_higher_level_says_reached_not_built(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 29)
+
+    response = client.post(f"/habits/{habit.id}/checkin")  # the 30th - crosses into LV2
+
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert trigger["buildingProgress"] == {
+        "buildingType": "defense_tower", "level": 2, "message": "Defense Tower reached LV2!",
+    }
+
+
+def test_checkin_that_does_not_cross_a_threshold_fires_no_building_level_up_event(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 4)
+
+    response = client.post(f"/habits/{habit.id}/checkin")  # the 5th - nowhere near LV1's 10
+
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert "buildingProgress" not in trigger
+
+
+def test_checkin_already_at_max_level_fires_no_building_level_up_event(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 60)
+
+    response = client.post(f"/habits/{habit.id}/checkin")  # the 61st - already LV3 (max)
+
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert "buildingProgress" not in trigger
+
+
+def test_checkin_in_other_category_level_up_uses_total_checkins_for_custom_module(client, db):
+    user = _login(client, db)
+    fitness_habit = _create_habit(db, user, title="Run", category="fitness")
+    other_habit = _create_habit(db, user, title="Journal", category="other")
+    _give_checkins(db, fitness_habit, 5)
+    _give_checkins(db, other_habit, 4)  # total lifetime checkins = 9 so far
+
+    response = client.post(f"/habits/{other_habit.id}/checkin")  # the 10th overall - crosses Custom Module into LV1
+
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert trigger["buildingProgress"] == {
+        "buildingType": "custom_module", "level": 1, "message": "Custom Module built!",
+    }
+
+
+def test_loading_the_colony_page_never_fires_a_building_level_up_event(client, db):
+    # decision 4: the event is computed exactly once, inside checkin()
+    # itself, right after a NEW Checkin row commits - a GET never goes
+    # anywhere near that code path, even when a habit is already sitting
+    # exactly at a level threshold.
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 10)
+
+    response = client.get("/colony")
+
+    assert "HX-Trigger" not in response.headers
+
+
+def test_undo_checkin_fires_no_building_level_up_event(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 9)
+    client.post(f"/habits/{habit.id}/checkin")  # the 10th - crosses into LV1
+
+    response = client.delete(f"/habits/{habit.id}/checkin")
+
+    if "HX-Trigger" in response.headers:
+        trigger = json.loads(response.headers["HX-Trigger"])
+        assert "buildingProgress" not in trigger
 
 
 # -- account deletion -----------------------------------------------------

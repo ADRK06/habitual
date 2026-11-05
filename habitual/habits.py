@@ -877,7 +877,23 @@ def _schedule_gate_or_404(habit, today):
         abort(404)
 
 
-def _room_live_response(habit, toast=None, celebration=None, badges_earned=None):
+def _building_level_up_event(habit):
+    """HX-Trigger payload for a 'buildingProgress' event, or None - fired
+    only when the check-in just committed in checkin() (below) crossed a
+    level threshold for the building `habit`'s category powers. Must only
+    ever be called from checkin() itself, right after a genuinely NEW
+    Checkin row commits (decision 4: never on a plain page load, and
+    never from undo_checkin/use_freeze, which never call this)."""
+    from habitual import colony  # local import avoids a circular import with colony.py
+    building_type, old_level, new_level = colony.level_up_for_checkin(habit, current_user)
+    if new_level <= old_level:
+        return None
+    name = colony.BUILDING_DISPLAY_NAME[building_type]
+    message = f"{name} built!" if old_level == 0 else f"{name} reached LV{new_level}!"
+    return {"buildingType": building_type, "level": new_level, "message": message}
+
+
+def _room_live_response(habit, toast=None, celebration=None, badges_earned=None, building_level_up=None):
     """If this check-in/undo/freeze came from the room page itself (its
     forms flag that with a `room_view` field) and the habit belongs to a
     room, renders that room's live-update partial instead of the usual
@@ -902,12 +918,14 @@ def _room_live_response(habit, toast=None, celebration=None, badges_earned=None)
         trigger["checkinCelebration"] = celebration
     if badges_earned:
         trigger["badgesEarned"] = badges_earned
+    if building_level_up:
+        trigger["buildingProgress"] = building_level_up
     if trigger:
         resp.headers["HX-Trigger"] = json.dumps(trigger)
     return resp
 
 
-def _fleet_list_live_response(habit, toast=None, celebration=None, badges_earned=None):
+def _fleet_list_live_response(habit, toast=None, celebration=None, badges_earned=None, building_level_up=None):
     """If this check-in/undo came from "My fleets" itself (flagged with a
     `fleet_list_view` field, mirroring `_room_live_response`'s `room_view`)
     and the habit belongs to a room, re-renders just that one fleet's card
@@ -929,12 +947,14 @@ def _fleet_list_live_response(habit, toast=None, celebration=None, badges_earned
         trigger["checkinCelebration"] = celebration
     if badges_earned:
         trigger["badgesEarned"] = badges_earned
+    if building_level_up:
+        trigger["buildingProgress"] = building_level_up
     if trigger:
         resp.headers["HX-Trigger"] = json.dumps(trigger)
     return resp
 
 
-def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, badges_earned=None):
+def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, badges_earned=None, building_level_up=None):
     """If this check-in/undo/freeze came from the habit's own detail page
     (flagged with a `detail_view` field, mirroring `_room_live_response`'s
     `room_view`), re-renders that page's own panel (ring card + month
@@ -966,12 +986,14 @@ def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, 
         trigger["checkinCelebration"] = celebration
     if badges_earned:
         trigger["badgesEarned"] = badges_earned
+    if building_level_up:
+        trigger["buildingProgress"] = building_level_up
     if trigger:
         resp.headers["HX-Trigger"] = json.dumps(trigger)
     return resp
 
 
-def _colony_live_response(toast=None, celebration=None, badges_earned=None):
+def _colony_live_response(toast=None, celebration=None, badges_earned=None, building_level_up=None):
     """If this check-in came from the colony home page itself (flagged
     with a `colony_view` field, mirroring `_room_live_response`'s
     `room_view`), re-renders the whole colony panel (planet, building
@@ -991,6 +1013,8 @@ def _colony_live_response(toast=None, celebration=None, badges_earned=None):
         trigger["checkinCelebration"] = celebration
     if badges_earned:
         trigger["badgesEarned"] = badges_earned
+    if building_level_up:
+        trigger["buildingProgress"] = building_level_up
     if trigger:
         resp.headers["HX-Trigger"] = json.dumps(trigger)
     return resp
@@ -1031,11 +1055,13 @@ def checkin(habit_id):
     # A double-submit fails the unique(habit_id, date) constraint on flush,
     # before any points are written, so the whole thing rolls back cleanly.
     db.session.add(Checkin(habit_id=habit.id, date=today, proof_note=proof_note))
+    checkin_added = False
     try:
         db.session.flush()
     except IntegrityError:
         db.session.rollback()
     else:
+        checkin_added = True
         completed = {c.date for c in Checkin.query.filter_by(habit_id=habit.id)}
         frozen = {
             f.used_on
@@ -1082,20 +1108,32 @@ def checkin(habit_id):
         celebration = {"habitId": habit.id, "milestone": bool(bonus), "pointsEarned": points_earned}
         newly_badges = badges.check_and_award(current_user)
 
-    room_response = _room_live_response(habit, toast=toast, celebration=celebration, badges_earned=newly_badges)
+    # Counted from Checkin rows, never from the points ledger (decision 3:
+    # a check-in suppressed by the anti-farming rule or the daily cap
+    # still counts toward a building's level) - only ever computed for a
+    # genuinely NEW check-in (decision 4: never on a plain page load, and
+    # never from undo_checkin/use_freeze, which don't call this at all).
+    building_level_up = _building_level_up_event(habit) if checkin_added else None
+
+    room_response = _room_live_response(
+        habit, toast=toast, celebration=celebration, badges_earned=newly_badges, building_level_up=building_level_up,
+    )
     if room_response is not None:
         return room_response
     fleet_list_response = _fleet_list_live_response(
-        habit, toast=toast, celebration=celebration, badges_earned=newly_badges
+        habit, toast=toast, celebration=celebration, badges_earned=newly_badges, building_level_up=building_level_up,
     )
     if fleet_list_response is not None:
         return fleet_list_response
     detail_response = _detail_live_response(
-        habit, today, now_hour, toast=toast, celebration=celebration, badges_earned=newly_badges
+        habit, today, now_hour, toast=toast, celebration=celebration, badges_earned=newly_badges,
+        building_level_up=building_level_up,
     )
     if detail_response is not None:
         return detail_response
-    colony_response = _colony_live_response(toast=toast, celebration=celebration, badges_earned=newly_badges)
+    colony_response = _colony_live_response(
+        toast=toast, celebration=celebration, badges_earned=newly_badges, building_level_up=building_level_up,
+    )
     if colony_response is not None:
         return colony_response
 
@@ -1112,10 +1150,15 @@ def checkin(habit_id):
     }
     context.update(_day_status_context(current_user, today, habit_rows, context["habits_remaining"]))
     resp = make_response(render_template("partials/checkin_response.html", **context))
+    trigger = {}
     if toast:
-        trigger = {"toast": toast, "checkinCelebration": celebration}
-        if newly_badges:
-            trigger["badgesEarned"] = newly_badges
+        trigger["toast"] = toast
+        trigger["checkinCelebration"] = celebration
+    if newly_badges:
+        trigger["badgesEarned"] = newly_badges
+    if building_level_up:
+        trigger["buildingProgress"] = building_level_up
+    if trigger:
         resp.headers["HX-Trigger"] = json.dumps(trigger)
     return resp
 
