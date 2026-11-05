@@ -700,6 +700,20 @@ PLANET_CLUSTER_PIXELS = {
     # ordered prefix of this same list (see _level_pixels) rather than
     # a separately hand-drawn shape, so a lower level is always visually
     # "this cluster, just not finished yet" rather than a different shape.
+    #
+    # Round 4 (approved): raises PLANET_LEVEL_COUNTS so LV1 reveals a
+    # readable 6-8px chunk instead of a 1-3px fragment - a just-built
+    # cluster was nearly invisible on the planet at 5x scale. defense_
+    # tower/research_lab/power_reactor/observatory keep their exact
+    # round-3 pixel content/order (their own first 6-8 pixels already
+    # form a connected mini-shape with 1-2 AMBER lit pixels, since each
+    # list was written row-by-row from the cluster's own base upward) -
+    # only how many LV1/LV2 reveal changed. biodome/custom_module are
+    # the exception: their round-3 full clusters were only 7/5 pixels,
+    # too small to leave room for a staged 3-level reveal once LV1 alone
+    # needs 6+ pixels, so both are enlarged to 10 pixels each here, same
+    # style/palette/anchor as before - still the two smallest clusters
+    # of the six.
     "defense_tower": [
         # anchor (21, 11) - the antenna's own base
         (0, 0, GRAY_MID), (1, 0, GRAY_DARK),
@@ -716,12 +730,16 @@ PLANET_CLUSTER_PIXELS = {
         (0, -11, GREEN),
     ],
     "biodome": [
-        # anchor (27, 10) - the green dome's own base. GREEN pixels
-        # listed first on purpose - this cluster's whole identity IS the
-        # green, so even LV1's tiny subset should show a hint of it
-        # rather than an incidental grey mounting pixel.
-        (0, 0, GREEN), (-1, 0, GREEN), (0, -1, GREEN),
-        (-2, 0, GRAY_LIGHT), (3, 0, GRAY_LIGHT), (-1, -1, GRAY_LIGHT), (2, -1, GRAY_LIGHT),
+        # anchor (27, 10) - the green dome's own base, enlarged from 7 to
+        # 10 px (see module note above). LV1 (first 6): a readable
+        # rounded green bump on a grey mount.
+        (0, 0, GREEN), (-1, 0, GREEN), (1, 0, GREEN), (0, -1, GREEN),
+        (-2, 0, GRAY_LIGHT), (2, 0, GRAY_LIGHT),
+        # LV2 (first 8): mount widens slightly under the dome's shoulders.
+        (-1, -1, GRAY_LIGHT), (1, -1, GRAY_LIGHT),
+        # LV3 (all 10): a small peak, plus the original's own extra
+        # outer mount pixel.
+        (0, -2, GREEN), (3, 0, GRAY_LIGHT),
     ],
     "research_lab": [
         # anchor (16, 13) - the near-left window block's own base
@@ -749,10 +767,17 @@ PLANET_CLUSTER_PIXELS = {
     ],
     "custom_module": [
         # anchor (24, 9) - new, minimal, in the antenna-to-dome gap; no
-        # original cluster to decompose (see the module docstring above)
-        (0, 0, GRAY_MID), (1, 0, GRAY_MID),
-        (0, -1, GRAY_MID), (1, -1, AMBER),
-        (0, -2, AMBER),
+        # original cluster to decompose (see the module docstring above),
+        # enlarged from 5 to 10 px (see module note above). LV1 (first
+        # 6): a solid small lit block - still the simplest/least-detailed
+        # cluster of the six, per its "generic/cosmetic" theme, just no
+        # longer invisible.
+        (0, 0, GRAY_MID), (1, 0, GRAY_MID), (0, -1, GRAY_MID), (1, -1, GRAY_MID),
+        (0, -2, AMBER), (1, -2, GRAY_MID),
+        # LV2 (first 8): base widens by one, a second lit pixel appears higher.
+        (-1, 0, GRAY_MID), (0, -3, AMBER),
+        # LV3 (all 10): fills in around the new accent.
+        (1, -3, GRAY_MID), (-1, -1, GRAY_MID),
     ],
 }
 
@@ -770,75 +795,12 @@ CLUSTER_ANCHORS = {
 
 # How many of PLANET_CLUSTER_PIXELS' pixels (in the order written above -
 # deliberately ordered low/base pixels first, detail/accent pixels last)
-# are visible at each level. LV3 is always len(...) - the full original
-# cluster. LV1/LV2 are hand-picked per building (not a fixed fraction),
-# since each cluster's pixel list is ordered base-first/detail-last by
-# hand, not uniformly.
+# are visible at each level. LV3 is always len(...) - the full cluster.
+# LV1/LV2 are hand-picked per building (not a fixed fraction), since
+# each cluster's pixel list is ordered base-first/detail-last by hand,
+# not uniformly. Round 4: raised from {1-3, 7-ish} to a readable 6-8px
+# LV1 for every building - see PLANET_CLUSTER_PIXELS' module note above.
 PLANET_LEVEL_COUNTS = {
-    "defense_tower": {1: 3, 2: 8},
-    "biodome": {1: 1, 2: 3},
-    "research_lab": {1: 3, 2: 8},
-    "power_reactor": {1: 2, 2: 7},
-    "observatory": {1: 2, 2: 8},
-    "custom_module": {1: 1, 2: 3},
-}
-
-# ---- planet-scale buildings, round 4 CANDIDATE: LV1 readability fix --
-# Review finding on the wired art above: LV1's count was so low (1-3
-# pixels) that a just-built building is nearly invisible on the planet
-# at 5x scale (e.g. defense_tower LV1 is 3 pixels on a 2x12 canvas).
-# This is a CANDIDATE replacement, reviewed at /dev/styleguide only - it
-# does NOT touch PLANET_CLUSTER_PIXELS/PLANET_LEVEL_COUNTS above (still
-# what's actually wired into /colony via habitual.colony.BUILDING_SLOTS)
-# until the developer approves it and it gets promoted.
-#
-# defense_tower/research_lab/power_reactor/observatory keep their exact
-# original cluster content from PLANET_CLUSTER_PIXELS (same pixels, same
-# order, same CLUSTER_ANCHORS) - only PLANET_LEVEL_COUNTS_CANDIDATE
-# raises how many of those same pixels LV1/LV2 reveal, from a bare
-# corner fragment to a readable 6-8px chunk (checked by hand: each
-# building's first 6-8 listed pixels already form a connected mini-
-# shape with 1-2 AMBER lit pixels, because the lists were written row-
-# by-row from the cluster's own base upward).
-#
-# biodome and custom_module are the exception: their FULL (round 3)
-# clusters are only 7 and 5 pixels respectively - too small to leave any
-# room for a staged LV1 -> LV2 -> LV3 reveal once LV1 alone needs 6+
-# pixels. Both are modestly enlarged here (to 10 pixels each, still the
-# two smallest clusters of the six) in the same style/palette/anchor as
-# round 3's approved versions - not a redesign, just enough extra
-# pixels to support three distinct, readable levels.
-PLANET_CLUSTER_PIXELS_CANDIDATE = {
-    "defense_tower": PLANET_CLUSTER_PIXELS["defense_tower"],
-    "research_lab": PLANET_CLUSTER_PIXELS["research_lab"],
-    "power_reactor": PLANET_CLUSTER_PIXELS["power_reactor"],
-    "observatory": PLANET_CLUSTER_PIXELS["observatory"],
-    "biodome": [
-        # anchor (27, 10), same as round 3 - enlarged from 7 to 10 px.
-        # LV1 (first 6): a readable rounded green bump on a grey mount.
-        (0, 0, GREEN), (-1, 0, GREEN), (1, 0, GREEN), (0, -1, GREEN),
-        (-2, 0, GRAY_LIGHT), (2, 0, GRAY_LIGHT),
-        # LV2 (first 8): mount widens slightly under the dome's shoulders.
-        (-1, -1, GRAY_LIGHT), (1, -1, GRAY_LIGHT),
-        # LV3 (all 10): a small peak, plus the original's own extra
-        # outer mount pixel.
-        (0, -2, GREEN), (3, 0, GRAY_LIGHT),
-    ],
-    "custom_module": [
-        # anchor (24, 9), same as round 3 - enlarged from 5 to 10 px.
-        # LV1 (first 6): a solid small lit block - still the simplest/
-        # least-detailed cluster of the six, per its "generic/cosmetic"
-        # theme, just no longer invisible.
-        (0, 0, GRAY_MID), (1, 0, GRAY_MID), (0, -1, GRAY_MID), (1, -1, GRAY_MID),
-        (0, -2, AMBER), (1, -2, GRAY_MID),
-        # LV2 (first 8): base widens by one, a second lit pixel appears higher.
-        (-1, 0, GRAY_MID), (0, -3, AMBER),
-        # LV3 (all 10): fills in around the new accent.
-        (1, -3, GRAY_MID), (-1, -1, GRAY_MID),
-    ],
-}
-
-PLANET_LEVEL_COUNTS_CANDIDATE = {
     "defense_tower": {1: 8, 2: 14},
     "research_lab": {1: 6, 2: 13},
     "power_reactor": {1: 8, 2: 12},
@@ -848,25 +810,24 @@ PLANET_LEVEL_COUNTS_CANDIDATE = {
 }
 
 
-def _level_pixels_from(cluster_pixels: dict, level_counts: dict, building_type: str, level: int):
-    full = cluster_pixels[building_type]
+def _level_pixels(building_type: str, level: int):
+    full = PLANET_CLUSTER_PIXELS[building_type]
     if level >= 3:
         return full
-    return full[: level_counts[building_type][level]]
+    return full[: PLANET_LEVEL_COUNTS[building_type][level]]
 
 
-def _cluster_bbox_offset_from(cluster_pixels: dict, building_type: str) -> tuple[int, int]:
+def _cluster_bbox_offset(building_type: str) -> tuple[int, int]:
     """(min_dx, min_dy) of a building's FULL (LV3) cluster - the top-left
-    corner of _draw_cluster_building's canvas, relative to CLUSTER_ANCHORS.
+    corner of _draw_planet_building's canvas, relative to CLUSTER_ANCHORS.
     Exposed (not just inlined) because habitual/colony.py's BUILDING_SLOTS
-    hardcodes CLUSTER_ANCHORS[type] + this same offset (for the currently-
-    WIRED dataset, PLANET_CLUSTER_PIXELS) as its fixed wiring position -
-    keep that in sync if the wired cluster's pixels change."""
-    full = cluster_pixels[building_type]
+    hardcodes CLUSTER_ANCHORS[type] + this same offset as its fixed wiring
+    position - keep that in sync if this cluster's pixels change."""
+    full = PLANET_CLUSTER_PIXELS[building_type]
     return min(p[0] for p in full), min(p[1] for p in full)
 
 
-def _draw_cluster_building(cluster_pixels: dict, level_counts: dict, building_type: str, level: int):
+def _draw_planet_building(building_type: str, level: int):
     """Crops to the FULL (LV3) cluster's bounding box at every level, not
     the level-specific subset - so a building's LV1/LV2/LV3 standalone
     sprite is always the same pixel size with the same anchor offset
@@ -875,46 +836,20 @@ def _draw_cluster_building(cluster_pixels: dict, level_counts: dict, building_ty
     simply swap which level's image fills it, with no per-level crop or
     offset math of its own (and no Pillow dependency - that stays dev-
     only, see requirements-dev.txt)."""
-    full = cluster_pixels[building_type]
-    min_dx, min_dy = _cluster_bbox_offset_from(cluster_pixels, building_type)
+    full = PLANET_CLUSTER_PIXELS[building_type]
+    min_dx, min_dy = _cluster_bbox_offset(building_type)
     max_dx = max(p[0] for p in full)
     max_dy = max(p[1] for p in full)
     w, h = max_dx - min_dx + 1, max_dy - min_dy + 1
     c = new_canvas(w, h)
-    for dx, dy, color in _level_pixels_from(cluster_pixels, level_counts, building_type, level):
+    for dx, dy, color in _level_pixels(building_type, level):
         set_px(c, dx - min_dx, dy - min_dy, color)
     return c
-
-
-# -- the currently-WIRED (production) dataset - what /colony actually
-# reads via habitual.colony.BUILDING_SLOTS. Do not change these without
-# also updating that file; see PLANET_CLUSTER_PIXELS_CANDIDATE below for
-# the pending LV1-readability fix, which is review-only until approved.
-def _level_pixels(building_type: str, level: int):
-    return _level_pixels_from(PLANET_CLUSTER_PIXELS, PLANET_LEVEL_COUNTS, building_type, level)
-
-
-def _cluster_bbox_offset(building_type: str) -> tuple[int, int]:
-    return _cluster_bbox_offset_from(PLANET_CLUSTER_PIXELS, building_type)
-
-
-def _draw_planet_building(building_type: str, level: int):
-    return _draw_cluster_building(PLANET_CLUSTER_PIXELS, PLANET_LEVEL_COUNTS, building_type, level)
 
 
 PLANET_BUILDING_DRAWERS = {
     building_type: (lambda level, bt=building_type: _draw_planet_building(bt, level))
     for building_type in PLANET_CLUSTER_PIXELS
-}
-
-
-def _draw_planet_building_candidate(building_type: str, level: int):
-    return _draw_cluster_building(PLANET_CLUSTER_PIXELS_CANDIDATE, PLANET_LEVEL_COUNTS_CANDIDATE, building_type, level)
-
-
-PLANET_BUILDING_DRAWERS_CANDIDATE = {
-    building_type: (lambda level, bt=building_type: _draw_planet_building_candidate(bt, level))
-    for building_type in PLANET_CLUSTER_PIXELS_CANDIDATE
 }
 
 # Display/ring order purely for styleguide section ordering - NOT a
@@ -978,9 +913,6 @@ for _bt, _drawer in PLANET_BUILDING_DRAWERS.items():
     for _lv in (1, 2, 3):
         NEW_SPRITES[f"planet_building_{_bt}_lv{_lv}"] = (lambda d=_drawer, lv=_lv: d(lv))
 NEW_SPRITES["planet_render_rust_clean"] = draw_planet_render_rust_clean
-for _bt, _drawer in PLANET_BUILDING_DRAWERS_CANDIDATE.items():
-    for _lv in (1, 2, 3):
-        NEW_SPRITES[f"planet_building_{_bt}_lv{_lv}_candidate"] = (lambda d=_drawer, lv=_lv: d(lv))
 
 NEW_SPRITE_META = {
     "building_damage_overlay": {"category": "overlay", "phase": 5, "notes": "reusable on all 5 fixed buildings"},
@@ -1006,12 +938,6 @@ NEW_SPRITE_META["planet_render_rust_clean"] = {
     "category": "planet_render", "phase": 4,
     "notes": "planet_render_rust.png with the baked-in antenna/debris erased - WIRED into /colony",
 }
-for _bt in PLANET_BUILDING_DRAWERS_CANDIDATE:
-    for _lv in (1, 2, 3):
-        NEW_SPRITE_META[f"planet_building_{_bt}_lv{_lv}_candidate"] = {
-            "category": "planet_building_candidate", "phase": 4,
-            "notes": f"LV1-readability fix for planet-scale {_bt}, level {_lv} of 3 - review only, pending approval",
-        }
 
 FIXED_BUILDINGS = [
     "building_research_lab",
@@ -1069,9 +995,16 @@ def update_manifest_with_new_sprites() -> None:
     fresh copy on top of whatever's already there. (Appending
     unconditionally was a real bug: every past run of this command had
     been piling up duplicate entries - 31 names ended up with 5 copies
-    each before this was caught and fixed.)"""
+    each before this was caught and fixed.)
+
+    Also drops any entry whose PNG no longer exists on disk - a sprite
+    removed from NEW_SPRITES/NEW_SPRITE_META (e.g. a review-only
+    candidate that was promoted or rejected, its _candidate.png files
+    deleted) would otherwise sit in manifest.json forever, since this
+    function only ever replaces names it currently knows about."""
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     manifest = [entry for entry in manifest if entry["name"] not in NEW_SPRITE_META]
+    manifest = [entry for entry in manifest if (DEST_DIR / f"{entry['name']}.png").exists()]
     for entry in manifest:
         entry["new"] = False
     for name, meta in NEW_SPRITE_META.items():
@@ -1184,7 +1117,6 @@ def build_composites() -> None:
         shield.save(COMPOSITES_DIR / f"{base_name}_shield.png")
 
     build_planet_previews()
-    build_planet_previews_candidate()
 
 
 # Review-only locked-slot marker: a single, very dim pixel at the
@@ -1195,20 +1127,15 @@ def build_composites() -> None:
 LOCKED_DOT_COLOR = GRAY_DARK[:3] + (110,)
 
 
-def _paste_planet_building(base_img, building_type: str, level: int, cluster_pixels=None, level_counts=None) -> None:
+def _paste_planet_building(base_img, building_type: str, level: int) -> None:
     """Pastes a building's cluster directly onto the full planet image at
     its real CLUSTER_ANCHORS position - pixel by pixel, not through an
     intermediate cropped canvas, so there's no risk of an off-by-one
-    crop/anchor mismatch between this and _bbox_canvas's standalone
-    preview images (which exist only for /dev/styleguide's x1/x4 display,
-    never for compositing). Defaults to the WIRED (production) dataset;
-    pass PLANET_CLUSTER_PIXELS_CANDIDATE/PLANET_LEVEL_COUNTS_CANDIDATE to
-    preview the pending LV1-readability fix instead - CLUSTER_ANCHORS is
-    shared by both, since anchors never change between them."""
-    cluster_pixels = cluster_pixels if cluster_pixels is not None else PLANET_CLUSTER_PIXELS
-    level_counts = level_counts if level_counts is not None else PLANET_LEVEL_COUNTS
+    crop/anchor mismatch between this and _draw_planet_building's
+    standalone preview images (which exist only for /dev/styleguide's
+    x1/x4 display, never for compositing)."""
     anchor_x, anchor_y = CLUSTER_ANCHORS[building_type]
-    for dx, dy, color in _level_pixels_from(cluster_pixels, level_counts, building_type, level):
+    for dx, dy, color in _level_pixels(building_type, level):
         x, y = anchor_x + dx, anchor_y + dy
         if 0 <= x < base_img.width and 0 <= y < base_img.height:
             base_img.putpixel((x, y), color)
@@ -1229,11 +1156,12 @@ def _clean_planet_image():
 
 
 def build_planet_previews() -> None:
-    """Full-planet mockups for /dev/styleguide to judge the new art on
+    """Full-planet mockups for /dev/styleguide to judge the art on
     planet_render_rust_clean.png (the antenna/debris-free variant, also
-    up for approval here) - review only:
+    up for approval here):
       (a) the clean planet alone, no buildings
-      (b) all six clusters at LV1 (barely there)
+      (b) all six clusters at LV1 (round 4: a readable 6-8px structure
+          each, not the 1-3px fragment rounds 1-3 shipped)
       (c) all six at LV3 (the full original bake, reproduced)
       (d) a realistic mix (2 built, 4 still locked) - BOTH with no
           marker at all, and with the single dim locked-dot, for a
@@ -1261,45 +1189,6 @@ def build_planet_previews() -> None:
     for building_type in locked:
         _paste_locked_dot(base, building_type)
     base.save(COMPOSITES_DIR / "planet_preview_mixed_dot.png")
-
-
-def build_planet_previews_candidate() -> None:
-    """Candidate full-planet mockups for /dev/styleguide, using the
-    pending LV1-readability fix (PLANET_CLUSTER_PIXELS_CANDIDATE/
-    PLANET_LEVEL_COUNTS_CANDIDATE) instead of the wired production
-    dataset build_planet_previews() uses - review only, not wired into
-    /colony:
-      (a) all six at LV1 - the fix under test: must read as six small
-          but clearly visible structures, not a bare planet
-      (b) all six at LV2
-      (c) all six at LV3 (unchanged from the approved round-3 look for
-          the four untouched types; biodome/custom_module slightly
-          fuller, since both were enlarged)
-      (d) the exact scenario from the review finding: Defense Tower LV1
-          + Custom Module LV2 built, the other four locked (no marker,
-          per the already-approved round-3 call)
-    """
-    for level, filename in (
-        (1, "planet_preview_candidate_lv1.png"),
-        (2, "planet_preview_candidate_lv2.png"),
-        (3, "planet_preview_candidate_lv3.png"),
-    ):
-        base = _clean_planet_image()
-        for building_type in PLANET_BUILDING_DRAWERS_CANDIDATE:
-            _paste_planet_building(
-                base, building_type, level,
-                cluster_pixels=PLANET_CLUSTER_PIXELS_CANDIDATE, level_counts=PLANET_LEVEL_COUNTS_CANDIDATE,
-            )
-        base.save(COMPOSITES_DIR / filename)
-
-    built = {"defense_tower": 1, "custom_module": 2}  # the reported bug scenario, exactly
-    base = _clean_planet_image()
-    for building_type, level in built.items():
-        _paste_planet_building(
-            base, building_type, level,
-            cluster_pixels=PLANET_CLUSTER_PIXELS_CANDIDATE, level_counts=PLANET_LEVEL_COUNTS_CANDIDATE,
-        )
-    base.save(COMPOSITES_DIR / "planet_preview_candidate_mixed.png")
 
 
 if __name__ == "__main__":

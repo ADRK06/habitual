@@ -114,13 +114,18 @@ PLANET_SCALE = 5
 # this dict be static: no Pillow dependency here (dev-only, see
 # requirements-dev.txt), so this can't read the PNGs or recompute these
 # itself. Keep in sync if that art changes.
+#
+# Round 4 (approved LV1-readability fix) enlarged biodome's and custom_
+# module's full clusters (7->10px and 5->10px) so their LV1 alone is
+# readable - CLUSTER_ANCHORS didn't move, but their bounding boxes grew,
+# so those two rows below changed; the other four are untouched.
 BUILDING_SLOTS = {
     game.DEFENSE_TOWER: (21, 0, 2, 12),
-    game.BIODOME: (25, 9, 6, 2),
+    game.BIODOME: (25, 8, 6, 3),
     game.RESEARCH_LAB: (13, 9, 6, 5),
     game.POWER_REACTOR: (9, 14, 5, 5),
     game.OBSERVATORY: (31, 11, 7, 5),
-    game.CUSTOM_MODULE: (24, 7, 2, 3),
+    game.CUSTOM_MODULE: (23, 6, 3, 4),
 }
 
 
