@@ -3,26 +3,27 @@ import re
 import secrets
 from datetime import date, timedelta
 
-from habitual import frequency
+from habitual import frequency, game
 from habitual.frequency import WEEKDAY_BIT
 from habitual.habits import EMOJI_CHOICES, _header_stats, _month_calendar_context
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, Room, RoomMember, User
 from habitual.points import week_start
 from habitual.rooms import generate_join_code
+from habitual.utils.time import local_today
 
 VALID_PASSWORD = "Sup3r$ecret"
 
 
-def _create_user(db, username="aadhira", password=VALID_PASSWORD):
-    user = User(name="Aadhira", username=username, timezone="Asia/Kolkata")
+def _create_user(db, username="aadhira", password=VALID_PASSWORD, timezone="Asia/Kolkata"):
+    user = User(name="Aadhira", username=username, timezone=timezone)
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
     return user
 
 
-def _login(client, db, username="aadhira"):
-    user = _create_user(db, username=username)
+def _login(client, db, username="aadhira", timezone="Asia/Kolkata"):
+    user = _create_user(db, username=username, timezone=timezone)
     client.post("/login", data={"username": username, "password": VALID_PASSWORD, "next": ""})
     return user
 
@@ -1169,9 +1170,14 @@ def test_recreating_same_title_same_day_suppresses_points_once(client, db):
     assert habit2.id != habit1.id
     assert habit2.first_day_points_suppressed is True
 
-    client.post(f"/habits/{habit2.id}/checkin")
+    response = client.post(f"/habits/{habit2.id}/checkin")
     assert Checkin.query.filter_by(habit_id=habit2.id, date=today).count() == 1  # the check-in still happened
     assert PointTransaction.query.filter_by(habit_id=habit2.id, date=today).count() == 0  # but earned nothing
+
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert trigger["toast"] == {
+        "message": "No Energy today for a habit you just archived and re-created.", "type": "info",
+    }
 
 
 def test_recreating_different_title_same_day_earns_normally(client, db):
@@ -1415,6 +1421,106 @@ def test_checkin_toast_is_generic_on_a_normal_day(client, db):
     habit = _create_habit(db, user, created_on=date.today())
 
     response = client.post(f"/habits/{habit.id}/checkin")
+    assert "+5 Energy!" in response.headers["HX-Trigger"]
+
+
+# -- daily Energy cap (game.DAILY_ENERGY_CAP, partial top-up) ----------------
+
+
+def test_checkin_partial_top_up_near_the_cap(client, db):
+    user = _login(client, db)
+    today = local_today(user)
+    habit = _create_habit(db, user, created_on=today)
+    db.session.add(PointTransaction(
+        user_id=user.id, habit_id=None, amount=game.DAILY_ENERGY_CAP - 2, reason="daily", date=today,
+    ))
+    db.session.commit()
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+
+    assert "+2 Energy!" in response.headers["HX-Trigger"]
+    total_today = sum(
+        pt.amount for pt in PointTransaction.query.filter_by(user_id=user.id, date=today)
+    )
+    assert total_today == game.DAILY_ENERGY_CAP
+
+
+def test_checkin_exactly_at_cap_awards_nothing_and_shows_the_cap_toast(client, db):
+    user = _login(client, db)
+    today = local_today(user)
+    habit = _create_habit(db, user, created_on=today)
+    db.session.add(PointTransaction(
+        user_id=user.id, habit_id=None, amount=game.DAILY_ENERGY_CAP, reason="daily", date=today,
+    ))
+    db.session.commit()
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert trigger["toast"] == {
+        "message": f"Daily Energy cap reached ({game.DAILY_ENERGY_CAP}). Resets tomorrow.", "type": "info",
+    }
+    assert "checkinCelebration" not in trigger
+    # The check-in itself still happened (decision 3: still counts toward a
+    # building's level even with its Energy withheld) - just no new points.
+    assert Checkin.query.filter_by(habit_id=habit.id, date=today).count() == 1
+    assert PointTransaction.query.filter_by(habit_id=habit.id).count() == 0
+
+
+def test_daily_cap_cannot_be_bypassed_by_archiving_and_recreating_a_habit(client, db):
+    user = _login(client, db)
+    today = local_today(user)
+    old_habit = _create_habit(db, user, title="Run", created_on=today)
+    db.session.add(PointTransaction(
+        user_id=user.id, habit_id=old_habit.id, amount=game.DAILY_ENERGY_CAP, reason="daily", date=today,
+    ))
+    db.session.commit()
+
+    client.delete(f"/habits/{old_habit.id}")  # archives it today
+
+    response = client.post(
+        "/habits", data={"title": "Journal", "emoji": "✍️", "category": "other", "frequency_type": "daily"},
+    )
+    assert response.status_code == 302
+    new_habit = Habit.active().filter_by(user_id=user.id, title="Journal").first()
+
+    response = client.post(f"/habits/{new_habit.id}/checkin")
+
+    trigger = json.loads(response.headers["HX-Trigger"])
+    assert trigger["toast"]["message"] == f"Daily Energy cap reached ({game.DAILY_ENERGY_CAP}). Resets tomorrow."
+    assert PointTransaction.query.filter_by(habit_id=new_habit.id).count() == 0
+
+
+def test_daily_cap_resets_on_the_users_local_day_not_a_utc_one(client, db):
+    user = _login(client, db, timezone="America/New_York")  # non-UTC, deliberately not the default
+    today = local_today(user)
+    yesterday = today - timedelta(days=1)
+    habit = _create_habit(db, user, created_on=yesterday)
+    # Yesterday's ledger was already at the cap - must not bleed into today.
+    db.session.add(PointTransaction(
+        user_id=user.id, habit_id=None, amount=game.DAILY_ENERGY_CAP, reason="daily", date=yesterday,
+    ))
+    db.session.commit()
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+
+    assert "+5 Energy!" in response.headers["HX-Trigger"]
+
+
+def test_crown_points_do_not_count_toward_the_daily_cap(client, db):
+    user = _login(client, db)
+    today = local_today(user)
+    habit = _create_habit(db, user, created_on=today)
+    # A full-cap crown total today must not itself be capped, and must not
+    # count against today's daily/milestone cap either (decision: "counts
+    # only reason daily+milestone, not crown").
+    db.session.add(PointTransaction(
+        user_id=user.id, habit_id=None, amount=game.DAILY_ENERGY_CAP, reason="crown", date=today,
+    ))
+    db.session.commit()
+
+    response = client.post(f"/habits/{habit.id}/checkin")
+
     assert "+5 Energy!" in response.headers["HX-Trigger"]
 
 

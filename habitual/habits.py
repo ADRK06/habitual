@@ -1048,6 +1048,8 @@ def checkin(habit_id):
     points_earned = 0
     bonus = 0
     streak_day = None
+    suppressed = False
+    capped = False
     # Defensive server-side cap - the textarea's maxlength is UX only.
     proof_note = (request.form.get("proof_note") or "").strip()[:280] or None
 
@@ -1085,18 +1087,44 @@ def checkin(habit_id):
         # The checkin itself (and the streak it extends) is unaffected;
         # only the ledger write is skipped.
         suppressed = habit.first_day_points_suppressed and today == habit.created_on
+
+        # Daily Energy cap (game.DAILY_ENERGY_CAP): partial top-up against
+        # the user's local day, summed across EVERY habit (archived ones
+        # included - their rows never leave the ledger) and ONLY reasons
+        # "daily"/"milestone" - a room crown ("crown") never counts toward
+        # this sum, and is never itself capped, since crowns are awarded
+        # entirely separately in rooms.finalize_due_crowns, which never
+        # calls this. Archiving-then-recreating a habit doesn't grant a
+        # fresh cap either - the sum is keyed on user_id + date, not habit_id,
+        # so it can't be bypassed that way. Daily is topped up before
+        # milestone, so a cap reached mid-way through a milestone day still
+        # pays whatever of the base 5 was left before touching the bonus.
+        already_earned_today = int(db.session.query(
+            func.coalesce(func.sum(PointTransaction.amount), 0)
+        ).filter(
+            PointTransaction.user_id == current_user.id,
+            PointTransaction.date == today,
+            PointTransaction.reason.in_(("daily", "milestone")),
+        ).scalar())
+        daily_awarded = game.energy_awarded_with_cap(already_earned_today, points.BASE_POINTS)
+        milestone_awarded = (
+            game.energy_awarded_with_cap(already_earned_today + daily_awarded, bonus) if bonus else 0
+        )
+        capped = (daily_awarded + milestone_awarded) < (points.BASE_POINTS + bonus)
+
         if not suppressed:
-            db.session.add(PointTransaction(
-                user_id=current_user.id, habit_id=habit.id,
-                amount=points.BASE_POINTS, reason="daily", date=today,
-            ))
-            if bonus:
+            if daily_awarded:
                 db.session.add(PointTransaction(
                     user_id=current_user.id, habit_id=habit.id,
-                    amount=bonus, reason="milestone", date=today,
+                    amount=daily_awarded, reason="daily", date=today,
+                ))
+            if milestone_awarded:
+                db.session.add(PointTransaction(
+                    user_id=current_user.id, habit_id=habit.id,
+                    amount=milestone_awarded, reason="milestone", date=today,
                 ))
         db.session.commit()
-        points_earned = 0 if suppressed else points.BASE_POINTS + bonus
+        points_earned = 0 if suppressed else daily_awarded + milestone_awarded
 
     toast, celebration, newly_badges = None, None, []
     if points_earned:
@@ -1107,6 +1135,10 @@ def checkin(habit_id):
         }
         celebration = {"habitId": habit.id, "milestone": bool(bonus), "pointsEarned": points_earned}
         newly_badges = badges.check_and_award(current_user)
+    elif suppressed:
+        toast = {"message": "No Energy today for a habit you just archived and re-created.", "type": "info"}
+    elif checkin_added and capped:
+        toast = {"message": f"Daily Energy cap reached ({game.DAILY_ENERGY_CAP}). Resets tomorrow.", "type": "info"}
 
     # Counted from Checkin rows, never from the points ledger (decision 3:
     # a check-in suppressed by the anti-farming rule or the daily cap
@@ -1153,6 +1185,7 @@ def checkin(habit_id):
     trigger = {}
     if toast:
         trigger["toast"] = toast
+    if celebration:
         trigger["checkinCelebration"] = celebration
     if newly_badges:
         trigger["badgesEarned"] = newly_badges
