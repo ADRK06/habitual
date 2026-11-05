@@ -79,25 +79,32 @@
   });
 
   // Building level-up pulse - the toast itself is handled by base.html's
-  // shared push()/'buildingProgress' listener; this just highlights which
-  // tile it was about (building_tile.html gives every tile a stable
-  // #building-tile-<type> id for exactly this).
+  // shared push()/'buildingProgress' listener; this highlights both where
+  // it happened (building_tile.html's #building-tile-<type>) AND, now
+  // that a built building actually appears on the planet, the sprite
+  // that just appeared there (colony_panel.html's #planet-building-
+  // <type> - only present once level >= 1, which is always true by the
+  // time this fires, since #colony-panel is re-rendered before HX-
+  // Trigger's events fire).
   window.addEventListener("buildingProgress", (e) => {
-    if (skipMotion()) return;
-    const tile = document.getElementById(`building-tile-${e.detail.buildingType}`);
-    if (!tile || !window.gsap) return;
-    gsap.fromTo(
-      tile,
-      { scale: 1, boxShadow: "0 0 0 0 rgba(255, 255, 0, 0)" },
-      {
-        scale: 1.08,
-        boxShadow: "0 0 0 4px rgba(255, 255, 0, 0.4)",
-        duration: 0.3,
-        ease: "power2.out",
-        yoyo: true,
-        repeat: 1,
-      }
-    );
+    if (skipMotion() || !window.gsap) return;
+    const pulse = (el) => {
+      if (!el) return;
+      gsap.fromTo(
+        el,
+        { scale: 1, boxShadow: "0 0 0 0 rgba(255, 255, 0, 0)" },
+        {
+          scale: 1.08,
+          boxShadow: "0 0 0 4px rgba(255, 255, 0, 0.4)",
+          duration: 0.3,
+          ease: "power2.out",
+          yoyo: true,
+          repeat: 1,
+        }
+      );
+    };
+    pulse(document.getElementById(`building-tile-${e.detail.buildingType}`));
+    pulse(document.getElementById(`planet-building-${e.detail.buildingType}`));
   });
 </script>
 {% endblock %}

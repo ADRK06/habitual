@@ -44,6 +44,17 @@ def _give_energy(db, user, amount, date_on=None):
     db.session.commit()
 
 
+def _tile_button_html(html, building_type):
+    """Just the visible <button> content of one building-grid tile - its
+    hover/tap info card (a <template>, always present with the building's
+    real name/category/progress text regardless of locked-vs-built state,
+    per the Phase 4a planet-buildings follow-up) would otherwise make a
+    plain substring check for "is this built yet" unreliable."""
+    start = html.index(f'id="building-tile-{building_type}"')
+    end = html.index("<template", start)
+    return html[start:end]
+
+
 # -- auto-create --------------------------------------------------------------
 
 
@@ -81,10 +92,11 @@ def test_locked_building_shows_category_name_and_progress(client, db):
     _give_checkins(db, habit, 4)
 
     html = client.get("/colony").get_data(as_text=True)
+    tile_html = _tile_button_html(html, "research_lab")
 
-    assert "Study" in html
-    assert "4/10" in html
-    assert "Research Lab" not in html  # not built yet - only the category label shows
+    assert "Study" in tile_html
+    assert "4/10" in tile_html
+    assert "Research Lab" not in tile_html  # not built yet - only the category label shows
 
 
 def test_building_reaches_level_one_at_ten_checkins(client, db):
@@ -143,12 +155,14 @@ def test_a_checkin_only_ever_advances_its_own_habits_building(client, db):
     html = client.get("/colony").get_data(as_text=True)
 
     assert "Defense Tower" in html  # fitness's building, built
-    # A locked tile never renders the building's own name - only the
-    # category label - so Custom Module staying locked means "Custom
-    # Module" doesn't appear in the page at all, and "Other" (its locked
-    # label) does.
-    assert "Custom Module" not in html
-    assert "Other" in html
+    # A locked tile's visible button never shows the building's own name -
+    # only the category label - so Custom Module staying locked means its
+    # tile shows "Other" (the locked label), not "Custom Module" (the
+    # built name) - the hover card's name text is scoped out via
+    # _tile_button_html, since it always shows the real name regardless.
+    tile_html = _tile_button_html(html, "custom_module")
+    assert "Custom Module" not in tile_html
+    assert "Other" in tile_html
 
 
 def test_custom_module_counts_only_the_other_categorys_own_checkins(client, db):
@@ -159,10 +173,10 @@ def test_custom_module_counts_only_the_other_categorys_own_checkins(client, db):
     _give_checkins(db, fitness_habit, 10)  # must NOT count toward Custom Module
 
     html = client.get("/colony").get_data(as_text=True)
+    tile_html = _tile_button_html(html, "custom_module")
 
-    custom_module_start = html.index("Custom Module")
-    assert "LV1" in html[custom_module_start:custom_module_start + 200]
-    assert "LV2" not in html[custom_module_start:custom_module_start + 200]
+    assert ">LV1<" in tile_html
+    assert ">LV2<" not in tile_html
 
 
 def test_category_building_stays_locked_with_only_other_category_checkins(client, db):
@@ -171,10 +185,11 @@ def test_category_building_stays_locked_with_only_other_category_checkins(client
     _give_checkins(db, habit, 10)
 
     html = client.get("/colony").get_data(as_text=True)
+    tile_html = _tile_button_html(html, "defense_tower")
 
     # "Fitness" (the locked label) appears, Defense Tower (the built name) does not.
-    assert "Fitness" in html
-    assert "Defense Tower" not in html
+    assert "Fitness" in tile_html
+    assert "Defense Tower" not in tile_html
 
 
 def test_archiving_the_powering_habit_does_not_lower_the_level(client, db):
@@ -214,6 +229,93 @@ def test_category_edit_moves_historical_checkins_into_the_new_categorys_count(cl
 
     assert _category_checkin_counts(user).get("fitness", 0) == 0
     assert _category_checkin_counts(user).get("study", 0) == 10
+
+
+# -- buildings on the planet (Phase 4a follow-up) ------------------------------
+
+
+def test_planet_slots_cover_every_building_type_exactly_once(client, db):
+    from habitual.colony import PLANET_SLOTS
+
+    assert set(PLANET_SLOTS.keys()) == set(game.BUILDING_TYPES)
+
+
+def test_planet_slots_fit_inside_the_240px_box_with_no_overlap(client, db):
+    from habitual.colony import PLANET_SLOTS, PLANET_SPRITE_SIZE
+
+    positions = list(PLANET_SLOTS.values())
+    for left, top in positions:
+        assert 0 <= left <= 240 - PLANET_SPRITE_SIZE
+        assert 0 <= top <= 240 - PLANET_SPRITE_SIZE
+
+    # No two slots may overlap enough to visually collide - each pair's
+    # boxes must be separated on at least one axis by the sprite's own size.
+    for i, (left_a, top_a) in enumerate(positions):
+        for left_b, top_b in positions[i + 1:]:
+            separated = (
+                abs(left_a - left_b) >= PLANET_SPRITE_SIZE or abs(top_a - top_b) >= PLANET_SPRITE_SIZE
+            )
+            assert separated
+
+
+def test_built_building_appears_on_the_planet_at_its_fixed_slot(client, db):
+    from habitual.colony import PLANET_SLOTS
+
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 10)
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert 'id="planet-building-defense_tower"' in html
+    assert "building_defense_tower.png" in html
+    left, top = PLANET_SLOTS[game.DEFENSE_TOWER]
+    idx = html.index('id="planet-building-defense_tower"')
+    nearby = html[idx:idx + 400]
+    assert f"left: {left}px" in nearby
+    assert f"top: {top}px" in nearby
+
+
+def test_locked_building_is_not_drawn_on_the_planet(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 4)  # nowhere near LV1's 10
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert 'id="planet-building-defense_tower"' not in html
+    assert "building_defense_tower.png" not in html
+
+
+def test_locked_building_shows_a_faint_footprint_marker_on_the_planet(client, db):
+    from habitual.colony import PLANET_SLOTS
+
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 4)
+
+    html = client.get("/colony").get_data(as_text=True)
+    left, top = PLANET_SLOTS[game.DEFENSE_TOWER]
+
+    assert f"left: {left}px" in html
+    assert f"top: {top}px" in html
+    # Not the real sprite - a plain dashed footprint box standing in for it.
+    assert "border-dashed" in html
+
+
+def test_planet_shows_every_built_building_at_once(client, db):
+    user = _login(client, db)
+    fitness_habit = _create_habit(db, user, title="Run", category="fitness")
+    study_habit = _create_habit(db, user, title="Read", category="study")
+    _give_checkins(db, fitness_habit, 10)
+    _give_checkins(db, study_habit, 10)
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert 'id="planet-building-defense_tower"' in html
+    assert 'id="planet-building-research_lab"' in html
+    # Still locked - must not appear.
+    assert 'id="planet-building-power_reactor"' not in html
 
 
 # -- UI / check-in integration -------------------------------------------------
@@ -286,14 +388,15 @@ def test_undo_checkin_lowers_the_derived_level_back_down(client, db):
     client.post(f"/habits/{habit.id}/checkin")  # the 10th - crosses into LV1
 
     html = client.get("/colony").get_data(as_text=True)
-    assert "LV1" in html
+    assert ">LV1<" in _tile_button_html(html, "defense_tower")
 
     response = client.delete(f"/habits/{habit.id}/checkin")
     assert response.status_code == 200
 
     html = client.get("/colony").get_data(as_text=True)
-    assert "LV1" not in html
-    assert "9/10" in html
+    tile_html = _tile_button_html(html, "defense_tower")
+    assert ">LV1<" not in tile_html
+    assert "9/10" in tile_html
 
 
 def test_checkin_suppressed_by_anti_farming_still_counts_toward_building_level(client, db):

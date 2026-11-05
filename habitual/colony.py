@@ -80,6 +80,45 @@ BUILDING_DISPLAY_NAME = {
 # label shown on a still-locked tile ("Fitness 7/10"), not the building's
 # own name (it isn't built yet).
 
+# One-line "what it will do" note for the tile's hover/tap card - no
+# building has any gameplay effect yet (Phase 4a is visuals-only), so
+# every note is future-tensed and tagged "(coming soon)". Wording drawn
+# from docs/COLONIES_GAME_PLAN.md's building table, not invented here.
+BUILDING_EFFECT_NOTE = {
+    game.DEFENSE_TOWER: "Will block storm damage (coming soon)",
+    game.RESEARCH_LAB: "Will unlock new building designs (coming soon)",
+    game.POWER_REACTOR: "Will give a small Energy bonus on every check-in (coming soon)",
+    game.BIODOME: "Will grow your colony's population (coming soon)",
+    game.OBSERVATORY: "Will reveal rare events and new planets (coming soon)",
+    game.CUSTOM_MODULE: "Purely cosmetic - you'll pick its design (coming soon)",
+}
+
+# Fixed pixel slot (top-left corner, for a PLANET_SPRITE_SIZE square) for
+# each building type on the 240x240 planet image (habitual/static/art/
+# planet_render_rust.png, displayed at that fixed size - see colony_panel.
+# html). No mock gives real coordinates for this: every WebHome/PhoneHome/
+# Globe/Isometric/SideView reference screen bakes its buildings into ONE
+# static illustration PNG (confirmed by inspecting docs/reference/colonies/
+# screens/*.dc.html and canvas.json - Globe.dc.html is "A - Round globe
+# (chosen)"), which can't represent a user's own derived 0-6 built subset.
+# These six slots are placed on our own plain planet_render_rust.png
+# (confirmed to have no baked decorations of its own except a thin antenna
+# mast and a couple of small debris pixels at the very top, roughly CSS
+# x:75-115 y:0-55 at this 240x240 display size) - spaced 48 degrees apart
+# around the lower 240 degrees of the sphere's rim (clockwise from top,
+# skipping straight up +/-60 degrees so nothing lands on or near the
+# antenna), at radius 68px from the sphere's own center (117, 130) and
+# this file's own PLANET_SPRITE_SIZE.
+PLANET_SPRITE_SIZE = 32
+PLANET_SLOTS = {
+    game.DEFENSE_TOWER: (160, 80),
+    game.RESEARCH_LAB: (166, 135),
+    game.POWER_REACTOR: (129, 176),
+    game.BIODOME: (74, 176),
+    game.OBSERVATORY: (37, 135),
+    game.CUSTOM_MODULE: (43, 80),
+}
+
 
 def _building_tile_context(building_type, category_checkins):
     """Level is DERIVED from check-in counts, never stored - no Build
@@ -91,6 +130,7 @@ def _building_tile_context(building_type, category_checkins):
     category = game.CATEGORY_FOR_BUILDING_TYPE[building_type]
     level = game.level_for_checkins(category_checkins)
     target = game.next_threshold(category_checkins)
+    slot_left, slot_top = PLANET_SLOTS[building_type]
 
     return {
         "type": building_type,
@@ -101,6 +141,9 @@ def _building_tile_context(building_type, category_checkins):
         "checkins": category_checkins,
         "next_threshold": target,
         "maxed": target is None,
+        "slot_left": slot_left,
+        "slot_top": slot_top,
+        "effect_note": BUILDING_EFFECT_NOTE[building_type],
     }
 
 
@@ -123,6 +166,7 @@ def _colony_context(user):
         "building_tiles": building_tiles,
         "habit_cards": habit_cards,
         "building_type_for_category": game.BUILDING_TYPE_FOR_CATEGORY,
+        "planet_sprite_size": PLANET_SPRITE_SIZE,
         **header,
     }
 
