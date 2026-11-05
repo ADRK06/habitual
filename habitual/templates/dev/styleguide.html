@@ -189,6 +189,80 @@
     </div>
   </section>
 
+  {# Planet-scale buildings (Phase 4a planet-buildings follow-up, round 2) -
+     review only, not wired into colony_panel.html/colony.py yet. See
+     scripts/make_sprites.py's PLANET_BUILDING_DRAWERS docstring for the
+     diagnosis this replaces (pixel-density mismatch + opaque background
+     on the old building_*.png family, which read as pasted-on). #}
+  {% if planet_previews or planet_building_rows %}
+  <section class="flex flex-col gap-6">
+    <div class="flex flex-col gap-2">
+      <h2 class="font-display text-xs tracking-widest text-success">PLANET-SCALE BUILDINGS (REVIEW)</h2>
+      <p class="font-body text-sm text-text-muted max-w-2xl">
+        New - drawn on the same native pixel grid as <code class="font-mono">planet_render_rust.png</code>
+        (one sprite pixel = one planet pixel), transparent background, ground-contact shading in the
+        planet's own sampled rust tones. Not wired into <code class="font-mono">/colony</code> yet -
+        judge the art here first.
+      </p>
+    </div>
+
+    {% if planet_previews %}
+    <div class="flex flex-col gap-3">
+      <h3 class="font-display text-[11px] tracking-widest text-text-muted">FULL-PLANET PREVIEW</h3>
+      <div class="flex flex-wrap gap-6">
+        {% for preview in planet_previews %}
+        <figure class="flex flex-col items-center gap-2 p-4 bg-surface border border-border">
+          <img
+            src="{{ url_for('static', filename=preview.filename) }}"
+            alt="Planet with all six buildings at LV{{ preview.level }}"
+            style="image-rendering: pixelated; width: {{ preview.width * 5 }}px; height: {{ preview.height * 5 }}px;"
+          >
+          <figcaption class="font-body text-xs text-text-muted">All six buildings · LV{{ preview.level }}</figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+      <p class="font-body text-xs text-text-muted max-w-2xl">
+        This preview's layout (<code class="font-mono">PLANET_PREVIEW_ANCHORS</code> in
+        <code class="font-mono">scripts/make_sprites.py</code>) is a one-off for judging the ART only -
+        a separate, simpler arrangement from whatever the real slot positions end up being once this is
+        wired in for real.
+      </p>
+    </div>
+    {% endif %}
+
+    {% for row in planet_building_rows %}
+    <div class="flex flex-col gap-3">
+      <h3 class="font-display text-[11px] tracking-widest text-text-muted">{{ row.label|upper }}</h3>
+      <div class="flex flex-wrap gap-4">
+        {% for lvl in row.levels %}
+        <figure class="flex flex-col items-center gap-3 p-3 bg-surface border border-border">
+          <div class="flex items-end gap-4">
+            <div class="flex flex-col items-center gap-1">
+              <img
+                src="{{ url_for('static', filename=lvl.filename) }}"
+                alt="{{ row.label }} LV{{ lvl.level }}, actual size"
+                style="image-rendering: pixelated; width: {{ lvl.width }}px; height: {{ lvl.height }}px;"
+              >
+              <span class="font-mono text-[9px] text-text-muted">x1</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <img
+                src="{{ url_for('static', filename=lvl.filename) }}"
+                alt="{{ row.label }} LV{{ lvl.level }}, x4"
+                style="image-rendering: pixelated; width: {{ lvl.width * 4 }}px; height: {{ lvl.height * 4 }}px;"
+              >
+              <span class="font-mono text-[9px] text-text-muted">x4</span>
+            </div>
+          </div>
+          <figcaption class="font-body text-xs text-text-muted">LV{{ lvl.level }}</figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
   {# Sprites (Colonies Phase 2 - sprite pipeline) #}
   {% if sprite_groups %}
   {% macro sprite_card(sprite) %}

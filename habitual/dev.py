@@ -24,6 +24,7 @@ CATEGORY_LABELS = {
     "avatar_render": "Avatar renders",
     "building": "Buildings",
     "overlay": "Building overlays",
+    "planet_building": "Planet-scale buildings (review)",
     "icon": "Icons",
     "planet_material": "Planet materials",
     "planet_decoration": "Planet decorations",
@@ -33,6 +34,15 @@ CATEGORY_LABELS = {
     "fleet": "Fleet",
     "effect": "Effects",
 }
+
+PLANET_BUILDING_TYPES = [
+    ("defense_tower", "Defense Tower"),
+    ("research_lab", "Research Lab"),
+    ("power_reactor", "Power Reactor"),
+    ("biodome", "Biodome"),
+    ("observatory", "Observatory"),
+    ("custom_module", "Custom Module"),
+]
 
 FIXED_BUILDINGS = [
     "building_research_lab",
@@ -119,6 +129,41 @@ def _composite_rows() -> list[dict]:
     return rows
 
 
+def _planet_building_rows() -> list[dict]:
+    """The 18 new planet-scale building sprites (scripts/make_sprites.py's
+    PLANET_BUILDING_DRAWERS), one row per building type with its LV1-3
+    progression, each shown at x1 AND x4 (x1 to judge true in-context
+    size against the planet, x4 to inspect detail - a generic sprite_card
+    alone only ever shows x4). Review-only: not wired into colony_panel.
+    html yet."""
+    rows = []
+    for building_type, label in PLANET_BUILDING_TYPES:
+        levels = []
+        for level in (1, 2, 3):
+            name = f"planet_building_{building_type}_lv{level}"
+            size = _png_size(ART_DIR / f"{name}.png")
+            if size is None:
+                continue
+            levels.append({"level": level, "filename": f"art/{name}.png", "width": size[0], "height": size[1]})
+        if levels:
+            rows.append({"label": label, "levels": levels})
+    return rows
+
+
+def _planet_previews() -> list[dict]:
+    """The two full-planet mockups (all six planet-scale buildings at LV1,
+    then at LV3 - scripts/make_sprites.py's build_planet_previews()),
+    shown large so the developer can judge how the new art reads directly
+    on planet_render_rust.png before approving it for real."""
+    previews = []
+    for level in (1, 3):
+        filename = f"planet_preview_lv{level}.png"
+        size = _png_size(COMPOSITES_DIR / filename)
+        if size is not None:
+            previews.append({"level": level, "filename": f"art/_composites/{filename}", "width": size[0], "height": size[1]})
+    return previews
+
+
 @dev.get("/dev/styleguide")
 def styleguide():
     # No @login_required - the styleguide itself must work logged out
@@ -131,11 +176,15 @@ def styleguide():
     sprite_groups, new_sprites = _sprite_groups()
     composite_rows = _composite_rows()
     sheet_size = _png_size(SPRITE_SHEET_PATH)
+    planet_building_rows = _planet_building_rows()
+    planet_previews = _planet_previews()
     return render_template(
         "dev/styleguide.html",
         sprite_groups=sprite_groups,
         new_sprites=new_sprites,
         composite_rows=composite_rows,
         sheet_size=sheet_size,
+        planet_building_rows=planet_building_rows,
+        planet_previews=planet_previews,
         **nav_context,
     )

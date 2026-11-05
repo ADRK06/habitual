@@ -631,6 +631,231 @@ def draw_boss_vx3():
     return c
 
 
+# ---- planet-scale buildings (6 types x 3 levels = 18) -------------------
+# Drawn on the SAME native pixel grid as planet_render_rust.png (one
+# sprite pixel = one planet pixel at the same display scale - see
+# PLANET_SPRITE_W/H below), transparent background, roughly 6-12px of
+# structure plus 1-2px of ground-contact shading - unlike the existing
+# building_*/icon_* family (16x16, opaque, a flat UI-surface-colored
+# background baked in), which read as a different, pasted-on art source
+# once placed directly on the planet (confirmed: wrong pixel density at
+# the scale colony_panel.html displays each at, plus a hard-edged opaque
+# square that occludes the planet's own texture instead of blending into
+# it). REGOLITH_* below are sampled directly from planet_render_rust.png
+# itself (its 4 most common non-background colors after the existing
+# GRAY/STEEL/AMBER family, which the planet also already uses) so ground
+# contact pixels blend into the real planet art, not an invented palette.
+#
+# Review-only for now: registered in NEW_SPRITES/META and shown at
+# /dev/styleguide (x1 and x4, plus two full-planet preview composites),
+# but NOT wired into colony_panel.html/colony.py - that's a later step,
+# after the developer approves the art here.
+REGOLITH_SHADOW = (0x3A, 0x16, 0x10, 255)  # planet_render_rust's own deepest shadow rust
+REGOLITH_DARK = (0x5A, 0x24, 0x18, 255)
+REGOLITH = (0xA8, 0x43, 0x2A, 255)
+REGOLITH_LIGHT = (0xF2, 0x9A, 0x6A, 255)  # planet_render_rust's own brightest highlight rust
+
+PLANET_SPRITE_W = 14
+PLANET_SPRITE_H = 16
+GROUND_Y = 14  # last row (15) is ground-shading only; a structure's own base sits on this row
+
+
+def _planet_canvas():
+    return new_canvas(PLANET_SPRITE_W, PLANET_SPRITE_H)
+
+
+def _ground_contact(c, cx, half_width):
+    """1-2px of shaded ground where a building meets the surface - reuses
+    the planet's own rust-shadow tones (not a flat UI drop shadow), so the
+    contact blends into the terrain's coloring instead of sitting on it."""
+    hline(c, cx - half_width, cx + half_width, GROUND_Y + 1, REGOLITH_SHADOW)
+    if half_width > 1:
+        hline(c, cx - half_width + 1, cx + half_width - 1, GROUND_Y, REGOLITH_DARK)
+
+
+def _draw_defense_tower(level: int):
+    # tall thin spire - taller main shaft + side struts/spires as it levels
+    c = _planet_canvas()
+    cx = 7
+    if level == 1:
+        _ground_contact(c, cx, 1)
+        rect(c, cx - 1, GROUND_Y - 1, cx + 1, GROUND_Y, GRAY_DARK)
+        vline(c, cx, GROUND_Y - 6, GROUND_Y - 2, GRAY_MID)
+        set_px(c, cx, GROUND_Y - 7, AMBER)
+    elif level == 2:
+        _ground_contact(c, cx, 2)
+        rect(c, cx - 1, GROUND_Y - 1, cx + 1, GROUND_Y, GRAY_DARK)
+        vline(c, cx, GROUND_Y - 8, GROUND_Y - 2, GRAY_MID)
+        vline(c, cx - 2, GROUND_Y - 4, GROUND_Y - 2, GRAY_LIGHT)
+        set_px(c, cx, GROUND_Y - 9, AMBER)
+        set_px(c, cx, GROUND_Y - 8, AMBER_LIGHT)
+    else:
+        _ground_contact(c, cx, 3)
+        rect(c, cx - 2, GROUND_Y - 1, cx + 2, GROUND_Y, GRAY_DARK)
+        vline(c, cx, GROUND_Y - 11, GROUND_Y - 2, GRAY_MID)
+        vline(c, cx - 2, GROUND_Y - 6, GROUND_Y - 2, GRAY_LIGHT)
+        vline(c, cx + 2, GROUND_Y - 6, GROUND_Y - 2, GRAY_LIGHT)
+        set_px(c, cx, GROUND_Y - 12, AMBER)
+        set_px(c, cx, GROUND_Y - 11, AMBER_LIGHT)
+        set_px(c, cx - 2, GROUND_Y - 7, AMBER)
+        set_px(c, cx + 2, GROUND_Y - 7, AMBER)
+    return c
+
+
+def _draw_research_lab(level: int):
+    # boxy block with lit windows - grows taller with more windows, a
+    # wing extension joins at LV3
+    c = _planet_canvas()
+    cx = 6
+    if level == 1:
+        _ground_contact(c, cx, 3)
+        rect(c, cx - 3, GROUND_Y - 5, cx + 2, GROUND_Y, GRAY_MID)
+        hline(c, cx - 3, cx + 2, GROUND_Y - 5, GRAY_LIGHT)
+        set_px(c, cx - 1, GROUND_Y - 3, AMBER)
+        set_px(c, cx + 1, GROUND_Y - 3, AMBER)
+    elif level == 2:
+        _ground_contact(c, cx, 3)
+        rect(c, cx - 3, GROUND_Y - 7, cx + 2, GROUND_Y, GRAY_MID)
+        hline(c, cx - 3, cx + 2, GROUND_Y - 7, GRAY_LIGHT)
+        set_px(c, cx, GROUND_Y - 8, GRAY_LIGHT)
+        for wy in (GROUND_Y - 5, GROUND_Y - 2):
+            set_px(c, cx - 1, wy, AMBER)
+            set_px(c, cx + 1, wy, AMBER)
+    else:
+        _ground_contact(c, cx, 5)
+        rect(c, cx - 3, GROUND_Y - 8, cx + 2, GROUND_Y, GRAY_MID)
+        hline(c, cx - 3, cx + 2, GROUND_Y - 8, GRAY_LIGHT)
+        set_px(c, cx, GROUND_Y - 9, GRAY_LIGHT)
+        for wy in (GROUND_Y - 6, GROUND_Y - 3):
+            set_px(c, cx - 1, wy, AMBER)
+            set_px(c, cx + 1, wy, AMBER)
+        rect(c, cx + 3, GROUND_Y - 4, cx + 5, GROUND_Y, GRAY_DARK)
+        set_px(c, cx + 4, GROUND_Y - 2, AMBER)
+    return c
+
+
+def _draw_power_reactor(level: int):
+    # squat drum with a glow core - wider/taller with fins at LV3
+    c = _planet_canvas()
+    cx = 7
+    if level == 1:
+        _ground_contact(c, cx, 3)
+        rect(c, cx - 3, GROUND_Y - 4, cx + 3, GROUND_Y, STEEL_DARK)
+        hline(c, cx - 3, cx + 3, GROUND_Y - 4, GRAY_LIGHT)
+        set_px(c, cx, GROUND_Y - 2, AMBER_LIGHT)
+    elif level == 2:
+        _ground_contact(c, cx, 3)
+        rect(c, cx - 3, GROUND_Y - 6, cx + 3, GROUND_Y, STEEL_DARK)
+        hline(c, cx - 3, cx + 3, GROUND_Y - 6, GRAY_LIGHT)
+        rect(c, cx - 1, GROUND_Y - 3, cx, GROUND_Y - 2, AMBER_LIGHT)
+    else:
+        _ground_contact(c, cx, 4)
+        rect(c, cx - 3, GROUND_Y - 7, cx + 3, GROUND_Y, STEEL_DARK)
+        hline(c, cx - 3, cx + 3, GROUND_Y - 7, GRAY_LIGHT)
+        vline(c, cx - 4, GROUND_Y - 5, GROUND_Y - 1, STEEL_LIGHT)
+        vline(c, cx + 4, GROUND_Y - 5, GROUND_Y - 1, STEEL_LIGHT)
+        rect(c, cx - 1, GROUND_Y - 4, cx, GROUND_Y - 2, AMBER_LIGHT)
+        set_px(c, cx - 2, GROUND_Y - 4, AMBER)
+        set_px(c, cx + 1, GROUND_Y - 4, AMBER)
+    return c
+
+
+def _draw_biodome(level: int):
+    # glassy half-dome, same green/steel language as the shield-dome
+    # overlay - bigger with a second smaller dome joining at LV3
+    c = _planet_canvas()
+    cx = 6
+    if level == 1:
+        _ground_contact(c, cx, 3)
+        hline(c, cx - 3, cx + 3, GROUND_Y, STEEL_LIGHT)
+        hline(c, cx - 2, cx + 2, GROUND_Y - 1, GREEN)
+        hline(c, cx - 1, cx + 1, GROUND_Y - 2, GREEN)
+        set_px(c, cx, GROUND_Y - 3, GREEN_LIGHT)
+    elif level == 2:
+        _ground_contact(c, cx, 4)
+        hline(c, cx - 4, cx + 4, GROUND_Y, STEEL_LIGHT)
+        hline(c, cx - 3, cx + 3, GROUND_Y - 1, GREEN)
+        hline(c, cx - 2, cx + 2, GROUND_Y - 2, GREEN)
+        hline(c, cx - 1, cx + 1, GROUND_Y - 3, GREEN)
+        set_px(c, cx, GROUND_Y - 4, GREEN_LIGHT)
+    else:
+        _ground_contact(c, cx, 6)
+        hline(c, cx - 4, cx + 4, GROUND_Y, STEEL_LIGHT)
+        hline(c, cx - 3, cx + 3, GROUND_Y - 1, GREEN)
+        hline(c, cx - 2, cx + 2, GROUND_Y - 2, GREEN)
+        hline(c, cx - 1, cx + 1, GROUND_Y - 3, GREEN)
+        set_px(c, cx, GROUND_Y - 4, GREEN_LIGHT)
+        # small secondary dome, offset to the right
+        hline(c, cx + 4, cx + 6, GROUND_Y, STEEL_LIGHT)
+        hline(c, cx + 5, cx + 5, GROUND_Y - 1, GREEN_LIGHT)
+    return c
+
+
+def _draw_observatory(level: int):
+    # tall block with a small symmetric dome cap on top (same concentric-
+    # row technique as _draw_biodome, just steel-toned and sitting on a
+    # block instead of the ground) - a first pass drew the dish as a
+    # lopsided single-row-plus-a-point, which read as scattered debris
+    # rather than a dish; a centered dome cap reads cleanly even this
+    # small. Taller block + bigger cap each level; a second antenna joins
+    # at LV3.
+    c = _planet_canvas()
+    cx = 7
+    if level == 1:
+        _ground_contact(c, cx, 2)
+        rect(c, cx - 2, GROUND_Y - 2, cx + 2, GROUND_Y, GRAY_MID)
+        hline(c, cx - 1, cx + 1, GROUND_Y - 3, STEEL_LIGHT)
+        set_px(c, cx, GROUND_Y - 4, AMBER_LIGHT)
+    elif level == 2:
+        _ground_contact(c, cx, 2)
+        rect(c, cx - 2, GROUND_Y - 4, cx + 2, GROUND_Y, GRAY_MID)
+        hline(c, cx - 2, cx + 2, GROUND_Y - 5, STEEL_LIGHT)
+        hline(c, cx - 1, cx + 1, GROUND_Y - 6, STEEL_LIGHT)
+        set_px(c, cx, GROUND_Y - 7, AMBER_LIGHT)
+    else:
+        _ground_contact(c, cx, 3)
+        rect(c, cx - 2, GROUND_Y - 5, cx + 2, GROUND_Y, GRAY_MID)
+        hline(c, cx - 2, cx + 2, GROUND_Y - 6, STEEL_LIGHT)
+        hline(c, cx - 1, cx + 1, GROUND_Y - 7, STEEL_LIGHT)
+        set_px(c, cx, GROUND_Y - 8, AMBER_LIGHT)
+        vline(c, cx + 3, GROUND_Y - 6, GROUND_Y - 3, GRAY_LIGHT)
+        set_px(c, cx + 3, GROUND_Y - 7, AMBER)
+    return c
+
+
+def _draw_custom_module(level: int):
+    # plain box with a glowing orange core - core grows, a small
+    # extension joins at LV3
+    c = _planet_canvas()
+    cx = 6
+    if level == 1:
+        _ground_contact(c, cx, 2)
+        rect(c, cx - 2, GROUND_Y - 4, cx + 2, GROUND_Y, GRAY_MID)
+        set_px(c, cx, GROUND_Y - 2, AMBER)
+    elif level == 2:
+        _ground_contact(c, cx, 2)
+        rect(c, cx - 2, GROUND_Y - 6, cx + 2, GROUND_Y, GRAY_MID)
+        rect(c, cx - 1, GROUND_Y - 3, cx, GROUND_Y - 2, AMBER_LIGHT)
+        set_px(c, cx - 2, GROUND_Y - 3, AMBER)
+    else:
+        _ground_contact(c, cx, 4)
+        rect(c, cx - 2, GROUND_Y - 7, cx + 2, GROUND_Y, GRAY_MID)
+        rect(c, cx - 1, GROUND_Y - 4, cx, GROUND_Y - 3, AMBER_LIGHT)
+        set_px(c, cx - 2, GROUND_Y - 4, AMBER)
+        set_px(c, cx + 2, GROUND_Y - 4, AMBER)
+        rect(c, cx + 3, GROUND_Y - 3, cx + 4, GROUND_Y, GRAY_DARK)
+    return c
+
+
+PLANET_BUILDING_DRAWERS = {
+    "defense_tower": _draw_defense_tower,
+    "research_lab": _draw_research_lab,
+    "power_reactor": _draw_power_reactor,
+    "biodome": _draw_biodome,
+    "observatory": _draw_observatory,
+    "custom_module": _draw_custom_module,
+}
+
 NEW_SPRITES = {
     "building_damage_overlay": draw_damage_overlay,
     "building_shield_dome": draw_shield_dome,
@@ -645,6 +870,9 @@ NEW_SPRITES = {
     "fleet_station_lv3": lambda: draw_fleet_station(3),
     "boss_vx3": draw_boss_vx3,
 }
+for _bt, _drawer in PLANET_BUILDING_DRAWERS.items():
+    for _lv in (1, 2, 3):
+        NEW_SPRITES[f"planet_building_{_bt}_lv{_lv}"] = (lambda d=_drawer, lv=_lv: d(lv))
 
 NEW_SPRITE_META = {
     "building_damage_overlay": {"category": "overlay", "phase": 5, "notes": "reusable on all 5 fixed buildings"},
@@ -660,6 +888,12 @@ NEW_SPRITE_META = {
     "fleet_station_lv3": {"category": "fleet", "phase": 6, "notes": "standalone, level 3 of 3"},
     "boss_vx3": {"category": "fleet", "phase": 6, "notes": "weekly boss, named after the mocks' own 'Mothership VX-3'"},
 }
+for _bt in PLANET_BUILDING_DRAWERS:
+    for _lv in (1, 2, 3):
+        NEW_SPRITE_META[f"planet_building_{_bt}_lv{_lv}"] = {
+            "category": "planet_building", "phase": 4,
+            "notes": f"planet-scale {_bt}, level {_lv} of 3 - review only, not wired in yet",
+        }
 
 FIXED_BUILDINGS = [
     "building_research_lab",
@@ -823,6 +1057,48 @@ def build_composites() -> None:
         shield_overlay = draw_shield_dome_biodome() if base_name == "building_biodome" else draw_shield_dome()
         shield = composite(base_name, shield_overlay)
         shield.save(COMPOSITES_DIR / f"{base_name}_shield.png")
+
+    build_planet_previews()
+
+
+# Review-only anchor layout for the two full-planet previews below - the
+# ground-contact point (on planet_render_rust.png's own 48x48 canvas) each
+# building's own base should land on. Spaced 48 degrees apart around the
+# lower 240 degrees of the sphere's rim (measured center ~(23.5,26),
+# radius ~16), explicitly clear of the antenna/debris at the top (source
+# rows 0-8). A SEPARATE, one-off layout from whatever colony.py's real
+# PLANET_SLOTS ends up using once this art is approved and actually wired
+# in - intentionally not shared code, per "do not touch placement code".
+PLANET_PREVIEW_ANCHORS = {
+    "defense_tower": (35.6, 19),
+    "research_lab": (36.8, 30.3),
+    "power_reactor": (29.2, 38.8),
+    "biodome": (17.8, 38.8),
+    "observatory": (10.2, 30.3),
+    "custom_module": (11.4, 19),
+}
+
+
+def _paste_planet_building(base_img, building_type: str, level: int) -> None:
+    sprite = canvas_to_image(PLANET_BUILDING_DRAWERS[building_type](level))
+    anchor_x, anchor_y = PLANET_PREVIEW_ANCHORS[building_type]
+    left = round(anchor_x - PLANET_SPRITE_W / 2)
+    top = round(anchor_y - (PLANET_SPRITE_H - 1))
+    base_img.paste(sprite, (left, top), sprite)
+
+
+def build_planet_previews() -> None:
+    """Two full-planet mockups (all six planet-scale buildings at LV1, then
+    all six at LV3) for /dev/styleguide to judge the new art directly on
+    planet_render_rust.png - review only. Uses PLANET_PREVIEW_ANCHORS
+    above, not colony.py's real (untouched) slot system."""
+    from PIL import Image
+
+    for level, filename in ((1, "planet_preview_lv1.png"), (3, "planet_preview_lv3.png")):
+        base = Image.open(DEST_DIR / "planet_render_rust.png").convert("RGBA")
+        for building_type in PLANET_BUILDING_DRAWERS:
+            _paste_planet_building(base, building_type, level)
+        base.save(COMPOSITES_DIR / filename)
 
 
 if __name__ == "__main__":
