@@ -111,14 +111,15 @@ habitual/
 | Table | Key fields |
 |---|---|
 | `users` | id, name, username (unique, case-insensitive), password_hash, timezone, theme (unused — reserved, dark-only v1), created_at |
-| `habits` | id, user_id, room_id (nullable, `ON DELETE SET NULL`), title, emoji, tiny_version (text), created_on (date), archived_at (timestamp, nullable), first_day_points_suppressed (bool) |
+| `habits` | id, user_id, room_id (nullable, `ON DELETE SET NULL`), title, emoji, category (see Colonies below), tiny_version (text), created_on (date), archived_at (timestamp, nullable), first_day_points_suppressed (bool) |
 | `checkins` | id, habit_id, date, created_at (timestamp), proof_note (nullable) — **UNIQUE(habit_id, date)** |
 | `freezes` | id, user_id, habit_id (nullable until used), purchased_at, used_on (date, nullable) |
 | `point_transactions` | id, user_id, habit_id (nullable), amount, reason, date, created_at |
-| `rooms` | id, title, emoji, creator_id, duration_days, start_date, invite_token (unique) |
+| `rooms` | id, title, emoji, creator_id, duration_days, start_date, invite_token (unique), category (see Colonies below) |
 | `room_members` | id, room_id, user_id, joined_on — UNIQUE(room_id, user_id) |
 | `vouches` | id, checkin_id, user_id, emoji (✅ or 🔥) — UNIQUE(checkin_id, user_id) |
 | `badges` | id, user_id, type, earned_on — UNIQUE(user_id, type) |
+| `colonies` | id, user_id (unique), name, planet_type, created_on — **no `buildings` table**, see Colonies below |
 
 **Deleting a habit or leaving a room archives it** (`archived_at` set), it does **not** delete it.
 Check-ins, freezes, point transactions and vouches on it all survive untouched, so earned points and
@@ -209,6 +210,35 @@ For a completed day that is day **n** of the current streak:
 - Usual check-in time (median)
 - This month vs last month completion rate change
 - Show only after ≥ 14 days of data. Otherwise show "Keep going — insights unlock after 14 days".
+
+### Colonies (Phase 4a)
+- Every account has one **Colony** (auto-created on first `/colony` visit), with a planet and 6
+  buildings — one per `Habit.category` (`fitness`, `study`, `sleep`, `water_food`, `mind`, `other`).
+- **Energy is just points**, reframed — same `point_transactions` ledger, same reasons
+  (`daily`/`milestone`/`crown`/`freeze_purchase`), same earned/balance split. No new currency.
+- **Colony level** = `1 + floor(sqrt(earned_points / 25))` — XP-only, no population/building-count
+  bonus (not implemented anywhere yet).
+- **Building level is derived, never stored** — no `buildings` table. A building's level comes live
+  from the lifetime count of check-ins in its category (`habitual.game.level_for_checkins`), counting
+  every check-in the user has ever made (archived habits and fleet/room habits both count — archiving
+  must never look like losing progress, and a room habit's category is just `Habit.category` copied
+  from the room). Thresholds: **10 → LV1, 30 → LV2, 60 → LV3** (max). Custom Module (`other`) is the
+  one exception — it counts the user's TOTAL check-ins across every category instead of just `other`'s
+  own, so it's never truly locked for anyone with at least one check-in anywhere. No build menu, no
+  Energy spend on buildings, no construction timers — a check-in that crosses a threshold fires a toast
+  + a short pulse on that building's tile, computed once, only on the check-in that actually crosses it
+  (never on a page load, never from undo/freeze).
+- **Category** (`Habit.category`) is editable any time via a dedicated route (same pattern as
+  frequency, but with no streak-restart side effect — it only changes which building a habit powers).
+  A room's category (`Room.category`) is creator-only, editable any time, and re-copies onto every
+  CURRENT member's habit in the same request; a new joiner always gets whatever the room's category is
+  at join time, never retroactively.
+- **Daily Energy cap**: 100/local day, partial top-up (never negative), counting only `daily` +
+  `milestone` reasons across every habit (archived included) — a room crown never counts toward it and
+  is never itself capped. Scoped to `user_id` + local date, never `habit_id`, so archiving a habit and
+  recreating it can't reset or bypass it. Toasts (both "info"): cap hit → "Daily Energy cap reached
+  (100). Resets tomorrow."; the pre-existing anti-farming suppression (see above) → "No Energy today
+  for a habit you just archived and re-created."
 
 ---
 
@@ -319,9 +349,11 @@ page** - drawing a sprite and shipping it are two separate, deliberately separat
 - **Logo**: no icon mark yet - the developer is drafting one to slot in later. Until then, use the text
   wordmark "Habitual" in `font-display` (nav, footer). Favicon is a placeholder flat yellow/void teardrop
   (`habitual/static/img/favicon.svg`) - swap it when the real mark lands.
-- **Gamified elements, kept honest**: points, milestones (day 7/14/30...), the daily crown, streaks. No
-  fake "levels" or "XP" framing - the app doesn't have a level system, so don't imply one. Progress toward
-  a milestone is shown as a plain countdown ("Day 23 of 30 to next milestone"), not a leveling/XP bar.
+- **Gamified elements, kept honest**: points, milestones (day 7/14/30...), the daily crown, streaks,
+  and - as of Colonies (see Business rules above) - a real colony-level/building-level/XP system with
+  actual mechanics behind it, never implied without one. Outside Colonies screens (dashboard, habit and
+  room pages), still no fake "levels" or "XP" framing - progress toward a milestone stays a plain
+  countdown ("Day 23 of 30 to next milestone"), not a leveling/XP bar.
 - **Surfaces**: soft glassy cards (navy-tinted surface over void), subtle borders, generous spacing,
   rounded-2xl.
 - **Motion**:
