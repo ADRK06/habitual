@@ -57,15 +57,50 @@ AVATAR_SLOT_LABELS = {
     "suit": "Suit", "gear": "Gear", "emblem": "Badge",
 }
 # The one value per slot that draws no layer at all (bare head/face,
-# no visor, etc.) - every other value has a real avatar_<slot>_<value>
-# .png sprite (confirmed against manifest.json during the Phase 4b art
-# audit - nothing missing).
+# no visor, etc.) - every other value has a real sprite (confirmed
+# against manifest.json during the Phase 4b art audit - nothing
+# missing). A slot whose current value is here must never render an
+# <img> at all, in every place a layer gets rendered - not an <img>
+# with an empty/missing src.
 AVATAR_NO_LAYER_VALUE = {"visor": "open", "hair": "none", "gear": "none", "emblem": "none"}
+
+# Sprite filename prefix per slot - "gear" is the one slot whose own
+# sprite files use a different word ("acc", for "accessory") than its
+# slot name; every other slot's prefix matches its slot name exactly
+# (confirmed against manifest.json: avatar_helmet_*, avatar_visor_*,
+# avatar_face_*, avatar_hair_*, avatar_suit_*, avatar_acc_*, avatar_
+# emblem_*). One mapping, used everywhere a filename is built (here,
+# the picker grid via AVATAR_SWATCHES below, and the client-side live
+# preview's JS), so this can only ever need fixing in one place.
+AVATAR_FILE_PREFIX = {
+    "helmet": "helmet", "visor": "visor", "face": "face", "hair": "hair",
+    "suit": "suit", "gear": "acc", "emblem": "emblem",
+}
 
 # z-order for the stacked preview, back to front - mirrors the mock's
 # own layering script (Playbook: "stacking transparent PNGs... in the
 # same z-order the mock's script uses").
 AVATAR_LAYER_ORDER = ("suit", "emblem", "helmet", "face", "hair", "visor", "gear")
+
+
+def avatar_sprite_filename(slot: str, value: str) -> str:
+    """The sprite filename for one slot/value pair - the one place
+    that combines AVATAR_FILE_PREFIX with a value. Callers must check
+    AVATAR_NO_LAYER_VALUE first - this never returns a sensible result
+    for a "no layer" value, since no such sprite exists."""
+    return f"avatar_{AVATAR_FILE_PREFIX[slot]}_{value}.png"
+
+
+# Every (slot, value) pair's picker-grid thumbnail, including locked
+# values (so they can be shown for try-on) - None for a "no layer"
+# value, same meaning as colony.PLANET_LOOK_SWATCHES. Computed once
+# from AVATAR_CATALOG so the picker grid template never builds a
+# filename by string concatenation itself.
+AVATAR_SWATCHES = {
+    (slot, value): (None if AVATAR_NO_LAYER_VALUE.get(slot) == value else avatar_sprite_filename(slot, value))
+    for slot, options in AVATAR_CATALOG.items()
+    for value, _, _ in options
+}
 
 
 def avatar_layer_filenames(avatar_dict: dict) -> list[str]:
@@ -79,7 +114,7 @@ def avatar_layer_filenames(avatar_dict: dict) -> list[str]:
         value = avatar_dict[slot]
         if AVATAR_NO_LAYER_VALUE.get(slot) == value:
             continue
-        filenames.append(f"avatar_{slot}_{value}.png")
+        filenames.append(avatar_sprite_filename(slot, value))
     return filenames
 
 
@@ -161,6 +196,8 @@ def commander_locker():
         avatar_catalog=AVATAR_CATALOG,
         avatar_slot_labels=AVATAR_SLOT_LABELS,
         avatar_no_layer_value=AVATAR_NO_LAYER_VALUE,
+        avatar_file_prefix=AVATAR_FILE_PREFIX,
+        avatar_swatches=AVATAR_SWATCHES,
         avatar_layer_order=AVATAR_LAYER_ORDER,
         rank=game.rank_for_xp(_earned_points_for(current_user)),
         commander_class=game.class_for_category_counts(category_counts),

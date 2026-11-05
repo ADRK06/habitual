@@ -37,19 +37,27 @@
     av: {{ avatar|tojson }},
     catalog: {{ avatar_catalog|tojson }},
     noLayer: {{ avatar_no_layer_value|tojson }},
+    filePrefix: {{ avatar_file_prefix|tojson }},
     layerOrder: {{ avatar_layer_order|list|tojson }},
+    avatarSlotLabels: {{ avatar_slot_labels|tojson }},
     tab: "helmet",
     isStarter(slot, value) {
       const opt = this.catalog[slot].find((o) => o[0] === value);
       return opt ? opt[2] === null : false;
     },
+    lockedSlots() {
+      return Object.keys(this.av).filter((slot) => !this.isStarter(slot, this.av[slot]));
+    },
     hasLocked() {
-      return Object.keys(this.av).some((slot) => !this.isStarter(slot, this.av[slot]));
+      return this.lockedSlots().length > 0;
+    },
+    lockedSlotLabels() {
+      return this.lockedSlots().map((slot) => this.avatarSlotLabels[slot]).join(", ");
     },
     layerSrc(slot) {
       const value = this.av[slot];
       if (this.noLayer[slot] === value) return null;
-      return {{ url_for('static', filename='art/') | tojson }} + "avatar_" + slot + "_" + value + ".png";
+      return {{ url_for('static', filename='art/') | tojson }} + "avatar_" + this.filePrefix[slot] + "_" + value + ".png";
     },
     useFreeParts() {
       for (const slot in this.catalog) {
@@ -85,7 +93,11 @@
     <div class="flex shrink-0 flex-col items-center gap-2 border border-border bg-surface p-4">
       <div class="relative" style="width: 96px; height: 96px; image-rendering: pixelated;">
         <template x-for="slot in layerOrder" :key="slot">
-          <img x-show="layerSrc(slot)" :src="layerSrc(slot)" alt="" class="absolute inset-0" style="width: 96px; height: 96px;">
+          {# layerSrc(slot) is null for a "no layer" value (bare head,
+             no visor, etc.) - x-show hides the <img> AND :src is never
+             bound to null/empty, so no layer ever renders a broken-
+             image request. #}
+          <img x-show="layerSrc(slot)" x-cloak :src="layerSrc(slot)" alt="" class="absolute inset-0" style="width: 96px; height: 96px;">
         </template>
       </div>
     </div>
@@ -96,9 +108,15 @@
         <button
           type="button"
           @click="tab = '{{ slot }}'"
-          :class="tab === '{{ slot }}' ? 'border-accent text-accent' : 'border-border text-text-muted'"
+          :class="tab === '{{ slot }}' ? 'border-accent text-accent' : (!isStarter('{{ slot }}', av.{{ slot }}) ? 'border-danger text-danger' : 'border-border text-text-muted')"
           class="h-9 border px-3 font-display text-[11px] uppercase tracking-wide transition-colors hover:border-accent"
-        >{{ label }}</button>
+        >
+          {{ label }}
+          {# A locked marker right on the tab, so it's obvious which
+             slot needs attention without having to click through
+             every tab to find it. #}
+          <span x-show="!isStarter('{{ slot }}', av.{{ slot }})" x-cloak class="text-danger">⚠</span>
+        </button>
         {% endfor %}
       </div>
 
@@ -111,9 +129,10 @@
           :class="av.{{ slot }} === '{{ value }}' ? 'border-accent' : 'border-border'"
           class="flex flex-col items-center gap-1 border bg-void p-2 hover:border-accent"
         >
-          {% if avatar_no_layer_value.get(slot) != value %}
+          {% set swatch = avatar_swatches.get((slot, value)) %}
+          {% if swatch %}
           <img
-            src="{{ url_for('static', filename='art/avatar_' ~ slot ~ '_' ~ value ~ '.png') }}"
+            src="{{ url_for('static', filename='art/' ~ swatch) }}"
             alt=""
             class="h-6 w-6"
             style="image-rendering: pixelated"
@@ -133,8 +152,8 @@
       {% endfor %}
 
       <p class="mt-3 font-body text-xs text-text-muted" x-show="hasLocked()" x-cloak>
-        You start with free parts - locked parts unlock later (streaks, rank, Energy). Use free parts or pick a
-        different option to save.
+        <span x-text="lockedSlotLabels()"></span> isn't unlocked yet - locked parts unlock later (streaks,
+        rank, Energy). Use free parts or pick a different option to save.
       </p>
 
       <form method="post" class="mt-4 flex flex-wrap items-center gap-2">
@@ -146,7 +165,7 @@
           type="button" @click="useFreeParts()" x-show="hasLocked()" x-cloak
           class="h-11 border border-border px-4 font-display text-xs uppercase tracking-wide text-text transition hover:border-accent"
         >
-          Use free parts
+          <span x-text="'Use free ' + lockedSlotLabels()"></span>
         </button>
         <button
           type="submit" x-show="!hasLocked()"
