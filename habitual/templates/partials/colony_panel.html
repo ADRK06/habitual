@@ -10,11 +10,17 @@
   yet, or belongs to a later phase - see the Phase 4a plan): no SHIELD UP
   badge (Phase 5), no daily supply drop card (Phase 5), no sector/fleet
   cards (Phases 6-7), no colony log feed, no "vouched" bonus label
-  (vouching awards no Energy anywhere in this app yet). Check-in here is a
-  single button, not the dashboard card's proof-note popover - a
-  deliberate simplification for this phase, flagged for review.
+  (vouching awards no Energy anywhere in this app yet).
+
+  Check-in reuses the dashboard's proof-note popover UX (habit_card.html) -
+  `openPopover` lives here (this panel's own root) rather than on a page-
+  level x-data like dashboard.html's, since this partial is what actually
+  gets swapped whole on every check-in; each row below adds its own empty
+  x-data just to scope its $refs uniquely (openPopover itself still
+  resolves up to this root, same inheritance habit_card.html's per-card
+  x-data relies on).
 #}
-<div id="colony-panel">
+<div id="colony-panel" x-data="{ openPopover: null }">
   <div class="flex flex-wrap gap-2 pb-4">
     <span class="border border-border bg-surface px-3 py-1.5 font-display text-[10px] uppercase tracking-wide text-text-muted">
       Colony LV <span class="font-mono text-sm normal-case text-text">{{ colony_level }}</span>
@@ -73,7 +79,7 @@
       {% if habit_cards %}
       <div class="flex flex-col gap-2">
         {% for card in habit_cards %}
-        <div id="colony-habit-{{ card.habit.id }}" class="flex items-center gap-3 border border-border bg-void px-3 py-2">
+        <div id="colony-habit-{{ card.habit.id }}" x-data class="flex items-center gap-3 border border-border bg-void px-3 py-2">
           <img
             src="{{ url_for('static', filename='art/icon_' ~ building_type_for_category.get(card.habit.category, 'custom_module') ~ '.png') }}"
             alt=""
@@ -88,16 +94,65 @@
           {% else %}
           <button
             type="button"
-            hx-post="{{ url_for('habits.checkin', habit_id=card.habit.id) }}"
-            hx-vals='{"colony_view": "1"}'
-            hx-target="#colony-panel"
-            hx-swap="outerHTML"
-            hx-disabled-elt="this"
-            class="relative h-9 shrink-0 bg-accent px-3 font-display text-[11px] uppercase tracking-wide text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            x-ref="checkinBtn"
+            @click="openPopover = (openPopover === 'colony-checkin-{{ card.habit.id }}' ? null : 'colony-checkin-{{ card.habit.id }}'); $nextTick(() => openPopover === 'colony-checkin-{{ card.habit.id }}' && positionCardPopover($refs.checkinBtn, $refs.checkinPopover, 8, false))"
+            class="h-9 shrink-0 bg-accent px-3 font-display text-[11px] uppercase tracking-wide text-bg transition hover:opacity-90"
           >
-            <span class="btn-label">Check in</span>
-            {{ spinner(size='3') }}
+            Check in
           </button>
+
+          <template x-teleport="body">
+            <div
+              x-ref="checkinPopover"
+              x-show="openPopover === 'colony-checkin-{{ card.habit.id }}'"
+              x-trap="openPopover === 'colony-checkin-{{ card.habit.id }}'"
+              x-cloak
+              role="dialog"
+              aria-label="Check in"
+              @click.outside="openPopover = null"
+              @keydown.escape.window="openPopover = null"
+              @resize.window="openPopover === 'colony-checkin-{{ card.habit.id }}' && positionCardPopover($refs.checkinBtn, $refs.checkinPopover, 8, false)"
+              @scroll.window="openPopover === 'colony-checkin-{{ card.habit.id }}' && positionCardPopover($refs.checkinBtn, $refs.checkinPopover, 8, false)"
+              x-transition:enter="transition ease-out duration-150"
+              x-transition:enter-start="opacity-0 scale-95"
+              x-transition:enter-end="opacity-100 scale-100"
+              x-transition:leave="transition ease-in duration-100"
+              x-transition:leave-start="opacity-100 scale-100"
+              x-transition:leave-end="opacity-0 scale-95"
+              class="fixed z-40 w-72 border border-border bg-surface p-4"
+            >
+              <form
+                hx-post="{{ url_for('habits.checkin', habit_id=card.habit.id) }}"
+                hx-vals='{"colony_view": "1"}'
+                hx-target="#colony-panel"
+                hx-swap="outerHTML"
+                hx-disabled-elt="find button[type='submit']"
+              >
+                <label for="colony-proof-note-{{ card.habit.id }}" class="mb-1 block font-body text-xs text-text-muted">Add a note? (optional)</label>
+                <textarea
+                  id="colony-proof-note-{{ card.habit.id }}"
+                  name="proof_note"
+                  maxlength="280"
+                  rows="2"
+                  placeholder="What did you do?"
+                  class="input resize-none text-sm"
+                ></textarea>
+                <div class="mt-3 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    @click="openPopover = null"
+                    class="border border-border px-3 py-1.5 font-display text-[11px] uppercase text-text hover:bg-void"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" class="relative bg-accent px-3 py-1.5 font-display text-[11px] uppercase text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+                    <span class="btn-label">Check in</span>
+                    {{ spinner(size='3') }}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </template>
           {% endif %}
         </div>
         {% endfor %}

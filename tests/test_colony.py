@@ -232,6 +232,28 @@ def test_checkin_from_colony_page_swaps_the_colony_panel_and_carries_points_earn
     assert trigger["checkinCelebration"]["habitId"] == habit.id
 
 
+def test_colony_habit_row_has_a_proof_note_popover(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Morning run", category="fitness")
+
+    html = client.get("/colony").get_data(as_text=True)
+    assert f"colony-proof-note-{habit.id}" in html
+    assert "Add a note? (optional)" in html
+
+
+def test_checkin_from_colony_page_saves_the_proof_note(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, title="Morning run", category="fitness")
+
+    response = client.post(
+        f"/habits/{habit.id}/checkin", data={"colony_view": "1", "proof_note": "Ran 5k"},
+    )
+
+    assert response.status_code == 200
+    checkin = Checkin.query.filter_by(habit_id=habit.id).first()
+    assert checkin.proof_note == "Ran 5k"
+
+
 def test_undo_checkin_lowers_the_derived_level_back_down(client, db):
     # decision 3: undoing a check-in that had pushed a building over a
     # threshold must drop the level back down cleanly - no error, no
