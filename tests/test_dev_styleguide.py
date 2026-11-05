@@ -53,8 +53,14 @@ def test_styleguide_shows_the_planet_scale_building_review_section():
         assert "planet_building_defense_tower_lv1.png" in html
         assert "planet_building_defense_tower_lv3.png" in html
         assert "planet_building_custom_module_lv1.png" in html
-        # The two full-planet preview composites.
+        # The planet variant comparison (original vs antenna/debris-free).
+        assert "PLANET VARIANT" in html
+        assert "planet_render_rust.png" in html
+        assert "planet_render_rust_clean.png" in html
+        # All four full-planet preview composites.
+        assert "planet_preview_empty.png" in html
         assert "planet_preview_lv1.png" in html
         assert "planet_preview_lv3.png" in html
+        assert "planet_preview_mixed.png" in html
 
         db.drop_all()

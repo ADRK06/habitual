@@ -150,18 +150,39 @@ def _planet_building_rows() -> list[dict]:
     return rows
 
 
+PLANET_PREVIEW_FILES = [
+    ("planet_preview_empty.png", "Empty (clean planet, no buildings)"),
+    ("planet_preview_lv1.png", "All six in the ring · LV1"),
+    ("planet_preview_lv3.png", "All six in the ring · LV3"),
+    ("planet_preview_mixed.png", "Realistic mix · 2 built, 4 locked"),
+]
+
+
 def _planet_previews() -> list[dict]:
-    """The two full-planet mockups (all six planet-scale buildings at LV1,
-    then at LV3 - scripts/make_sprites.py's build_planet_previews()),
-    shown large so the developer can judge how the new art reads directly
-    on planet_render_rust.png before approving it for real."""
+    """The four full-planet mockups built by scripts/make_sprites.py's
+    build_planet_previews() (empty / all-LV1 / all-LV3 / a realistic
+    2-built-4-locked mix), shown large so the developer can judge how
+    the new ring reads on planet_render_rust_clean.png before approving
+    it for real."""
     previews = []
-    for level in (1, 3):
-        filename = f"planet_preview_lv{level}.png"
+    for filename, label in PLANET_PREVIEW_FILES:
         size = _png_size(COMPOSITES_DIR / filename)
         if size is not None:
-            previews.append({"level": level, "filename": f"art/_composites/{filename}", "width": size[0], "height": size[1]})
+            previews.append({"label": label, "filename": f"art/_composites/{filename}", "width": size[0], "height": size[1]})
     return previews
+
+
+def _planet_variant_comparison() -> list[dict]:
+    """The original planet_render_rust.png next to planet_render_rust_
+    clean.png (antenna/debris erased) for a side-by-side approval call -
+    see scripts/make_sprites.py's draw_planet_render_rust_clean docstring
+    for exactly what was removed and why."""
+    variants = []
+    for name, label in [("planet_render_rust", "Original"), ("planet_render_rust_clean", "Clean (antenna/debris removed)")]:
+        size = _png_size(ART_DIR / f"{name}.png")
+        if size is not None:
+            variants.append({"label": label, "filename": f"art/{name}.png", "width": size[0], "height": size[1]})
+    return variants
 
 
 @dev.get("/dev/styleguide")
@@ -178,11 +199,13 @@ def styleguide():
     sheet_size = _png_size(SPRITE_SHEET_PATH)
     planet_building_rows = _planet_building_rows()
     planet_previews = _planet_previews()
+    planet_variants = _planet_variant_comparison()
     return render_template(
         "dev/styleguide.html",
         sprite_groups=sprite_groups,
         new_sprites=new_sprites,
         composite_rows=composite_rows,
+        planet_variants=planet_variants,
         sheet_size=sheet_size,
         planet_building_rows=planet_building_rows,
         planet_previews=planet_previews,

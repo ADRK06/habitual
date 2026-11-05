@@ -631,33 +631,36 @@ def draw_boss_vx3():
     return c
 
 
-# ---- planet-scale buildings (6 types x 3 levels = 18) -------------------
-# Drawn on the SAME native pixel grid as planet_render_rust.png (one
-# sprite pixel = one planet pixel at the same display scale - see
-# PLANET_SPRITE_W/H below), transparent background, roughly 6-12px of
-# structure plus 1-2px of ground-contact shading - unlike the existing
-# building_*/icon_* family (16x16, opaque, a flat UI-surface-colored
-# background baked in), which read as a different, pasted-on art source
-# once placed directly on the planet (confirmed: wrong pixel density at
-# the scale colony_panel.html displays each at, plus a hard-edged opaque
-# square that occludes the planet's own texture instead of blending into
-# it). REGOLITH_* below are sampled directly from planet_render_rust.png
-# itself (its 4 most common non-background colors after the existing
-# GRAY/STEEL/AMBER family, which the planet also already uses) so ground
-# contact pixels blend into the real planet art, not an invented palette.
+# ---- planet-scale buildings, round 2 (6 types x 3 levels = 18) --------
+# Round 1 (same native pixel grid, transparent background, ground contact
+# in the planet's own rust tones) fixed the "pasted-on" complaint but the
+# developer's review called the result "cohesive but messy": varying
+# per-building canvas sizes and widths that grew with level, a different
+# accent hue per building (green biodome, blue-ish observatory dish), and
+# placement scattered across the planet's face rather than a tidy ring.
 #
-# Review-only for now: registered in NEW_SPRITES/META and shown at
-# /dev/styleguide (x1 and x4, plus two full-planet preview composites),
-# but NOT wired into colony_panel.html/colony.py - that's a later step,
-# after the developer approves the art here.
+# Round 2 fixes all three with one discipline: every building shares the
+# IDENTICAL footprint (PLANET_SPRITE_W x PLANET_SPRITE_H, same silhouette
+# pixels present) at EVERY level - levels only RECOLOR specific pixels
+# that are already part of the LV1 silhouette (an unlit window/core/tip
+# pixel turns amber, then a second one does at LV3) rather than adding or
+# widening geometry. That's what guarantees "same footprint, same
+# baseline, ring never changes spacing" - there is no other way to
+# guarantee it than for the silhouette itself to never change.
+#
+# Palette is now deliberately narrow: GRAY_MID/STEEL_DARK for the body
+# (alternating per building - see PLANET_RING_ORDER below, "so colours
+# alternate nicely"), AMBER/AMBER_LIGHT as the ONE phosphor accent family
+# every building uses (never green, never a second hue), REGOLITH_* for
+# ground contact. Review-only: registered in NEW_SPRITES/META and shown
+# at /dev/styleguide, NOT wired into colony_panel.html/colony.py.
 REGOLITH_SHADOW = (0x3A, 0x16, 0x10, 255)  # planet_render_rust's own deepest shadow rust
 REGOLITH_DARK = (0x5A, 0x24, 0x18, 255)
 REGOLITH = (0xA8, 0x43, 0x2A, 255)
 REGOLITH_LIGHT = (0xF2, 0x9A, 0x6A, 255)  # planet_render_rust's own brightest highlight rust
 
-PLANET_SPRITE_W = 14
-PLANET_SPRITE_H = 16
-GROUND_Y = 14  # last row (15) is ground-shading only; a structure's own base sits on this row
+PLANET_SPRITE_W = 10
+PLANET_SPRITE_H = 12
 
 
 def _planet_canvas():
@@ -665,185 +668,110 @@ def _planet_canvas():
 
 
 def _ground_contact(c, cx, half_width):
-    """1-2px of shaded ground where a building meets the surface - reuses
-    the planet's own rust-shadow tones (not a flat UI drop shadow), so the
-    contact blends into the terrain's coloring instead of sitting on it."""
-    hline(c, cx - half_width, cx + half_width, GROUND_Y + 1, REGOLITH_SHADOW)
+    """1-2px of shaded ground where a building meets the surface, on the
+    sprite's own last two rows - reuses the planet's own rust-shadow
+    tones (not a flat UI drop shadow), so the contact blends into the
+    terrain's coloring instead of sitting on it. Same two rows, same
+    half_width, at every level for a given building - part of the fixed
+    footprint, never widened."""
+    y_outer, y_inner = PLANET_SPRITE_H - 1, PLANET_SPRITE_H - 2
+    hline(c, cx - half_width, cx + half_width, y_outer, REGOLITH_SHADOW)
     if half_width > 1:
-        hline(c, cx - half_width + 1, cx + half_width - 1, GROUND_Y, REGOLITH_DARK)
+        hline(c, cx - half_width + 1, cx + half_width - 1, y_inner, REGOLITH_DARK)
 
 
 def _draw_defense_tower(level: int):
-    # tall thin spire - taller main shaft + side struts/spires as it levels
+    # tall thin spire on a base block - silhouette is IDENTICAL at every
+    # level (ground, base, 6-row shaft); LV2 lights the tip, LV3 also
+    # lights a mid-shaft band and brightens the tip - never widens.
     c = _planet_canvas()
-    cx = 7
-    if level == 1:
-        _ground_contact(c, cx, 1)
-        rect(c, cx - 1, GROUND_Y - 1, cx + 1, GROUND_Y, GRAY_DARK)
-        vline(c, cx, GROUND_Y - 6, GROUND_Y - 2, GRAY_MID)
-        set_px(c, cx, GROUND_Y - 7, AMBER)
-    elif level == 2:
-        _ground_contact(c, cx, 2)
-        rect(c, cx - 1, GROUND_Y - 1, cx + 1, GROUND_Y, GRAY_DARK)
-        vline(c, cx, GROUND_Y - 8, GROUND_Y - 2, GRAY_MID)
-        vline(c, cx - 2, GROUND_Y - 4, GROUND_Y - 2, GRAY_LIGHT)
-        set_px(c, cx, GROUND_Y - 9, AMBER)
-        set_px(c, cx, GROUND_Y - 8, AMBER_LIGHT)
-    else:
-        _ground_contact(c, cx, 3)
-        rect(c, cx - 2, GROUND_Y - 1, cx + 2, GROUND_Y, GRAY_DARK)
-        vline(c, cx, GROUND_Y - 11, GROUND_Y - 2, GRAY_MID)
-        vline(c, cx - 2, GROUND_Y - 6, GROUND_Y - 2, GRAY_LIGHT)
-        vline(c, cx + 2, GROUND_Y - 6, GROUND_Y - 2, GRAY_LIGHT)
-        set_px(c, cx, GROUND_Y - 12, AMBER)
-        set_px(c, cx, GROUND_Y - 11, AMBER_LIGHT)
-        set_px(c, cx - 2, GROUND_Y - 7, AMBER)
-        set_px(c, cx + 2, GROUND_Y - 7, AMBER)
+    cx = 5
+    _ground_contact(c, cx, 1)
+    rect(c, cx - 1, 8, cx + 1, 9, GRAY_MID)
+    vline(c, cx, 2, 7, GRAY_LIGHT)
+    set_px(c, cx, 1, GRAY_LIGHT if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
+    if level == 3:
+        set_px(c, cx, 4, AMBER)
     return c
 
 
 def _draw_research_lab(level: int):
-    # boxy block with lit windows - grows taller with more windows, a
-    # wing extension joins at LV3
+    # boxy block with 4 fixed window slots, dark (unlit) by default - LV2
+    # lights the top pair, LV3 lights the bottom pair too. Same box at
+    # every level.
     c = _planet_canvas()
-    cx = 6
-    if level == 1:
-        _ground_contact(c, cx, 3)
-        rect(c, cx - 3, GROUND_Y - 5, cx + 2, GROUND_Y, GRAY_MID)
-        hline(c, cx - 3, cx + 2, GROUND_Y - 5, GRAY_LIGHT)
-        set_px(c, cx - 1, GROUND_Y - 3, AMBER)
-        set_px(c, cx + 1, GROUND_Y - 3, AMBER)
-    elif level == 2:
-        _ground_contact(c, cx, 3)
-        rect(c, cx - 3, GROUND_Y - 7, cx + 2, GROUND_Y, GRAY_MID)
-        hline(c, cx - 3, cx + 2, GROUND_Y - 7, GRAY_LIGHT)
-        set_px(c, cx, GROUND_Y - 8, GRAY_LIGHT)
-        for wy in (GROUND_Y - 5, GROUND_Y - 2):
-            set_px(c, cx - 1, wy, AMBER)
-            set_px(c, cx + 1, wy, AMBER)
-    else:
-        _ground_contact(c, cx, 5)
-        rect(c, cx - 3, GROUND_Y - 8, cx + 2, GROUND_Y, GRAY_MID)
-        hline(c, cx - 3, cx + 2, GROUND_Y - 8, GRAY_LIGHT)
-        set_px(c, cx, GROUND_Y - 9, GRAY_LIGHT)
-        for wy in (GROUND_Y - 6, GROUND_Y - 3):
-            set_px(c, cx - 1, wy, AMBER)
-            set_px(c, cx + 1, wy, AMBER)
-        rect(c, cx + 3, GROUND_Y - 4, cx + 5, GROUND_Y, GRAY_DARK)
-        set_px(c, cx + 4, GROUND_Y - 2, AMBER)
+    cx = 5
+    _ground_contact(c, cx, 3)
+    rect(c, cx - 3, 3, cx + 3, 9, GRAY_MID)
+    hline(c, cx - 3, cx + 3, 3, GRAY_LIGHT)
+    lit_top = level >= 2
+    lit_bottom = level >= 3
+    set_px(c, cx - 2, 6, AMBER if lit_top else GRAY_DARK)
+    set_px(c, cx + 2, 6, AMBER if lit_top else GRAY_DARK)
+    set_px(c, cx - 2, 8, AMBER if lit_bottom else GRAY_DARK)
+    set_px(c, cx + 2, 8, AMBER if lit_bottom else GRAY_DARK)
     return c
 
 
 def _draw_power_reactor(level: int):
-    # squat drum with a glow core - wider/taller with fins at LV3
+    # squat steel drum with a core pixel (off/amber/brighter) and two
+    # vent-light pixels that only appear lit at LV3 - same drum at every
+    # level.
     c = _planet_canvas()
-    cx = 7
-    if level == 1:
-        _ground_contact(c, cx, 3)
-        rect(c, cx - 3, GROUND_Y - 4, cx + 3, GROUND_Y, STEEL_DARK)
-        hline(c, cx - 3, cx + 3, GROUND_Y - 4, GRAY_LIGHT)
-        set_px(c, cx, GROUND_Y - 2, AMBER_LIGHT)
-    elif level == 2:
-        _ground_contact(c, cx, 3)
-        rect(c, cx - 3, GROUND_Y - 6, cx + 3, GROUND_Y, STEEL_DARK)
-        hline(c, cx - 3, cx + 3, GROUND_Y - 6, GRAY_LIGHT)
-        rect(c, cx - 1, GROUND_Y - 3, cx, GROUND_Y - 2, AMBER_LIGHT)
-    else:
-        _ground_contact(c, cx, 4)
-        rect(c, cx - 3, GROUND_Y - 7, cx + 3, GROUND_Y, STEEL_DARK)
-        hline(c, cx - 3, cx + 3, GROUND_Y - 7, GRAY_LIGHT)
-        vline(c, cx - 4, GROUND_Y - 5, GROUND_Y - 1, STEEL_LIGHT)
-        vline(c, cx + 4, GROUND_Y - 5, GROUND_Y - 1, STEEL_LIGHT)
-        rect(c, cx - 1, GROUND_Y - 4, cx, GROUND_Y - 2, AMBER_LIGHT)
-        set_px(c, cx - 2, GROUND_Y - 4, AMBER)
-        set_px(c, cx + 1, GROUND_Y - 4, AMBER)
+    cx = 5
+    _ground_contact(c, cx, 3)
+    rect(c, cx - 3, 4, cx + 3, 9, STEEL_DARK)
+    hline(c, cx - 3, cx + 3, 4, GRAY_LIGHT)
+    set_px(c, cx, 7, GRAY_DARK if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
+    vent_color = AMBER if level == 3 else STEEL_DARK
+    set_px(c, cx - 2, 6, vent_color)
+    set_px(c, cx + 2, 6, vent_color)
     return c
 
 
 def _draw_biodome(level: int):
-    # glassy half-dome, same green/steel language as the shield-dome
-    # overlay - bigger with a second smaller dome joining at LV3
+    # steel-toned dome (no green - one phosphor accent only, like every
+    # other building here) with an apex pixel and one rim pixel that
+    # light up as it levels. Same dome at every level.
     c = _planet_canvas()
-    cx = 6
-    if level == 1:
-        _ground_contact(c, cx, 3)
-        hline(c, cx - 3, cx + 3, GROUND_Y, STEEL_LIGHT)
-        hline(c, cx - 2, cx + 2, GROUND_Y - 1, GREEN)
-        hline(c, cx - 1, cx + 1, GROUND_Y - 2, GREEN)
-        set_px(c, cx, GROUND_Y - 3, GREEN_LIGHT)
-    elif level == 2:
-        _ground_contact(c, cx, 4)
-        hline(c, cx - 4, cx + 4, GROUND_Y, STEEL_LIGHT)
-        hline(c, cx - 3, cx + 3, GROUND_Y - 1, GREEN)
-        hline(c, cx - 2, cx + 2, GROUND_Y - 2, GREEN)
-        hline(c, cx - 1, cx + 1, GROUND_Y - 3, GREEN)
-        set_px(c, cx, GROUND_Y - 4, GREEN_LIGHT)
-    else:
-        _ground_contact(c, cx, 6)
-        hline(c, cx - 4, cx + 4, GROUND_Y, STEEL_LIGHT)
-        hline(c, cx - 3, cx + 3, GROUND_Y - 1, GREEN)
-        hline(c, cx - 2, cx + 2, GROUND_Y - 2, GREEN)
-        hline(c, cx - 1, cx + 1, GROUND_Y - 3, GREEN)
-        set_px(c, cx, GROUND_Y - 4, GREEN_LIGHT)
-        # small secondary dome, offset to the right
-        hline(c, cx + 4, cx + 6, GROUND_Y, STEEL_LIGHT)
-        hline(c, cx + 5, cx + 5, GROUND_Y - 1, GREEN_LIGHT)
+    cx = 5
+    _ground_contact(c, cx, 3)
+    hline(c, cx - 3, cx + 3, 9, STEEL_LIGHT)
+    hline(c, cx - 2, cx + 2, 8, STEEL_DARK)
+    hline(c, cx - 1, cx + 1, 7, STEEL_DARK)
+    set_px(c, cx, 6, STEEL_LIGHT if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
+    rim_color = AMBER if level == 3 else STEEL_LIGHT
+    set_px(c, cx - 3, 9, rim_color)
     return c
 
 
 def _draw_observatory(level: int):
-    # tall block with a small symmetric dome cap on top (same concentric-
-    # row technique as _draw_biodome, just steel-toned and sitting on a
-    # block instead of the ground) - a first pass drew the dish as a
-    # lopsided single-row-plus-a-point, which read as scattered debris
-    # rather than a dish; a centered dome cap reads cleanly even this
-    # small. Taller block + bigger cap each level; a second antenna joins
-    # at LV3.
+    # block with a small dome cap - apex pixel and one side panel pixel
+    # light up as it levels. Same block+cap at every level. (Round 1's
+    # first draft here read as scattered debris, not a dish - fixed then
+    # by centering a symmetric cap instead of a lopsided rim; round 2
+    # keeps that cap but locks it to the shared footprint.)
     c = _planet_canvas()
-    cx = 7
-    if level == 1:
-        _ground_contact(c, cx, 2)
-        rect(c, cx - 2, GROUND_Y - 2, cx + 2, GROUND_Y, GRAY_MID)
-        hline(c, cx - 1, cx + 1, GROUND_Y - 3, STEEL_LIGHT)
-        set_px(c, cx, GROUND_Y - 4, AMBER_LIGHT)
-    elif level == 2:
-        _ground_contact(c, cx, 2)
-        rect(c, cx - 2, GROUND_Y - 4, cx + 2, GROUND_Y, GRAY_MID)
-        hline(c, cx - 2, cx + 2, GROUND_Y - 5, STEEL_LIGHT)
-        hline(c, cx - 1, cx + 1, GROUND_Y - 6, STEEL_LIGHT)
-        set_px(c, cx, GROUND_Y - 7, AMBER_LIGHT)
-    else:
-        _ground_contact(c, cx, 3)
-        rect(c, cx - 2, GROUND_Y - 5, cx + 2, GROUND_Y, GRAY_MID)
-        hline(c, cx - 2, cx + 2, GROUND_Y - 6, STEEL_LIGHT)
-        hline(c, cx - 1, cx + 1, GROUND_Y - 7, STEEL_LIGHT)
-        set_px(c, cx, GROUND_Y - 8, AMBER_LIGHT)
-        vline(c, cx + 3, GROUND_Y - 6, GROUND_Y - 3, GRAY_LIGHT)
-        set_px(c, cx + 3, GROUND_Y - 7, AMBER)
+    cx = 5
+    _ground_contact(c, cx, 2)
+    rect(c, cx - 2, 6, cx + 2, 9, STEEL_DARK)
+    hline(c, cx - 1, cx + 1, 5, STEEL_LIGHT)
+    set_px(c, cx, 4, GRAY_LIGHT if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
+    panel_color = AMBER if level == 3 else STEEL_DARK
+    set_px(c, cx + 2, 7, panel_color)
     return c
 
 
 def _draw_custom_module(level: int):
-    # plain box with a glowing orange core - core grows, a small
-    # extension joins at LV3
+    # plain box with a core pixel and one corner pixel that light up as
+    # it levels. Same box at every level.
     c = _planet_canvas()
-    cx = 6
-    if level == 1:
-        _ground_contact(c, cx, 2)
-        rect(c, cx - 2, GROUND_Y - 4, cx + 2, GROUND_Y, GRAY_MID)
-        set_px(c, cx, GROUND_Y - 2, AMBER)
-    elif level == 2:
-        _ground_contact(c, cx, 2)
-        rect(c, cx - 2, GROUND_Y - 6, cx + 2, GROUND_Y, GRAY_MID)
-        rect(c, cx - 1, GROUND_Y - 3, cx, GROUND_Y - 2, AMBER_LIGHT)
-        set_px(c, cx - 2, GROUND_Y - 3, AMBER)
-    else:
-        _ground_contact(c, cx, 4)
-        rect(c, cx - 2, GROUND_Y - 7, cx + 2, GROUND_Y, GRAY_MID)
-        rect(c, cx - 1, GROUND_Y - 4, cx, GROUND_Y - 3, AMBER_LIGHT)
-        set_px(c, cx - 2, GROUND_Y - 4, AMBER)
-        set_px(c, cx + 2, GROUND_Y - 4, AMBER)
-        rect(c, cx + 3, GROUND_Y - 3, cx + 4, GROUND_Y, GRAY_DARK)
+    cx = 5
+    _ground_contact(c, cx, 2)
+    rect(c, cx - 2, 5, cx + 2, 9, GRAY_MID)
+    set_px(c, cx, 7, GRAY_DARK if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
+    corner_color = AMBER if level == 3 else GRAY_MID
+    set_px(c, cx - 2, 6, corner_color)
     return c
 
 
@@ -855,6 +783,52 @@ PLANET_BUILDING_DRAWERS = {
     "observatory": _draw_observatory,
     "custom_module": _draw_custom_module,
 }
+
+# Clock-position order around the ring (12, 2, 4, 6, 8, 10 o'clock) -
+# alternates a neutral-grey body (defense_tower/research_lab/custom_
+# module) with a steel-toned body (power_reactor/biodome/observatory) at
+# every single step all the way around, "so colours alternate nicely".
+PLANET_RING_ORDER = [
+    "defense_tower", "power_reactor", "research_lab", "biodome", "custom_module", "observatory",
+]
+
+
+def draw_planet_render_rust_clean():
+    """planet_render_rust.png with its baked-in antenna mast + the small
+    debris/rock crown clustered around its base erased back to
+    background - a COLOR-based erase (every pixel matching the debris
+    family below, nothing else), not a row-range blank. Two earlier,
+    cruder passes both got the extent wrong: the mast's own width-
+    profile suggested rows 0-8; a labelled pixel-grid screenshot then
+    showed the debris crown around its base reaching rows 0-14; neither
+    noticed that debris on the sphere's LEFT side actually reaches row
+    18 (confirmed the only way that's reliable - scanning every pixel in
+    the source for the debris family's exact colors and taking the max
+    row that appears in). A row-range blank through row 18 would have
+    also erased the sphere's own legitimate blue atmosphere-rim
+    highlight, which is real planet art, not debris, and is already
+    cleanly isolated to its own single color (STEEL_LIGHT, #6284A8) at
+    every row including where it's interleaved with the debris -
+    erasing by color instead of by row keeps every rim pixel exactly
+    where it is, in or out of the debris's row range, while still
+    removing 100% of the debris. The antenna mast's own colors (GRAY_*,
+    AMBER/AMBER_LIGHT, GREEN) ARE in this debris family, same as the
+    rock cluster around its base - it's erased for free, not as a
+    special case. Crop-and-recolor of the existing art, not a redraw:
+    same rust body, same atmosphere rim, same size and pixel grid.
+    Shown next to the original in /dev/styleguide for approval; the
+    original file is untouched."""
+    from PIL import Image
+
+    debris_colors = {GRAY_LIGHT[:3], GRAY_MID[:3], GRAY_DARK[:3], AMBER[:3], AMBER_LIGHT[:3], GREEN[:3]}
+    im = Image.open(DEST_DIR / "planet_render_rust.png").convert("RGB")
+    bg = im.getpixel((0, 0))
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            if im.getpixel((x, y)) in debris_colors:
+                im.putpixel((x, y), bg)
+    return [[im.getpixel((x, y)) + (255,) for x in range(w)] for y in range(h)]
 
 NEW_SPRITES = {
     "building_damage_overlay": draw_damage_overlay,
@@ -873,6 +847,7 @@ NEW_SPRITES = {
 for _bt, _drawer in PLANET_BUILDING_DRAWERS.items():
     for _lv in (1, 2, 3):
         NEW_SPRITES[f"planet_building_{_bt}_lv{_lv}"] = (lambda d=_drawer, lv=_lv: d(lv))
+NEW_SPRITES["planet_render_rust_clean"] = draw_planet_render_rust_clean
 
 NEW_SPRITE_META = {
     "building_damage_overlay": {"category": "overlay", "phase": 5, "notes": "reusable on all 5 fixed buildings"},
@@ -894,6 +869,10 @@ for _bt in PLANET_BUILDING_DRAWERS:
             "category": "planet_building", "phase": 4,
             "notes": f"planet-scale {_bt}, level {_lv} of 3 - review only, not wired in yet",
         }
+NEW_SPRITE_META["planet_render_rust_clean"] = {
+    "category": "planet_render", "phase": 4,
+    "notes": "planet_render_rust.png with the baked-in antenna/debris erased - review only, pending approval",
+}
 
 FIXED_BUILDINGS = [
     "building_research_lab",
@@ -1061,22 +1040,31 @@ def build_composites() -> None:
     build_planet_previews()
 
 
-# Review-only anchor layout for the two full-planet previews below - the
-# ground-contact point (on planet_render_rust.png's own 48x48 canvas) each
-# building's own base should land on. Spaced 48 degrees apart around the
-# lower 240 degrees of the sphere's rim (measured center ~(23.5,26),
-# radius ~16), explicitly clear of the antenna/debris at the top (source
-# rows 0-8). A SEPARATE, one-off layout from whatever colony.py's real
-# PLANET_SLOTS ends up using once this art is approved and actually wired
-# in - intentionally not shared code, per "do not touch placement code".
-PLANET_PREVIEW_ANCHORS = {
-    "defense_tower": (35.6, 19),
-    "research_lab": (36.8, 30.3),
-    "power_reactor": (29.2, 38.8),
-    "biodome": (17.8, 38.8),
-    "observatory": (10.2, 30.3),
-    "custom_module": (11.4, 19),
-}
+# Review-only ring layout for the full-planet previews below - the
+# ground-contact anchor point (on planet_render_rust.png's own 48x48
+# canvas) each building's base should land on, at 6 clock positions
+# (12/2/4/6/8/10) evenly spaced 60 degrees apart around the sphere's rim
+# (measured center ~(23.5,26), radius ~16; ring radius 14 keeps every
+# sprite safely on-canvas). Buildings are drawn upright (never rotated)
+# at every position - rotating hand-drawn pixel art at this resolution
+# produces blur/aliasing rather than a clean look, so "facing outward"
+# is read here as "placed at the rim, body clear of the face", not as a
+# literal per-angle rotation; flag it if a literal rotation is wanted
+# instead. A SEPARATE, one-off layout from whatever colony.py's real
+# PLANET_SLOTS ends up using once this art is approved and actually
+# wired in - intentionally not shared code, per "do not touch placement
+# code".
+def _ring_anchors(cx=23.5, cy=26.0, radius=14.0):
+    import math
+
+    anchors = {}
+    for i, building_type in enumerate(PLANET_RING_ORDER):
+        angle = math.radians(i * 60)
+        anchors[building_type] = (cx + radius * math.sin(angle), cy - radius * math.cos(angle))
+    return anchors
+
+
+PLANET_PREVIEW_ANCHORS = _ring_anchors()
 
 
 def _paste_planet_building(base_img, building_type: str, level: int) -> None:
@@ -1087,18 +1075,47 @@ def _paste_planet_building(base_img, building_type: str, level: int) -> None:
     base_img.paste(sprite, (left, top), sprite)
 
 
+def _clean_planet_image():
+    return canvas_to_image(draw_planet_render_rust_clean())
+
+
 def build_planet_previews() -> None:
-    """Two full-planet mockups (all six planet-scale buildings at LV1, then
-    all six at LV3) for /dev/styleguide to judge the new art directly on
-    planet_render_rust.png - review only. Uses PLANET_PREVIEW_ANCHORS
-    above, not colony.py's real (untouched) slot system."""
-    from PIL import Image
+    """Four full-planet mockups for /dev/styleguide to judge the new art
+    on planet_render_rust_clean.png (not the original - the ring is
+    meant to be judged against the antenna-free variant, which is also
+    up for approval here) - review only:
+      (a) the clean planet alone, no buildings
+      (b) all six buildings in the ring at LV1
+      (c) all six at LV3
+      (d) a realistic mixed case (2 built, 4 still locked - a locked
+          slot shows a faint footprint outline instead of a sprite,
+          standing in for the real dashed-border marker a later,
+          CSS-based version would use)
+    """
+    _clean_planet_image().save(COMPOSITES_DIR / "planet_preview_empty.png")
 
     for level, filename in ((1, "planet_preview_lv1.png"), (3, "planet_preview_lv3.png")):
-        base = Image.open(DEST_DIR / "planet_render_rust.png").convert("RGBA")
+        base = _clean_planet_image()
         for building_type in PLANET_BUILDING_DRAWERS:
             _paste_planet_building(base, building_type, level)
         base.save(COMPOSITES_DIR / filename)
+
+    from PIL import ImageDraw
+
+    base = _clean_planet_image()
+    draw = ImageDraw.Draw(base)
+    built = {"defense_tower": 2, "research_lab": 1}
+    for building_type, (anchor_x, anchor_y) in PLANET_PREVIEW_ANCHORS.items():
+        if building_type in built:
+            _paste_planet_building(base, building_type, built[building_type])
+            continue
+        left = round(anchor_x - PLANET_SPRITE_W / 2)
+        top = round(anchor_y - (PLANET_SPRITE_H - 1))
+        draw.rectangle(
+            [left, top, left + PLANET_SPRITE_W - 1, top + PLANET_SPRITE_H - 1],
+            outline=GRAY_LIGHT[:3] + (130,),
+        )
+    base.save(COMPOSITES_DIR / "planet_preview_mixed.png")
 
 
 if __name__ == "__main__":
