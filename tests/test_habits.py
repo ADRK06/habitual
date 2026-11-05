@@ -3,9 +3,11 @@ import re
 import secrets
 from datetime import date, timedelta
 
+import pytest
+
 from habitual import frequency, game
 from habitual.frequency import WEEKDAY_BIT
-from habitual.habits import EMOJI_CHOICES, _header_stats, _month_calendar_context
+from habitual.habits import CATEGORY_CHOICES, EMOJI_CHOICES, HABIT_TEMPLATES, _header_stats, _month_calendar_context
 from habitual.models import Checkin, Freeze, Habit, PointTransaction, Room, RoomMember, User
 from habitual.points import week_start
 from habitual.rooms import generate_join_code
@@ -273,6 +275,67 @@ def test_create_habit_defaults_to_daily(client, db):
     habit = Habit.query.first()
     assert habit.frequency_type == "daily"
     assert habit.frequency_days is None
+
+
+# -- create habit category ----------------------------------------------------
+
+
+def test_create_habit_defaults_category_to_other_when_not_chosen(client, db):
+    # Regression: a real dev habit ("sss") once ended up with category
+    # "water_food" despite no picker being shown at the time - this locks
+    # in that with no `category` field in the POST at all, the saved
+    # value is always "other", never anything inferred from elsewhere
+    # (emoji, title, or a stale/leftover value).
+    _login(client, db)
+    client.post("/habits", data={"title": "sss", "emoji": "🧘", "frequency_type": "daily"})
+    habit = Habit.query.filter_by(title="sss").first()
+    assert habit.category == "other"
+
+
+@pytest.mark.parametrize("category", CATEGORY_CHOICES)
+def test_create_habit_saves_exactly_the_chosen_category(client, db, category):
+    _login(client, db)
+    client.post(
+        "/habits", data={"title": "Test habit", "emoji": EMOJI_CHOICES[0], "category": category},
+    )
+    habit = Habit.query.filter_by(title="Test habit").first()
+    assert habit.category == category
+
+
+def test_create_habit_rejects_an_invalid_category(client, db):
+    _login(client, db)
+    response = client.post(
+        "/habits", data={"title": "Test habit", "emoji": EMOJI_CHOICES[0], "category": "not-a-real-category"},
+    )
+    assert response.status_code == 400
+    assert Habit.query.filter_by(title="Test habit").first() is None
+
+
+@pytest.mark.parametrize("template", HABIT_TEMPLATES, ids=lambda t: t["title"])
+def test_quick_start_template_presets_the_right_category(client, db, template):
+    # The Alpine @click handler can't be driven from pytest, but its
+    # category comes straight from this same HABIT_TEMPLATES list the
+    # dashboard renders from - this locks the mapping itself in, and a
+    # separate render test below confirms the picked value actually
+    # reaches the page.
+    _login(client, db)
+    client.post(
+        "/habits",
+        data={"title": template["title"], "emoji": template["emoji"], "category": template["category"]},
+    )
+    habit = Habit.query.filter_by(title=template["title"]).first()
+    assert habit.category == template["category"]
+
+
+def test_quick_start_chip_sets_category_in_its_click_handler(client, db):
+    _login(client, db)
+    html = client.get("/dashboard").get_data(as_text=True)
+    # "Drink water" -> water_food, per the approved mapping - checked via
+    # its own @click handler, not just the underlying data list (that's
+    # test_quick_start_template_presets_the_right_category above).
+    click_start = html.index('@click="title = &#34;Drink water')
+    click_handler = html[click_start:click_start + 300]
+    assert "category = &#34;water_food&#34;" in click_handler
 
 
 def test_create_habit_with_specific_days_frequency(client, db):
@@ -1532,6 +1595,14 @@ def test_dashboard_shows_habit_templates(client, db):
     response = client.get("/dashboard")
     assert b"Quick start" in response.data
     assert b"Drink water" in response.data
+
+
+def test_dashboard_create_habit_form_shows_the_category_picker(client, db):
+    _login(client, db)
+    html = client.get("/dashboard").get_data(as_text=True)
+    assert "Category decides which colony building this habit helps unlock." in html
+    for label in ("Fitness", "Study", "Sleep", "Water &amp; Food", "Mind", "Other"):
+        assert label in html
 
 
 def test_create_habit_form_xdata_attribute_is_well_formed(client, db):

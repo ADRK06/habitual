@@ -188,6 +188,7 @@
         x-data="{
           emoji: {{ (form.emoji.data or '')|tojson|forceescape }},
           title: {{ (form.title.data or '')|tojson|forceescape }},
+          category: {{ (form.category.data or 'other')|tojson|forceescape }},
           tinyVersion: {{ (form.tiny_version.data or '')|tojson|forceescape }},
           frequencyType: {{ (form.frequency_type.data or 'daily')|tojson|forceescape }},
           frequencyDays: {{ (form.frequency_days.data or 0)|int|tojson }},
@@ -203,7 +204,7 @@
             {% for t in habit_templates %}
             <button
               type="button"
-              @click="title = {{ t.title|tojson|forceescape }}; emoji = {{ t.emoji|tojson|forceescape }}; tinyVersion = {{ t.tiny_version|tojson|forceescape }}"
+              @click="title = {{ t.title|tojson|forceescape }}; emoji = {{ t.emoji|tojson|forceescape }}; tinyVersion = {{ t.tiny_version|tojson|forceescape }}; category = {{ t.category|tojson|forceescape }}"
               class="border border-border bg-void px-3 py-1.5 font-body text-xs text-text transition hover:border-accent"
             >
               {{ t.emoji }} {{ t.title }}
@@ -232,6 +233,31 @@
           </div>
           <input type="hidden" name="emoji" x-model="emoji">
           {% for error in form.emoji.errors %}{{ field_error(error) }}{% endfor %}
+        </div>
+
+        <div>
+          <label class="mb-1 block font-display text-xs uppercase tracking-wide text-text-muted">Category</label>
+          <div class="grid grid-cols-6 gap-1.5">
+            {% for value, label in category_choices %}
+            <button
+              type="button"
+              @click="category = {{ value|tojson|forceescape }}"
+              :class="category === {{ value|tojson|forceescape }} ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'"
+              class="flex aspect-square flex-col items-center justify-center gap-1 border p-1 transition-colors"
+            >
+              <img
+                src="{{ url_for('static', filename='art/icon_' ~ building_type_for_category[value] ~ '.png') }}"
+                alt=""
+                class="h-5 w-5"
+                style="image-rendering: pixelated"
+              >
+              <span class="text-center font-display text-[8px] uppercase leading-tight">{{ label }}</span>
+            </button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="category" x-model="category">
+          <p class="mt-1.5 font-body text-xs text-text-muted">Category decides which colony building this habit helps unlock.</p>
+          {% for error in form.category.errors %}{{ field_error(error) }}{% endfor %}
         </div>
 
         <div>

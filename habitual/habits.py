@@ -41,12 +41,12 @@ EMOJI_CHOICES = [
 ]
 
 HABIT_TEMPLATES = [
-    {"title": "Drink water", "emoji": "💧", "tiny_version": "Drink one glass"},
-    {"title": "Read", "emoji": "📚", "tiny_version": "Read one page"},
-    {"title": "Move your body", "emoji": "🏃", "tiny_version": "Do 5 pushups"},
-    {"title": "Meditate", "emoji": "🧘", "tiny_version": "Breathe for 1 minute"},
-    {"title": "Sleep on time", "emoji": "😴", "tiny_version": "Lights off by 11pm"},
-    {"title": "Journal", "emoji": "✍️", "tiny_version": "Write one sentence"},
+    {"title": "Drink water", "emoji": "💧", "tiny_version": "Drink one glass", "category": "water_food"},
+    {"title": "Read", "emoji": "📚", "tiny_version": "Read one page", "category": "study"},
+    {"title": "Move your body", "emoji": "🏃", "tiny_version": "Do 5 pushups", "category": "fitness"},
+    {"title": "Meditate", "emoji": "🧘", "tiny_version": "Breathe for 1 minute", "category": "mind"},
+    {"title": "Sleep on time", "emoji": "😴", "tiny_version": "Lights off by 11pm", "category": "sleep"},
+    {"title": "Journal", "emoji": "✍️", "tiny_version": "Write one sentence", "category": "mind"},
 ]
 
 
@@ -524,6 +524,8 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
         "join_code_error": join_code_error,
         "emoji_choices": EMOJI_CHOICES,
         "habit_templates": HABIT_TEMPLATES,
+        "category_choices": [(c, CATEGORY_DISPLAY_NAME[c]) for c in CATEGORY_CHOICES],
+        "building_type_for_category": game.BUILDING_TYPE_FOR_CATEGORY,
         "newly_awarded_badges": newly_awarded_badges,
         **header,
     }
