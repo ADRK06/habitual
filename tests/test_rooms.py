@@ -850,13 +850,28 @@ def test_room_leaderboard_shows_flat_rank_order_for_top_three(client, db):
 
 def test_room_leaderboard_crown_marks_todays_holder_not_the_points_leader(client, db):
     leader = _login(client, db, username="leader", timezone="UTC")
-    room = _create_room(db, leader)
+    # local_today(leader), not date.today() - the app's crown/leaderboard
+    # logic computes "today" per room member via local_today (UTC here,
+    # matching both fixture users), never the test RUNNER's own system
+    # timezone. date.today() on a machine whose system TZ is ahead of UTC
+    # (e.g. IST, UTC+5:30) silently returns tomorrow's date for roughly
+    # the first 5.5 hours of every UTC day - which made this fixture's
+    # "today" disagree with the app's "today" and fail with no real bug
+    # behind it. Use the same definition the app uses instead of hoping
+    # the test happens to run outside that window. This has to be computed
+    # BEFORE creating the room/membership below too: _create_room's and
+    # _join_room_direct's own date.today() defaults (start_date/joined_on)
+    # hit the exact same mismatch - rooms._crown_candidates skips any
+    # member whose joined_on is after the date being judged, so a
+    # system-local "tomorrow" joined_on silently excludes the challenger
+    # from today's crown race.
+    today = local_today(leader)
+    room = _create_room(db, leader, start_date=today)
     challenger = _create_user(db, username="challenger", timezone="UTC")
-    _join_room_direct(db, room, challenger)
+    _join_room_direct(db, room, challenger, joined_on=today)
 
     leader_habit = Habit.query.filter_by(room_id=room.id, user_id=leader.id).first()
     challenger_habit = Habit.query.filter_by(room_id=room.id, user_id=challenger.id).first()
-    today = date.today()
     # Leader has way more points (all-time) but hasn't checked in today -
     # challenger is the only one racing for today's crown.
     db.session.add(PointTransaction(user_id=leader.id, habit_id=leader_habit.id, amount=200, reason="daily", date=today - timedelta(days=1)))
@@ -905,14 +920,20 @@ def test_room_leaderboard_context_computes_rank_movement_since_yesterday(client,
     # above for why) - the computation itself is still exercised here
     # directly.
     leader = _login(client, db, username="leader", timezone="UTC")
-    room = _create_room(db, leader, start_date=date.today() - timedelta(days=5))
+    # local_today(leader), not date.today() - see the identical comment in
+    # test_room_leaderboard_crown_marks_todays_holder_not_the_points_leader
+    # above for why: the app's rank-movement computation is anchored on
+    # each room member's own local_today (UTC here), never the test
+    # runner's system timezone.
+    anchor_today = local_today(leader)
+    room = _create_room(db, leader, start_date=anchor_today - timedelta(days=5))
     challenger = _create_user(db, username="challenger", timezone="UTC")
-    _join_room_direct(db, room, challenger, joined_on=date.today() - timedelta(days=5))
+    _join_room_direct(db, room, challenger, joined_on=anchor_today - timedelta(days=5))
 
     leader_habit = Habit.query.filter_by(room_id=room.id, user_id=leader.id).first()
     challenger_habit = Habit.query.filter_by(room_id=room.id, user_id=challenger.id).first()
-    yesterday = date.today() - timedelta(days=1)
-    today = date.today()
+    yesterday = anchor_today - timedelta(days=1)
+    today = anchor_today
     # Yesterday: leader (50) ahead of challenger (0). Today: a fresh 60 for
     # the challenger vaults them into 1st, dropping the leader to 2nd.
     db.session.add(PointTransaction(user_id=leader.id, habit_id=leader_habit.id, amount=50, reason="daily", date=yesterday))
