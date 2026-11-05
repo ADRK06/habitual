@@ -80,13 +80,20 @@
   <p class="mt-1 font-body text-sm text-text-muted">
     {{ rank }}{% if commander_class %} · {{ commander_class }} class{% endif %}
   </p>
-  {# Addition: "Commander" now owns this nav slot (was auth.account_
-     security) - keep password/email/delete-account settings reachable
-     from here instead, on both desktop and phone (this page is
-     responsive, so one link covers both). #}
-  <a href="{{ url_for('auth.account_security') }}" class="mt-2 inline-block font-body text-xs text-text-muted underline hover:text-text">
-    Account security
-  </a>
+  <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+    {# Addition: "Commander" now owns this nav slot (was auth.account_
+       security) - keep password/email/delete-account settings
+       reachable from here instead, on both desktop and phone (this
+       page is responsive, so one link covers both). #}
+    <a href="{{ url_for('auth.account_security') }}" class="font-body text-xs text-text-muted underline hover:text-text">
+      Account security
+    </a>
+    {# Addition: the only way to the planet editor was the "Edit
+       planet" button on /colony - no link existed from here at all. #}
+    <a href="{{ url_for('colony.edit_planet') }}" class="font-body text-xs text-text-muted underline hover:text-text">
+      Edit planet
+    </a>
+  </div>
   {% endif %}
 
   <div class="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">

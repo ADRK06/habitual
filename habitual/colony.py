@@ -255,6 +255,30 @@ PLANET_LOOK_SWATCHES = {
 }
 
 
+# Phase 4b-fixes: the editor's live world preview swaps to whichever
+# world is selected, including locked ones (try-on, not save - same
+# design as the picker-grid swatches above). Only Rust/Dust/Verdant
+# ever got a "_clean" (antenna/debris-free) render drawn for them -
+# Lava/Ice/Ringed Giant never did, and this round draws no new art.
+# This editor never composites buildings over the world (see this
+# module's edit_planet() docstring), so a locked world's plain
+# (non-clean) render is a safe stand-in here - nothing it still carries
+# can collide with anything else on this page. None means literally no
+# art exists for that world yet - the template must show a labelled
+# placeholder then, never an <img> pointing at a missing file. Every
+# filename below confirmed to exist in habitual/static/art/ - same
+# allowlist discipline as PLANET_LOOK_SWATCHES, not computed from
+# request input or probed from disk at runtime.
+PLANET_WORLD_PREVIEW = {
+    "rust": "planet_render_rust_clean.png",
+    "dust": "planet_render_dust_clean.png",
+    "verdant": "planet_render_verdant_clean.png",
+    "lava": "planet_render_lava.png",
+    "ice": "planet_render_ice.png",
+    "ringed_giant": "planet_render_ringed_giant.png",
+}
+
+
 class CSRFOnlyForm(FlaskForm):
     """Mirrors habitual.auth.CSRFOnlyForm/habitual.avatar.CSRFOnlyForm -
     see either's comment for why this is duplicated, not imported."""
@@ -332,6 +356,7 @@ def edit_planet():
         look_catalog=PLANET_LOOK_CATALOG,
         look_slot_labels=PLANET_LOOK_SLOT_LABELS,
         look_swatches=PLANET_LOOK_SWATCHES,
+        world_preview=PLANET_WORLD_PREVIEW,
         moon_slot=MOON_SLOT,
         planet_scale=PLANET_SCALE,
         **nav_shell_context(current_user),

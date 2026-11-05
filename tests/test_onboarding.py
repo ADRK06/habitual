@@ -511,3 +511,72 @@ def test_next_button_markup_is_present_and_free_default_avatar_has_no_locked_slo
     ok, failing_slot = game.validate_avatar_payload(locked_payload)
     assert ok is False
     assert failing_slot == "gear"
+
+
+# -- bug-fix round 2: locked-world preview art + post-onboarding nav --------
+# (reported from the live site: Lava/Ice/Ringed Giant showed a broken
+# image in the planet editor's try-on preview, and there was no way
+# back to either editor once onboarding finished other than the one
+# "Edit planet" button on /colony.)
+
+
+def test_every_catalog_world_has_a_preview_entry_that_resolves_or_is_a_placeholder():
+    # colony.PLANET_WORLD_PREVIEW is what the client's worldSrc() reads
+    # instead of string-concatenating "planet_render_<world>_clean.png"
+    # (that concatenation is exactly what broke Lava/Ice/Ringed Giant -
+    # they never got a "_clean" variant). Every world in the catalog
+    # must have an entry here - None is allowed (renders the "Preview
+    # coming soon" placeholder instead of a broken <img>), a filename
+    # that doesn't exist on disk is not.
+    catalog_worlds = {value for value, _label, _lock_reason in colony_module.PLANET_LOOK_CATALOG["world"]}
+    preview_worlds = set(colony_module.PLANET_WORLD_PREVIEW.keys())
+    assert catalog_worlds == preview_worlds, (
+        f"every catalog world needs a PLANET_WORLD_PREVIEW entry (even None) - "
+        f"missing: {catalog_worlds - preview_worlds}, extra: {preview_worlds - catalog_worlds}"
+    )
+    for world, filename in colony_module.PLANET_WORLD_PREVIEW.items():
+        if filename is None:
+            continue
+        assert (ART_DIR / filename).is_file(), f"PLANET_WORLD_PREVIEW[{world!r}] points to a missing file: {filename}"
+
+
+def test_commander_locker_links_to_edit_planet(client, db):
+    user = _login(client, db)
+    user.avatar = dict(game.DEFAULT_AVATAR)
+    db.session.commit()
+
+    html = client.get("/commander").get_data(as_text=True)
+
+    assert 'href="/colony/edit"' in html
+
+
+def test_edit_planet_links_back_to_commander_locker(client, db):
+    user = _login(client, db)
+    user.avatar = dict(game.DEFAULT_AVATAR)
+    db.session.commit()
+
+    html = client.get("/colony/edit").get_data(as_text=True)
+
+    assert 'href="/commander"' in html
+
+
+def test_edit_planet_onboarding_step_links_back_to_commander_step_one(client, db):
+    _login(client, db)
+    client.post("/commander/skip")  # advances to the planet step, same as finishing step 1 for real
+
+    html = client.get("/colony/edit?onboarding=1").get_data(as_text=True)
+
+    assert 'href="/commander?onboarding=1"' in html
+
+
+def test_edit_planet_in_locker_mode_does_not_link_back_to_commander_step_one(client, db):
+    # The onboarding-only "Back" link must not leak into the permanent
+    # locker's "Edit planet" page - that page already links to /commander
+    # (tested above), never /commander?onboarding=1.
+    user = _login(client, db)
+    user.avatar = dict(game.DEFAULT_AVATAR)
+    db.session.commit()
+
+    html = client.get("/colony/edit").get_data(as_text=True)
+
+    assert 'href="/commander?onboarding=1"' not in html
