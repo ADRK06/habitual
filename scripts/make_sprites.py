@@ -631,166 +631,196 @@ def draw_boss_vx3():
     return c
 
 
-# ---- planet-scale buildings, round 2 (6 types x 3 levels = 18) --------
-# Round 1 (same native pixel grid, transparent background, ground contact
-# in the planet's own rust tones) fixed the "pasted-on" complaint but the
-# developer's review called the result "cohesive but messy": varying
-# per-building canvas sizes and widths that grew with level, a different
-# accent hue per building (green biodome, blue-ish observatory dish), and
-# placement scattered across the planet's face rather than a tidy ring.
+# ---- planet-scale buildings, round 3: match the ORIGINAL bake --------
+# Rounds 1-2 both invented a NEW visual system (boxes, outlines, a ring
+# geometry) instead of reusing what was already there. The developer's
+# style reference is simpler: planet_render_rust.png's own BAKED
+# decorations - a thin antenna, a tiny green dome, two grey window-block
+# clusters, one more on the far rim - already look native, because
+# they're drawn directly on the sphere with no background/outline at
+# all, just a handful of steel-grey + phosphor-amber pixels sitting low
+# and irregular on the rust surface.
 #
-# Round 2 fixes all three with one discipline: every building shares the
-# IDENTICAL footprint (PLANET_SPRITE_W x PLANET_SPRITE_H, same silhouette
-# pixels present) at EVERY level - levels only RECOLOR specific pixels
-# that are already part of the LV1 silhouette (an unlit window/core/tip
-# pixel turns amber, then a second one does at LV3) rather than adding or
-# widening geometry. That's what guarantees "same footprint, same
-# baseline, ring never changes spacing" - there is no other way to
-# guarantee it than for the silhouette itself to never change.
+# So round 3 does not invent new geometry - it DECOMPOSES the original's
+# baked clusters into six per-building sprites, each a small set of
+# (dx, dy, color) pixel OFFSETS from that cluster's own real position on
+# planet_render_rust.png (not a canvas with a background - there is no
+# background, every undrawn pixel is simply transparent). Mapping
+# (cluster's real bounding pixels -> building type), decided by shape:
 #
-# Palette is now deliberately narrow: GRAY_MID/STEEL_DARK for the body
-# (alternating per building - see PLANET_RING_ORDER below, "so colours
-# alternate nicely"), AMBER/AMBER_LIGHT as the ONE phosphor accent family
-# every building uses (never green, never a second hue), REGOLITH_* for
-# ground contact. Review-only: registered in NEW_SPRITES/META and shown
-# at /dev/styleguide, NOT wired into colony_panel.html/colony.py.
-REGOLITH_SHADOW = (0x3A, 0x16, 0x10, 255)  # planet_render_rust's own deepest shadow rust
-REGOLITH_DARK = (0x5A, 0x24, 0x18, 255)
-REGOLITH = (0xA8, 0x43, 0x2A, 255)
-REGOLITH_LIGHT = (0xF2, 0x9A, 0x6A, 255)  # planet_render_rust's own brightest highlight rust
+#   - antenna (x21-22, y0-11: thin mast, green tip, 2 amber dots on a
+#     shadow column)                          -> Defense Tower (a tower
+#     IS an antenna/mast - the most direct mapping of the five)
+#   - green dome (x25-30, y9-10: a 2-row green blob with grey mounting
+#     pixels)                                  -> Biodome (green = life;
+#     the only baked cluster with any color beyond grey/amber)
+#   - near-left block (x13-18, y9-13: a grey block with 4 SEPARATE
+#     scattered amber dots, like individual lit windows) -> Research Lab
+#     (many small separate lights reads as "many lit workstations")
+#   - far-left block (x9-13, y14-18: a tighter grey block with a single
+#     CONCENTRATED 3-pixel amber/amber-light glow, not spread out)
+#                                               -> Power Reactor (one
+#     bright core glow, not windows)
+#   - right block (x31-37, y11-15: a grey block with 4 amber dots in a
+#     clean diagonal line)                      -> Observatory (read as
+#     a scanning/tilted instrument, and it sits furthest round the rim,
+#     fitting "looking outward")
+#
+# That accounts for 5 of 6 types - the original bake has no 6th cluster
+# to decompose, since it was never drawn with our game's categories in
+# mind. Custom Module ("Anything else... user picks the look" per docs/
+# COLONIES_GAME_PLAN.md - the one category with no fixed real-world
+# analog either) gets a new minimal cluster in the same technique
+# instead, in the gap between the antenna and the green dome: 1-3 grey
+# pixels, no more than one amber pixel even at LV3 - deliberately the
+# smallest, least-detailed cluster, matching its "generic/cosmetic"
+# theme rather than competing visually with the five real ones.
+#
+# Per CLUSTER_ANCHORS below, every cluster's anchor is NOT shifted from
+# round 2's ring positions - each sits at (or very near) the real pixel
+# position its corresponding original cluster already occupies, so
+# building all six back up reproduces the original bake (LV3 pixel sets
+# below are the original cluster's own pixels, verified against the
+# dump in the PR description) rather than a new arrangement.
+#
+# Levels, per the brief: LV1 is a small subset of the full cluster
+# (barely there, 0-1 lit pixels), LV2 is a partial build-out (a couple
+# more pixels, 1-2 lit), LV3 is the FULL cluster exactly as it appears
+# baked into planet_render_rust.png - same anchor at every level (the
+# pixel offsets are always relative to the same (0, 0)), growing upward/
+# outward from it, never relocating.
+#
+# No background, no outline, no ground-contact shading box - the sphere's
+# own rust shows through every pixel that isn't explicitly part of a
+# cluster, exactly like the original.
 
-PLANET_SPRITE_W = 10
-PLANET_SPRITE_H = 12
+PLANET_CLUSTER_PIXELS = {
+    # (dx, dy) offsets from each building's own anchor (see CLUSTER_
+    # ANCHORS) -> color, for the FULL (LV3) cluster. LV1/LV2 take an
+    # ordered prefix of this same list (see _level_pixels) rather than
+    # a separately hand-drawn shape, so a lower level is always visually
+    # "this cluster, just not finished yet" rather than a different shape.
+    "defense_tower": [
+        # anchor (21, 11) - the antenna's own base
+        (0, 0, GRAY_MID), (1, 0, GRAY_DARK),
+        (0, -1, GRAY_MID), (1, -1, AMBER),
+        (0, -2, GRAY_MID), (1, -2, GRAY_MID),
+        (0, -3, GRAY_MID), (1, -3, AMBER),
+        (0, -4, GRAY_MID), (1, -4, GRAY_DARK),
+        (0, -5, GRAY_MID), (1, -5, GRAY_DARK),
+        (0, -6, GRAY_MID), (1, -6, GRAY_DARK),
+        (0, -7, GRAY_MID), (1, -7, GRAY_DARK),
+        (0, -8, GRAY_LIGHT),
+        (0, -9, GRAY_LIGHT),
+        (0, -10, GRAY_LIGHT),
+        (0, -11, GREEN),
+    ],
+    "biodome": [
+        # anchor (27, 10) - the green dome's own base. GREEN pixels
+        # listed first on purpose - this cluster's whole identity IS the
+        # green, so even LV1's tiny subset should show a hint of it
+        # rather than an incidental grey mounting pixel.
+        (0, 0, GREEN), (-1, 0, GREEN), (0, -1, GREEN),
+        (-2, 0, GRAY_LIGHT), (3, 0, GRAY_LIGHT), (-1, -1, GRAY_LIGHT), (2, -1, GRAY_LIGHT),
+    ],
+    "research_lab": [
+        # anchor (16, 13) - the near-left window block's own base
+        (-2, 0, AMBER), (-1, 0, GRAY_MID), (0, 0, GRAY_MID),
+        (-2, -1, GRAY_MID), (-1, -1, AMBER), (0, -1, GRAY_MID), (1, -1, AMBER), (2, -1, GRAY_MID),
+        (-3, -2, GRAY_LIGHT), (-2, -2, GRAY_MID), (-1, -2, GRAY_MID), (0, -2, GRAY_MID), (1, -2, GRAY_MID), (2, -2, AMBER),
+        (-1, -3, GRAY_LIGHT), (0, -3, GRAY_MID), (1, -3, GRAY_MID), (2, -3, GRAY_MID),
+        (0, -4, GRAY_LIGHT), (1, -4, GRAY_LIGHT),
+    ],
+    "power_reactor": [
+        # anchor (11, 18) - the far-left glow block's own base
+        (0, 0, GRAY_DARK),
+        (-1, -1, GRAY_DARK), (0, -1, GRAY_MID), (1, -1, GRAY_MID),
+        (-1, -2, GRAY_MID), (0, -2, GRAY_MID), (1, -2, GRAY_MID),
+        (-2, -3, AMBER), (-1, -3, GRAY_MID), (0, -3, GRAY_MID), (1, -3, GRAY_MID), (2, -3, GRAY_DARK),
+        (-2, -4, AMBER_LIGHT), (-1, -4, AMBER), (0, -4, GRAY_DARK),
+    ],
+    "observatory": [
+        # anchor (34, 15) - the right-rim diagonal-window block's own base
+        (0, 0, GRAY_MID), (1, 0, AMBER),
+        (-1, -1, GRAY_MID), (0, -1, AMBER), (1, -1, GRAY_MID), (2, -1, GRAY_MID),
+        (-3, -2, GRAY_MID), (-2, -2, GRAY_MID), (-1, -2, AMBER), (0, -2, GRAY_MID), (1, -2, GRAY_MID), (2, -2, GRAY_LIGHT),
+        (-2, -3, AMBER), (-1, -3, GRAY_MID), (0, -3, GRAY_MID), (1, -3, GRAY_LIGHT),
+        (-1, -4, GRAY_MID), (0, -4, GRAY_LIGHT), (3, -4, GRAY_MID),
+    ],
+    "custom_module": [
+        # anchor (24, 9) - new, minimal, in the antenna-to-dome gap; no
+        # original cluster to decompose (see the module docstring above)
+        (0, 0, GRAY_MID), (1, 0, GRAY_MID),
+        (0, -1, GRAY_MID), (1, -1, AMBER),
+        (0, -2, AMBER),
+    ],
+}
+
+# Real anchor position (on planet_render_rust(_clean).png's own 48x48
+# canvas) for each building's cluster - see the mapping above for which
+# real baked pixels each one decomposes.
+CLUSTER_ANCHORS = {
+    "defense_tower": (21, 11),
+    "biodome": (27, 10),
+    "research_lab": (16, 13),
+    "power_reactor": (11, 18),
+    "observatory": (34, 15),
+    "custom_module": (24, 9),
+}
+
+# How many of PLANET_CLUSTER_PIXELS' pixels (in the order written above -
+# deliberately ordered low/base pixels first, detail/accent pixels last)
+# are visible at each level. LV3 is always len(...) - the full original
+# cluster. LV1/LV2 are hand-picked per building (not a fixed fraction),
+# since each cluster's pixel list is ordered base-first/detail-last by
+# hand, not uniformly.
+PLANET_LEVEL_COUNTS = {
+    "defense_tower": {1: 3, 2: 8},
+    "biodome": {1: 1, 2: 3},
+    "research_lab": {1: 3, 2: 8},
+    "power_reactor": {1: 2, 2: 7},
+    "observatory": {1: 2, 2: 8},
+    "custom_module": {1: 1, 2: 3},
+}
 
 
-def _planet_canvas():
-    return new_canvas(PLANET_SPRITE_W, PLANET_SPRITE_H)
+def _level_pixels(building_type: str, level: int):
+    full = PLANET_CLUSTER_PIXELS[building_type]
+    if level >= 3:
+        return full
+    return full[: PLANET_LEVEL_COUNTS[building_type][level]]
 
 
-def _ground_contact(c, cx, half_width):
-    """1-2px of shaded ground where a building meets the surface, on the
-    sprite's own last two rows - reuses the planet's own rust-shadow
-    tones (not a flat UI drop shadow), so the contact blends into the
-    terrain's coloring instead of sitting on it. Same two rows, same
-    half_width, at every level for a given building - part of the fixed
-    footprint, never widened."""
-    y_outer, y_inner = PLANET_SPRITE_H - 1, PLANET_SPRITE_H - 2
-    hline(c, cx - half_width, cx + half_width, y_outer, REGOLITH_SHADOW)
-    if half_width > 1:
-        hline(c, cx - half_width + 1, cx + half_width - 1, y_inner, REGOLITH_DARK)
-
-
-def _draw_defense_tower(level: int):
-    # tall thin spire on a base block - silhouette is IDENTICAL at every
-    # level (ground, base, 6-row shaft); LV2 lights the tip, LV3 also
-    # lights a mid-shaft band and brightens the tip - never widens.
-    c = _planet_canvas()
-    cx = 5
-    _ground_contact(c, cx, 1)
-    rect(c, cx - 1, 8, cx + 1, 9, GRAY_MID)
-    vline(c, cx, 2, 7, GRAY_LIGHT)
-    set_px(c, cx, 1, GRAY_LIGHT if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
-    if level == 3:
-        set_px(c, cx, 4, AMBER)
+def _bbox_canvas(pixels):
+    """The smallest transparent canvas containing every (dx, dy, color)
+    pixel, used only for each level's STANDALONE preview image (x1/x4 in
+    /dev/styleguide) - the full-planet composites instead paste these
+    same offsets directly onto the planet at each building's real
+    CLUSTER_ANCHORS position, never through this cropped canvas."""
+    min_dx = min(p[0] for p in pixels)
+    max_dx = max(p[0] for p in pixels)
+    min_dy = min(p[1] for p in pixels)
+    max_dy = max(p[1] for p in pixels)
+    w, h = max_dx - min_dx + 1, max_dy - min_dy + 1
+    c = new_canvas(w, h)
+    for dx, dy, color in pixels:
+        set_px(c, dx - min_dx, dy - min_dy, color)
     return c
 
 
-def _draw_research_lab(level: int):
-    # boxy block with 4 fixed window slots, dark (unlit) by default - LV2
-    # lights the top pair, LV3 lights the bottom pair too. Same box at
-    # every level.
-    c = _planet_canvas()
-    cx = 5
-    _ground_contact(c, cx, 3)
-    rect(c, cx - 3, 3, cx + 3, 9, GRAY_MID)
-    hline(c, cx - 3, cx + 3, 3, GRAY_LIGHT)
-    lit_top = level >= 2
-    lit_bottom = level >= 3
-    set_px(c, cx - 2, 6, AMBER if lit_top else GRAY_DARK)
-    set_px(c, cx + 2, 6, AMBER if lit_top else GRAY_DARK)
-    set_px(c, cx - 2, 8, AMBER if lit_bottom else GRAY_DARK)
-    set_px(c, cx + 2, 8, AMBER if lit_bottom else GRAY_DARK)
-    return c
-
-
-def _draw_power_reactor(level: int):
-    # squat steel drum with a core pixel (off/amber/brighter) and two
-    # vent-light pixels that only appear lit at LV3 - same drum at every
-    # level.
-    c = _planet_canvas()
-    cx = 5
-    _ground_contact(c, cx, 3)
-    rect(c, cx - 3, 4, cx + 3, 9, STEEL_DARK)
-    hline(c, cx - 3, cx + 3, 4, GRAY_LIGHT)
-    set_px(c, cx, 7, GRAY_DARK if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
-    vent_color = AMBER if level == 3 else STEEL_DARK
-    set_px(c, cx - 2, 6, vent_color)
-    set_px(c, cx + 2, 6, vent_color)
-    return c
-
-
-def _draw_biodome(level: int):
-    # steel-toned dome (no green - one phosphor accent only, like every
-    # other building here) with an apex pixel and one rim pixel that
-    # light up as it levels. Same dome at every level.
-    c = _planet_canvas()
-    cx = 5
-    _ground_contact(c, cx, 3)
-    hline(c, cx - 3, cx + 3, 9, STEEL_LIGHT)
-    hline(c, cx - 2, cx + 2, 8, STEEL_DARK)
-    hline(c, cx - 1, cx + 1, 7, STEEL_DARK)
-    set_px(c, cx, 6, STEEL_LIGHT if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
-    rim_color = AMBER if level == 3 else STEEL_LIGHT
-    set_px(c, cx - 3, 9, rim_color)
-    return c
-
-
-def _draw_observatory(level: int):
-    # block with a small dome cap - apex pixel and one side panel pixel
-    # light up as it levels. Same block+cap at every level. (Round 1's
-    # first draft here read as scattered debris, not a dish - fixed then
-    # by centering a symmetric cap instead of a lopsided rim; round 2
-    # keeps that cap but locks it to the shared footprint.)
-    c = _planet_canvas()
-    cx = 5
-    _ground_contact(c, cx, 2)
-    rect(c, cx - 2, 6, cx + 2, 9, STEEL_DARK)
-    hline(c, cx - 1, cx + 1, 5, STEEL_LIGHT)
-    set_px(c, cx, 4, GRAY_LIGHT if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
-    panel_color = AMBER if level == 3 else STEEL_DARK
-    set_px(c, cx + 2, 7, panel_color)
-    return c
-
-
-def _draw_custom_module(level: int):
-    # plain box with a core pixel and one corner pixel that light up as
-    # it levels. Same box at every level.
-    c = _planet_canvas()
-    cx = 5
-    _ground_contact(c, cx, 2)
-    rect(c, cx - 2, 5, cx + 2, 9, GRAY_MID)
-    set_px(c, cx, 7, GRAY_DARK if level == 1 else (AMBER if level == 2 else AMBER_LIGHT))
-    corner_color = AMBER if level == 3 else GRAY_MID
-    set_px(c, cx - 2, 6, corner_color)
-    return c
+def _draw_planet_building(building_type: str, level: int):
+    return _bbox_canvas(_level_pixels(building_type, level))
 
 
 PLANET_BUILDING_DRAWERS = {
-    "defense_tower": _draw_defense_tower,
-    "research_lab": _draw_research_lab,
-    "power_reactor": _draw_power_reactor,
-    "biodome": _draw_biodome,
-    "observatory": _draw_observatory,
-    "custom_module": _draw_custom_module,
+    building_type: (lambda level, bt=building_type: _draw_planet_building(bt, level))
+    for building_type in PLANET_CLUSTER_PIXELS
 }
 
-# Clock-position order around the ring (12, 2, 4, 6, 8, 10 o'clock) -
-# alternates a neutral-grey body (defense_tower/research_lab/custom_
-# module) with a steel-toned body (power_reactor/biodome/observatory) at
-# every single step all the way around, "so colours alternate nicely".
-PLANET_RING_ORDER = [
-    "defense_tower", "power_reactor", "research_lab", "biodome", "custom_module", "observatory",
-]
+# Display/ring order purely for styleguide section ordering - NOT a
+# spacing ring any more (round 2's ring geometry is gone; every building
+# sits at its own real CLUSTER_ANCHORS position instead).
+PLANET_RING_ORDER = list(PLANET_CLUSTER_PIXELS)
 
 
 def draw_planet_render_rust_clean():
@@ -1040,39 +1070,36 @@ def build_composites() -> None:
     build_planet_previews()
 
 
-# Review-only ring layout for the full-planet previews below - the
-# ground-contact anchor point (on planet_render_rust.png's own 48x48
-# canvas) each building's base should land on, at 6 clock positions
-# (12/2/4/6/8/10) evenly spaced 60 degrees apart around the sphere's rim
-# (measured center ~(23.5,26), radius ~16; ring radius 14 keeps every
-# sprite safely on-canvas). Buildings are drawn upright (never rotated)
-# at every position - rotating hand-drawn pixel art at this resolution
-# produces blur/aliasing rather than a clean look, so "facing outward"
-# is read here as "placed at the rim, body clear of the face", not as a
-# literal per-angle rotation; flag it if a literal rotation is wanted
-# instead. A SEPARATE, one-off layout from whatever colony.py's real
-# PLANET_SLOTS ends up using once this art is approved and actually
-# wired in - intentionally not shared code, per "do not touch placement
-# code".
-def _ring_anchors(cx=23.5, cy=26.0, radius=14.0):
-    import math
-
-    anchors = {}
-    for i, building_type in enumerate(PLANET_RING_ORDER):
-        angle = math.radians(i * 60)
-        anchors[building_type] = (cx + radius * math.sin(angle), cy - radius * math.cos(angle))
-    return anchors
-
-
-PLANET_PREVIEW_ANCHORS = _ring_anchors()
+# Review-only locked-slot marker: a single, very dim pixel at the
+# anchor - NOT the oversized dashed box rounds 1-2 used (explicitly
+# thrown out per the developer's review). Shown both with and without
+# in the styleguide, since "acceptable only if it looks clean" is the
+# developer's own call to make.
+LOCKED_DOT_COLOR = GRAY_DARK[:3] + (110,)
 
 
 def _paste_planet_building(base_img, building_type: str, level: int) -> None:
-    sprite = canvas_to_image(PLANET_BUILDING_DRAWERS[building_type](level))
-    anchor_x, anchor_y = PLANET_PREVIEW_ANCHORS[building_type]
-    left = round(anchor_x - PLANET_SPRITE_W / 2)
-    top = round(anchor_y - (PLANET_SPRITE_H - 1))
-    base_img.paste(sprite, (left, top), sprite)
+    """Pastes a building's cluster directly onto the full planet image at
+    its real CLUSTER_ANCHORS position - pixel by pixel, not through an
+    intermediate cropped canvas, so there's no risk of an off-by-one
+    crop/anchor mismatch between this and _bbox_canvas's standalone
+    preview images (which exist only for /dev/styleguide's x1/x4 display,
+    never for compositing)."""
+    anchor_x, anchor_y = CLUSTER_ANCHORS[building_type]
+    for dx, dy, color in _level_pixels(building_type, level):
+        x, y = anchor_x + dx, anchor_y + dy
+        if 0 <= x < base_img.width and 0 <= y < base_img.height:
+            base_img.putpixel((x, y), color)
+
+
+def _paste_locked_dot(base_img, building_type: str) -> None:
+    x, y = CLUSTER_ANCHORS[building_type]
+    if 0 <= x < base_img.width and 0 <= y < base_img.height:
+        existing = base_img.getpixel((x, y))
+        r, g, b, a = LOCKED_DOT_COLOR
+        blend_a = a / 255
+        blended = tuple(round(existing[i] * (1 - blend_a) + (r, g, b)[i] * blend_a) for i in range(3))
+        base_img.putpixel((x, y), blended + (255,))
 
 
 def _clean_planet_image():
@@ -1080,17 +1107,15 @@ def _clean_planet_image():
 
 
 def build_planet_previews() -> None:
-    """Four full-planet mockups for /dev/styleguide to judge the new art
-    on planet_render_rust_clean.png (not the original - the ring is
-    meant to be judged against the antenna-free variant, which is also
+    """Full-planet mockups for /dev/styleguide to judge the new art on
+    planet_render_rust_clean.png (the antenna/debris-free variant, also
     up for approval here) - review only:
       (a) the clean planet alone, no buildings
-      (b) all six buildings in the ring at LV1
-      (c) all six at LV3
-      (d) a realistic mixed case (2 built, 4 still locked - a locked
-          slot shows a faint footprint outline instead of a sprite,
-          standing in for the real dashed-border marker a later,
-          CSS-based version would use)
+      (b) all six clusters at LV1 (barely there)
+      (c) all six at LV3 (the full original bake, reproduced)
+      (d) a realistic mix (2 built, 4 still locked) - BOTH with no
+          marker at all, and with the single dim locked-dot, for a
+          side-by-side call on whether the dot earns its keep
     """
     _clean_planet_image().save(COMPOSITES_DIR / "planet_preview_empty.png")
 
@@ -1100,22 +1125,20 @@ def build_planet_previews() -> None:
             _paste_planet_building(base, building_type, level)
         base.save(COMPOSITES_DIR / filename)
 
-    from PIL import ImageDraw
+    built = {"defense_tower": 2, "research_lab": 1}
+    locked = [bt for bt in CLUSTER_ANCHORS if bt not in built]
 
     base = _clean_planet_image()
-    draw = ImageDraw.Draw(base)
-    built = {"defense_tower": 2, "research_lab": 1}
-    for building_type, (anchor_x, anchor_y) in PLANET_PREVIEW_ANCHORS.items():
-        if building_type in built:
-            _paste_planet_building(base, building_type, built[building_type])
-            continue
-        left = round(anchor_x - PLANET_SPRITE_W / 2)
-        top = round(anchor_y - (PLANET_SPRITE_H - 1))
-        draw.rectangle(
-            [left, top, left + PLANET_SPRITE_W - 1, top + PLANET_SPRITE_H - 1],
-            outline=GRAY_LIGHT[:3] + (130,),
-        )
-    base.save(COMPOSITES_DIR / "planet_preview_mixed.png")
+    for building_type, level in built.items():
+        _paste_planet_building(base, building_type, level)
+    base.save(COMPOSITES_DIR / "planet_preview_mixed_bare.png")
+
+    base = _clean_planet_image()
+    for building_type, level in built.items():
+        _paste_planet_building(base, building_type, level)
+    for building_type in locked:
+        _paste_locked_dot(base, building_type)
+    base.save(COMPOSITES_DIR / "planet_preview_mixed_dot.png")
 
 
 if __name__ == "__main__":

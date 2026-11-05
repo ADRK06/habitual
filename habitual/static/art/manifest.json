@@ -393,6 +393,15 @@
     "source_id": null,
     "category": "fleet",
     "used_in": [],
+    "new": false,
+    "phase": 6,
+    "notes": "weekly boss, named after the mocks' own 'Mothership VX-3'"
+  },
+  {
+    "name": "boss_vx3",
+    "source_id": null,
+    "category": "fleet",
+    "used_in": [],
     "new": true,
     "phase": 6,
     "notes": "weekly boss, named after the mocks' own 'Mothership VX-3'"
@@ -423,6 +432,15 @@
       "WebLanding.dc.html"
     ],
     "new": false
+  },
+  {
+    "name": "building_damage_overlay",
+    "source_id": null,
+    "category": "overlay",
+    "used_in": [],
+    "new": false,
+    "phase": 5,
+    "notes": "reusable on all 5 fixed buildings"
   },
   {
     "name": "building_damage_overlay",
@@ -551,6 +569,15 @@
     "source_id": null,
     "category": "building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "under-construction, beacon frame 1/2"
+  },
+  {
+    "name": "building_scaffold_1",
+    "source_id": null,
+    "category": "building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "under-construction, beacon frame 1/2"
@@ -587,6 +614,15 @@
     "source_id": null,
     "category": "building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "under-construction, beacon frame 2/2"
+  },
+  {
+    "name": "building_scaffold_2",
+    "source_id": null,
+    "category": "building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "under-construction, beacon frame 2/2"
@@ -623,6 +659,15 @@
     "source_id": null,
     "category": "overlay",
     "used_in": [],
+    "new": false,
+    "phase": 5,
+    "notes": "reusable on 4 of 5 buildings (not biodome, see below)"
+  },
+  {
+    "name": "building_shield_dome",
+    "source_id": null,
+    "category": "overlay",
+    "used_in": [],
     "new": true,
     "phase": 5,
     "notes": "reusable on 4 of 5 buildings (not biodome, see below)"
@@ -659,6 +704,15 @@
     "source_id": null,
     "category": "overlay",
     "used_in": [],
+    "new": false,
+    "phase": 5,
+    "notes": "biodome-only variant - the generic dome overlay is invisible on a building that's already a dome"
+  },
+  {
+    "name": "building_shield_dome_biodome",
+    "source_id": null,
+    "category": "overlay",
+    "used_in": [],
     "new": true,
     "phase": 5,
     "notes": "biodome-only variant - the generic dome overlay is invisible on a building that's already a dome"
@@ -695,6 +749,15 @@
     "source_id": null,
     "category": "effect",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "check-in beam, frame 1/2"
+  },
+  {
+    "name": "checkin_energy_beam_1",
+    "source_id": null,
+    "category": "effect",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "check-in beam, frame 1/2"
@@ -731,6 +794,15 @@
     "source_id": null,
     "category": "effect",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "check-in beam, frame 2/2"
+  },
+  {
+    "name": "checkin_energy_beam_2",
+    "source_id": null,
+    "category": "effect",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "check-in beam, frame 2/2"
@@ -767,6 +839,15 @@
     "source_id": null,
     "category": "fleet",
     "used_in": [],
+    "new": false,
+    "phase": 6,
+    "notes": "standalone, level 1 of 3"
+  },
+  {
+    "name": "fleet_station_lv1",
+    "source_id": null,
+    "category": "fleet",
+    "used_in": [],
     "new": true,
     "phase": 6,
     "notes": "standalone, level 1 of 3"
@@ -803,9 +884,27 @@
     "source_id": null,
     "category": "fleet",
     "used_in": [],
+    "new": false,
+    "phase": 6,
+    "notes": "standalone, level 2 of 3"
+  },
+  {
+    "name": "fleet_station_lv2",
+    "source_id": null,
+    "category": "fleet",
+    "used_in": [],
     "new": true,
     "phase": 6,
     "notes": "standalone, level 2 of 3"
+  },
+  {
+    "name": "fleet_station_lv3",
+    "source_id": null,
+    "category": "fleet",
+    "used_in": [],
+    "new": false,
+    "phase": 6,
+    "notes": "standalone, level 3 of 3"
   },
   {
     "name": "fleet_station_lv3",
@@ -960,6 +1059,15 @@
     "source_id": null,
     "category": "icon",
     "used_in": [],
+    "new": false,
+    "phase": 5,
+    "notes": "open-state companion to icon_supply_crate"
+  },
+  {
+    "name": "icon_supply_crate_open",
+    "source_id": null,
+    "category": "icon",
+    "used_in": [],
     "new": true,
     "phase": 5,
     "notes": "open-state companion to icon_supply_crate"
@@ -1030,6 +1138,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale biodome, level 1 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_biodome_lv1",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale biodome, level 1 of 3 - review only, not wired in yet"
@@ -1057,6 +1174,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale biodome, level 2 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_biodome_lv2",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale biodome, level 2 of 3 - review only, not wired in yet"
@@ -1084,6 +1210,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale biodome, level 3 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_biodome_lv3",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale biodome, level 3 of 3 - review only, not wired in yet"
@@ -1111,6 +1246,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale custom_module, level 1 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_custom_module_lv1",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale custom_module, level 1 of 3 - review only, not wired in yet"
@@ -1138,6 +1282,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale custom_module, level 2 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_custom_module_lv2",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale custom_module, level 2 of 3 - review only, not wired in yet"
@@ -1165,6 +1318,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale custom_module, level 3 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_custom_module_lv3",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale custom_module, level 3 of 3 - review only, not wired in yet"
@@ -1192,6 +1354,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale defense_tower, level 1 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_defense_tower_lv1",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale defense_tower, level 1 of 3 - review only, not wired in yet"
@@ -1219,6 +1390,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale defense_tower, level 2 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_defense_tower_lv2",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale defense_tower, level 2 of 3 - review only, not wired in yet"
@@ -1246,6 +1426,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale defense_tower, level 3 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_defense_tower_lv3",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale defense_tower, level 3 of 3 - review only, not wired in yet"
@@ -1273,6 +1462,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale observatory, level 1 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_observatory_lv1",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale observatory, level 1 of 3 - review only, not wired in yet"
@@ -1300,6 +1498,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale observatory, level 2 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_observatory_lv2",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale observatory, level 2 of 3 - review only, not wired in yet"
@@ -1327,6 +1534,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale observatory, level 3 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_observatory_lv3",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale observatory, level 3 of 3 - review only, not wired in yet"
@@ -1354,6 +1570,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale power_reactor, level 1 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_power_reactor_lv1",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale power_reactor, level 1 of 3 - review only, not wired in yet"
@@ -1381,6 +1606,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale power_reactor, level 2 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_power_reactor_lv2",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale power_reactor, level 2 of 3 - review only, not wired in yet"
@@ -1408,6 +1642,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale power_reactor, level 3 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_power_reactor_lv3",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale power_reactor, level 3 of 3 - review only, not wired in yet"
@@ -1435,6 +1678,15 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale research_lab, level 1 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_research_lab_lv1",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale research_lab, level 1 of 3 - review only, not wired in yet"
@@ -1462,9 +1714,27 @@
     "source_id": null,
     "category": "planet_building",
     "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale research_lab, level 2 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_research_lab_lv2",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
     "new": true,
     "phase": 4,
     "notes": "planet-scale research_lab, level 2 of 3 - review only, not wired in yet"
+  },
+  {
+    "name": "planet_building_research_lab_lv3",
+    "source_id": null,
+    "category": "planet_building",
+    "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet-scale research_lab, level 3 of 3 - review only, not wired in yet"
   },
   {
     "name": "planet_building_research_lab_lv3",
@@ -1614,6 +1884,15 @@
       "WebShop.dc.html"
     ],
     "new": false
+  },
+  {
+    "name": "planet_render_rust_clean",
+    "source_id": null,
+    "category": "planet_render",
+    "used_in": [],
+    "new": false,
+    "phase": 4,
+    "notes": "planet_render_rust.png with the baked-in antenna/debris erased - review only, pending approval"
   },
   {
     "name": "planet_render_rust_clean",

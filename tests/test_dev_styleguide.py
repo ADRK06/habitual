@@ -57,10 +57,11 @@ def test_styleguide_shows_the_planet_scale_building_review_section():
         assert "PLANET VARIANT" in html
         assert "planet_render_rust.png" in html
         assert "planet_render_rust_clean.png" in html
-        # All four full-planet preview composites.
+        # All five full-planet preview composites.
         assert "planet_preview_empty.png" in html
         assert "planet_preview_lv1.png" in html
         assert "planet_preview_lv3.png" in html
-        assert "planet_preview_mixed.png" in html
+        assert "planet_preview_mixed_bare.png" in html
+        assert "planet_preview_mixed_dot.png" in html
 
         db.drop_all()

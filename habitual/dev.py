@@ -152,18 +152,20 @@ def _planet_building_rows() -> list[dict]:
 
 PLANET_PREVIEW_FILES = [
     ("planet_preview_empty.png", "Empty (clean planet, no buildings)"),
-    ("planet_preview_lv1.png", "All six in the ring · LV1"),
-    ("planet_preview_lv3.png", "All six in the ring · LV3"),
-    ("planet_preview_mixed.png", "Realistic mix · 2 built, 4 locked"),
+    ("planet_preview_lv1.png", "All six built · LV1"),
+    ("planet_preview_lv3.png", "All six built · LV3 (reproduces the original bake)"),
+    ("planet_preview_mixed_bare.png", "Realistic mix · 2 built, 4 locked (no marker)"),
+    ("planet_preview_mixed_dot.png", "Realistic mix · 2 built, 4 locked (dim locked dot)"),
 ]
 
 
 def _planet_previews() -> list[dict]:
-    """The four full-planet mockups built by scripts/make_sprites.py's
+    """The five full-planet mockups built by scripts/make_sprites.py's
     build_planet_previews() (empty / all-LV1 / all-LV3 / a realistic
-    2-built-4-locked mix), shown large so the developer can judge how
-    the new ring reads on planet_render_rust_clean.png before approving
-    it for real."""
+    2-built-4-locked mix shown both with and without the dim locked-dot
+    marker), shown large so the developer can judge how each building's
+    cluster reads on planet_render_rust_clean.png before approving it
+    for real."""
     previews = []
     for filename, label in PLANET_PREVIEW_FILES:
         size = _png_size(COMPOSITES_DIR / filename)

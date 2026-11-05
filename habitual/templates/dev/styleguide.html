@@ -189,20 +189,25 @@
     </div>
   </section>
 
-  {# Planet-scale buildings (Phase 4a planet-buildings follow-up, round 2) -
-     review only, not wired into colony_panel.html/colony.py yet. See
-     scripts/make_sprites.py's PLANET_BUILDING_DRAWERS docstring for the
-     round-1 feedback this redesign addresses (cohesive but messy: varying
-     footprints, mixed hues, buildings scattered on the face instead of a
-     tidy ring). #}
+  {# Planet-scale buildings (Phase 4a planet-buildings follow-up, round 3) -
+     review only, not wired into colony_panel.html/colony.py yet. Rounds
+     1-2 both invented a new visual system (boxes, a ring); round 3
+     instead decomposes planet_render_rust.png's own baked decorations
+     (antenna, green dome, two window blocks, a far-rim block) into six
+     per-building pixel clusters, anchored at each cluster's own real
+     position - see scripts/make_sprites.py's PLANET_CLUSTER_PIXELS
+     docstring for the exact mapping and why. #}
   {% if planet_variants or planet_previews or planet_building_rows %}
   <section class="flex flex-col gap-6">
     <div class="flex flex-col gap-2">
       <h2 class="font-display text-xs tracking-widest text-success">PLANET-SCALE BUILDINGS (REVIEW)</h2>
       <p class="font-body text-sm text-text-muted max-w-2xl">
-        Round 2 - one shared footprint per building at every level (levels only recolor pixels already
-        in the LV1 silhouette, never add or widen), a narrow grey/steel palette with ONE phosphor accent
-        each, arranged in an evenly-spaced ring around the planet's rim instead of scattered on its face.
+        Round 3 - no invented geometry. Each building is a small (1-19 pixel) cluster redrawn in the
+        original bake's own style and positioned at the real rim spot its corresponding original cluster
+        already occupied, so built up to LV3 the planet reproduces the original bake almost pixel for
+        pixel. Same anchor at every level - LV1/LV2 just reveal an ordered prefix of the full cluster
+        (base pixels first, lit/accent pixels last), never a different shape or a new position. No
+        background, no outline - every pixel that isn't part of a cluster is the sphere's own rust.
         Still not wired into <code class="font-mono">/colony</code> - judge the art here first.
       </p>
     </div>
@@ -211,10 +216,11 @@
     <div class="flex flex-col gap-3">
       <h3 class="font-display text-[11px] tracking-widest text-text-muted">PLANET VARIANT · ANTENNA/DEBRIS REMOVED?</h3>
       <p class="font-body text-xs text-text-muted max-w-2xl">
-        The baked-in antenna mast and its small debris cluster competed with the ring - this erases
-        them by color (see <code class="font-mono">draw_planet_render_rust_clean</code>'s docstring),
-        keeping the sphere's own rust body and blue atmosphere-rim highlight untouched. The original file
-        is unmodified either way.
+        The baked-in antenna mast and its small debris cluster are erased by color (see
+        <code class="font-mono">draw_planet_render_rust_clean</code>'s docstring - two earlier row-range
+        attempts got the extent wrong before a color-based erase isolated exactly the debris palette),
+        keeping the sphere's own rust body and blue atmosphere-rim highlight untouched. The clean variant
+        is the base every preview below builds back up from; the original file is unmodified either way.
       </p>
       <div class="flex flex-wrap gap-6">
         {% for variant in planet_variants %}
@@ -247,13 +253,13 @@
         {% endfor %}
       </div>
       <p class="font-body text-xs text-text-muted max-w-2xl">
-        All four previews sit on <code class="font-mono">planet_render_rust_clean.png</code> (the
-        candidate above, not the original). This ring layout (<code class="font-mono">
-        PLANET_PREVIEW_ANCHORS</code>/<code class="font-mono">PLANET_RING_ORDER</code> in
-        <code class="font-mono">scripts/make_sprites.py</code>) is a one-off for judging the ART only -
-        a separate, simpler arrangement from whatever the real slot positions end up being once this is
-        wired in for real. The "locked" marker in the mixed preview is a plain outline standing in for
-        the real dashed-border CSS marker a later wired version would use.
+        All five previews sit on <code class="font-mono">planet_render_rust_clean.png</code> (the
+        candidate above, not the original). Each building pastes its cluster at its own real
+        <code class="font-mono">CLUSTER_ANCHORS</code> position (<code class="font-mono">
+        scripts/make_sprites.py</code>) - these are the real slot positions, not a stand-in arrangement.
+        Locked buildings draw nothing by default; the two mixed previews show the same 2-built/4-locked
+        case with and without a very subtle 1px dim dot at each locked anchor, for a side-by-side call
+        on whether that marker earns its keep or whether nothing at all reads cleaner.
       </p>
     </div>
     {% endif %}
