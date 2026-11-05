@@ -219,15 +219,17 @@ For a completed day that is day **n** of the current streak:
 - **Colony level** = `1 + floor(sqrt(earned_points / 25))` — XP-only, no population/building-count
   bonus (not implemented anywhere yet).
 - **Building level is derived, never stored** — no `buildings` table. A building's level comes live
-  from the lifetime count of check-ins in its category (`habitual.game.level_for_checkins`), counting
-  every check-in the user has ever made (archived habits and fleet/room habits both count — archiving
-  must never look like losing progress, and a room habit's category is just `Habit.category` copied
-  from the room). Thresholds: **10 → LV1, 30 → LV2, 60 → LV3** (max). Custom Module (`other`) is the
-  one exception — it counts the user's TOTAL check-ins across every category instead of just `other`'s
-  own, so it's never truly locked for anyone with at least one check-in anywhere. No build menu, no
-  Energy spend on buildings, no construction timers — a check-in that crosses a threshold fires a toast
-  + a short pulse on that building's tile, computed once, only on the check-in that actually crosses it
-  (never on a page load, never from undo/freeze).
+  from the lifetime count of check-ins in its OWN category only (`habitual.game.level_for_checkins`),
+  counting every check-in the user has ever made in that category (archived habits and fleet/room
+  habits both count — archiving must never look like losing progress, and a room habit's category is
+  just `Habit.category` copied from the room). Every check-in advances exactly one building, the one
+  for its habit's category — never more than one, never any other. Thresholds: **10 → LV1, 30 → LV2,
+  60 → LV3** (max). **Custom Module = `other`** — everything not in the five named categories — and is
+  no exception to the rule above: it counts only check-ins from habits whose category is literally
+  `other`, same as every other building counts only its own category. No build menu, no Energy spend on
+  buildings, no construction timers — a check-in that crosses a threshold fires a toast + a short pulse
+  on that building's tile, computed once, only on the check-in that actually crosses it (never on a
+  page load, never from undo/freeze).
 - **Category** (`Habit.category`) is editable any time via a dedicated route (same pattern as
   frequency, but with no streak-restart side effect — it only changes which building a habit powers).
   A room's category (`Room.category`) is creator-only, editable any time, and re-copies onto every

@@ -54,13 +54,15 @@ def level_up_for_checkin(habit, user):
     Checkin row (never on a duplicate/suppressed attempt, and never from
     a GET route/page load - decision 4) - that guarantee is what lets
     this derive "before" as count-1 instead of re-querying a snapshot
-    from before the commit."""
+    from before the commit.
+
+    Every building, Custom Module included, reads only its OWN category's
+    count - a check-in always advances exactly one building, the one for
+    its habit's category (Custom Module's is "other" - see game.py's
+    BUILDING_TYPE_FOR_CATEGORY)."""
     building_type = game.BUILDING_TYPE_FOR_CATEGORY.get(habit.category, game.CUSTOM_MODULE)
     category_counts = _category_checkin_counts(user)
-    count_after = (
-        sum(category_counts.values()) if building_type == game.CUSTOM_MODULE
-        else category_counts.get(habit.category, 0)
-    )
+    count_after = category_counts.get(habit.category, 0)
     return building_type, game.level_for_checkins(count_after - 1), game.level_for_checkins(count_after)
 
 
@@ -79,16 +81,16 @@ BUILDING_DISPLAY_NAME = {
 # own name (it isn't built yet).
 
 
-def _building_tile_context(building_type, category_checkins, total_checkins):
+def _building_tile_context(building_type, category_checkins):
     """Level is DERIVED from check-in counts, never stored - no Build
     menu, no Energy spend, no construction timer (see game.py's module
-    docstring for why this phase dropped all of that). Custom Module
-    reads the TOTAL count instead of one category's count; every other
-    building reads its own mapped category's count."""
+    docstring for why this phase dropped all of that). Every building,
+    Custom Module included, reads only its own mapped category's count -
+    Custom Module's category is "other" (everything not in the five named
+    categories), never the total across every category."""
     category = game.CATEGORY_FOR_BUILDING_TYPE[building_type]
-    count = total_checkins if building_type == game.CUSTOM_MODULE else category_checkins
-    level = game.level_for_checkins(count)
-    target = game.next_threshold(count)
+    level = game.level_for_checkins(category_checkins)
+    target = game.next_threshold(category_checkins)
 
     return {
         "type": building_type,
@@ -96,7 +98,7 @@ def _building_tile_context(building_type, category_checkins, total_checkins):
         "category": category,
         "category_name": CATEGORY_DISPLAY_NAME[category],
         "level": level,
-        "checkins": count,
+        "checkins": category_checkins,
         "next_threshold": target,
         "maxed": target is None,
     }
@@ -106,12 +108,9 @@ def _colony_context(user):
     colony_row = _get_or_create_colony(user)
 
     category_counts = _category_checkin_counts(user)
-    total_checkins = sum(category_counts.values())
 
     building_tiles = [
-        _building_tile_context(
-            building_type, category_counts.get(game.CATEGORY_FOR_BUILDING_TYPE[building_type], 0), total_checkins,
-        )
+        _building_tile_context(building_type, category_counts.get(game.CATEGORY_FOR_BUILDING_TYPE[building_type], 0))
         for building_type in game.BUILDING_TYPES
     ]
 

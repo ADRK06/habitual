@@ -132,16 +132,37 @@ def test_building_level_never_regresses_past_max_with_more_checkins(client, db):
     assert "LV4" not in html
 
 
-def test_custom_module_counts_any_category_not_just_other(client, db):
+def test_a_checkin_only_ever_advances_its_own_habits_building(client, db):
+    # Each check-in advances exactly one building - the one for its own
+    # habit's category - never any other, and never Custom Module unless
+    # the habit's own category IS "other".
     user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")  # NOT "other"
+    habit = _create_habit(db, user, category="fitness")
     _give_checkins(db, habit, 10)
 
     html = client.get("/colony").get_data(as_text=True)
 
-    assert "Custom Module" in html
-    card_start = html.index("Custom Module")
-    assert "LV1" in html[card_start - 50:card_start + 200] or "LV1" in html  # built from the fitness check-ins
+    assert "Defense Tower" in html  # fitness's building, built
+    # A locked tile never renders the building's own name - only the
+    # category label - so Custom Module staying locked means "Custom
+    # Module" doesn't appear in the page at all, and "Other" (its locked
+    # label) does.
+    assert "Custom Module" not in html
+    assert "Other" in html
+
+
+def test_custom_module_counts_only_the_other_categorys_own_checkins(client, db):
+    user = _login(client, db)
+    other_habit = _create_habit(db, user, title="Journal", category="other")
+    fitness_habit = _create_habit(db, user, title="Run", category="fitness")
+    _give_checkins(db, other_habit, 10)
+    _give_checkins(db, fitness_habit, 10)  # must NOT count toward Custom Module
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    custom_module_start = html.index("Custom Module")
+    assert "LV1" in html[custom_module_start:custom_module_start + 200]
+    assert "LV2" not in html[custom_module_start:custom_module_start + 200]
 
 
 def test_category_building_stays_locked_with_only_other_category_checkins(client, db):
@@ -356,14 +377,16 @@ def test_checkin_already_at_max_level_fires_no_building_level_up_event(client, d
     assert "buildingProgress" not in trigger
 
 
-def test_checkin_in_other_category_level_up_uses_total_checkins_for_custom_module(client, db):
+def test_checkin_in_other_category_level_up_counts_only_its_own_checkins(client, db):
     user = _login(client, db)
+    # A distractor habit in a different category, well past Custom
+    # Module's own LV1 threshold on its own - must never count toward it.
     fitness_habit = _create_habit(db, user, title="Run", category="fitness")
     other_habit = _create_habit(db, user, title="Journal", category="other")
-    _give_checkins(db, fitness_habit, 5)
-    _give_checkins(db, other_habit, 4)  # total lifetime checkins = 9 so far
+    _give_checkins(db, fitness_habit, 50)
+    _give_checkins(db, other_habit, 9)
 
-    response = client.post(f"/habits/{other_habit.id}/checkin")  # the 10th overall - crosses Custom Module into LV1
+    response = client.post(f"/habits/{other_habit.id}/checkin")  # other's own 10th - crosses Custom Module into LV1
 
     trigger = json.loads(response.headers["HX-Trigger"])
     assert trigger["buildingProgress"] == {

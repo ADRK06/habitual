@@ -31,9 +31,10 @@ CUSTOM_MODULE = "custom_module"
 
 BUILDING_TYPES = (DEFENSE_TOWER, RESEARCH_LAB, POWER_REACTOR, BIODOME, OBSERVATORY, CUSTOM_MODULE)
 
-# Habit.category -> the one building type it powers. "other" is the only
-# category whose building (Custom Module) levels from ANY check-in rather
-# than one in that specific category - see level_for_checkins below.
+# Habit.category -> the one building type it powers. A check-in always
+# advances exactly one building, the one its habit's category maps to here
+# - Custom Module is no exception, it's just whatever "other" (everything
+# not in the five named categories) adds up to.
 BUILDING_TYPE_FOR_CATEGORY = {
     "fitness": DEFENSE_TOWER,
     "study": RESEARCH_LAB,
@@ -45,8 +46,8 @@ BUILDING_TYPE_FOR_CATEGORY = {
 CATEGORY_FOR_BUILDING_TYPE = {building_type: category for category, building_type in BUILDING_TYPE_FOR_CATEGORY.items()}
 
 # Checkin counts that reach LV1/LV2/LV3 - index 0 is LV1's threshold, etc.
-# Same thresholds apply to Custom Module against the TOTAL count instead
-# of a single category's count (see level_for_checkins). Max level (3) is
+# Same thresholds apply to every building, Custom Module included, against
+# its own category's count (see level_for_checkins). Max level (3) is
 # len(LEVEL_THRESHOLDS) - still a guess pending real art, same reasoning
 # as before: the sprite manifest has exactly one generic icon per
 # building type, no per-level variants to derive a cap from.
@@ -59,9 +60,9 @@ DAILY_ENERGY_CAP = 100
 def level_for_checkins(count: int) -> int:
     """0 (not built yet) through MAX_LEVEL, from a lifetime check-in
     count - the same `count` means the same level regardless of which
-    building/category it's for; Custom Module just gets the total count
-    instead of one category's count as its `count` (see
-    colony._building_tile_context)."""
+    building/category it's for. `count` is always that ONE category's own
+    check-in count (see colony._building_tile_context) - Custom Module's
+    is "other", never a total across every category."""
     level = 0
     for threshold in LEVEL_THRESHOLDS:
         if count >= threshold:
