@@ -130,17 +130,39 @@ def _composite_rows() -> list[dict]:
 
 
 def _planet_building_rows() -> list[dict]:
-    """The 18 new planet-scale building sprites (scripts/make_sprites.py's
+    """The 18 planet-scale building sprites (scripts/make_sprites.py's
     PLANET_BUILDING_DRAWERS), one row per building type with its LV1-3
     progression, each shown at x1 AND x4 (x1 to judge true in-context
     size against the planet, x4 to inspect detail - a generic sprite_card
-    alone only ever shows x4). Review-only: not wired into colony_panel.
-    html yet."""
+    alone only ever shows x4). These are the WIRED (production) sprites -
+    see habitual.colony.BUILDING_SLOTS. _planet_building_rows_candidate
+    below is the pending LV1-readability fix, review-only until approved."""
     rows = []
     for building_type, label in PLANET_BUILDING_TYPES:
         levels = []
         for level in (1, 2, 3):
             name = f"planet_building_{building_type}_lv{level}"
+            size = _png_size(ART_DIR / f"{name}.png")
+            if size is None:
+                continue
+            levels.append({"level": level, "filename": f"art/{name}.png", "width": size[0], "height": size[1]})
+        if levels:
+            rows.append({"label": label, "levels": levels})
+    return rows
+
+
+def _planet_building_rows_candidate() -> list[dict]:
+    """Same shape as _planet_building_rows(), but for the _candidate
+    sprites (scripts/make_sprites.py's PLANET_BUILDING_DRAWERS_CANDIDATE) -
+    the pending fix for LV1 being nearly invisible on the planet (a built
+    building's LV1 sprite had as few as 1-3 non-transparent pixels on a
+    larger transparent canvas). Review-only: does not touch the wired
+    sprites above, and nothing here is read by colony_panel.html."""
+    rows = []
+    for building_type, label in PLANET_BUILDING_TYPES:
+        levels = []
+        for level in (1, 2, 3):
+            name = f"planet_building_{building_type}_lv{level}_candidate"
             size = _png_size(ART_DIR / f"{name}.png")
             if size is None:
                 continue
@@ -168,6 +190,28 @@ def _planet_previews() -> list[dict]:
     for real."""
     previews = []
     for filename, label in PLANET_PREVIEW_FILES:
+        size = _png_size(COMPOSITES_DIR / filename)
+        if size is not None:
+            previews.append({"label": label, "filename": f"art/_composites/{filename}", "width": size[0], "height": size[1]})
+    return previews
+
+
+PLANET_PREVIEW_FILES_CANDIDATE = [
+    ("planet_preview_candidate_lv1.png", "All six built · LV1 (the fix under review)"),
+    ("planet_preview_candidate_lv2.png", "All six built · LV2"),
+    ("planet_preview_candidate_lv3.png", "All six built · LV3"),
+    ("planet_preview_candidate_mixed.png", "The reported scenario · Defense Tower LV1 + Custom Module LV2"),
+]
+
+
+def _planet_previews_candidate() -> list[dict]:
+    """Same shape as _planet_previews(), built from the candidate dataset
+    (scripts/make_sprites.py's build_planet_previews_candidate()) instead
+    of the wired production one - the last preview reproduces the exact
+    developer-reported scenario (Defense Tower LV1, Custom Module LV2,
+    rest locked) for a direct before/after comparison."""
+    previews = []
+    for filename, label in PLANET_PREVIEW_FILES_CANDIDATE:
         size = _png_size(COMPOSITES_DIR / filename)
         if size is not None:
             previews.append({"label": label, "filename": f"art/_composites/{filename}", "width": size[0], "height": size[1]})
@@ -202,6 +246,8 @@ def styleguide():
     planet_building_rows = _planet_building_rows()
     planet_previews = _planet_previews()
     planet_variants = _planet_variant_comparison()
+    planet_building_rows_candidate = _planet_building_rows_candidate()
+    planet_previews_candidate = _planet_previews_candidate()
     return render_template(
         "dev/styleguide.html",
         sprite_groups=sprite_groups,
@@ -211,5 +257,7 @@ def styleguide():
         sheet_size=sheet_size,
         planet_building_rows=planet_building_rows,
         planet_previews=planet_previews,
+        planet_building_rows_candidate=planet_building_rows_candidate,
+        planet_previews_candidate=planet_previews_candidate,
         **nav_context,
     )

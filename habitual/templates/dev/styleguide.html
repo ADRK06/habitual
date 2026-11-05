@@ -190,25 +190,30 @@
   </section>
 
   {# Planet-scale buildings (Phase 4a planet-buildings follow-up, round 3) -
-     review only, not wired into colony_panel.html/colony.py yet. Rounds
-     1-2 both invented a new visual system (boxes, a ring); round 3
+     WIRED into /colony (habitual.colony.BUILDING_SLOTS) as of round 4.
+     Rounds 1-2 both invented a new visual system (boxes, a ring); round 3
      instead decomposes planet_render_rust.png's own baked decorations
      (antenna, green dome, two window blocks, a far-rim block) into six
      per-building pixel clusters, anchored at each cluster's own real
      position - see scripts/make_sprites.py's PLANET_CLUSTER_PIXELS
-     docstring for the exact mapping and why. #}
+     docstring for the exact mapping and why. A round-4 review found LV1
+     nearly invisible on the real planet (as few as 1-3 pixels) - the fix
+     for that is below as a CANDIDATE, pending approval before it
+     replaces what's shown here. #}
   {% if planet_variants or planet_previews or planet_building_rows %}
   <section class="flex flex-col gap-6">
     <div class="flex flex-col gap-2">
-      <h2 class="font-display text-xs tracking-widest text-success">PLANET-SCALE BUILDINGS (REVIEW)</h2>
+      <h2 class="font-display text-xs tracking-widest text-text-muted">PLANET-SCALE BUILDINGS (WIRED)</h2>
       <p class="font-body text-sm text-text-muted max-w-2xl">
-        Round 3 - no invented geometry. Each building is a small (1-19 pixel) cluster redrawn in the
-        original bake's own style and positioned at the real rim spot its corresponding original cluster
-        already occupied, so built up to LV3 the planet reproduces the original bake almost pixel for
-        pixel. Same anchor at every level - LV1/LV2 just reveal an ordered prefix of the full cluster
-        (base pixels first, lit/accent pixels last), never a different shape or a new position. No
-        background, no outline - every pixel that isn't part of a cluster is the sphere's own rust.
-        Still not wired into <code class="font-mono">/colony</code> - judge the art here first.
+        Round 3's approved art, currently LIVE on <code class="font-mono">/colony</code>. Each building is
+        a small (1-19 pixel) cluster redrawn in the original bake's own style and positioned at the real
+        rim spot its corresponding original cluster already occupied, so built up to LV3 the planet
+        reproduces the original bake almost pixel for pixel. Same anchor at every level - LV1/LV2 just
+        reveal an ordered prefix of the full cluster (base pixels first, lit/accent pixels last), never a
+        different shape or a new position. No background, no outline - every pixel that isn't part of a
+        cluster is the sphere's own rust.
+        <strong class="text-text">Known issue (round 4 review): LV1 is too sparse to read at 5x</strong> -
+        see the CANDIDATE fix below, pending approval.
       </p>
     </div>
 
@@ -283,6 +288,83 @@
               <img
                 src="{{ url_for('static', filename=lvl.filename) }}"
                 alt="{{ row.label }} LV{{ lvl.level }}, x4"
+                style="image-rendering: pixelated; width: {{ lvl.width * 4 }}px; height: {{ lvl.height * 4 }}px;"
+              >
+              <span class="font-mono text-[9px] text-text-muted">x4</span>
+            </div>
+          </div>
+          <figcaption class="font-body text-xs text-text-muted">LV{{ lvl.level }}</figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {# LV1-readability fix (round 4) - candidate, review only. Does NOT
+     touch the wired sprites/previews above, and nothing here is read by
+     colony_panel.html/colony.py - see scripts/make_sprites.py's
+     PLANET_CLUSTER_PIXELS_CANDIDATE docstring. #}
+  {% if planet_previews_candidate or planet_building_rows_candidate %}
+  <section class="flex flex-col gap-6">
+    <div class="flex flex-col gap-2">
+      <h2 class="font-display text-xs tracking-widest text-success">LV1 READABILITY FIX (CANDIDATE)</h2>
+      <p class="font-body text-sm text-text-muted max-w-2xl">
+        Round 4 review finding: a just-built LV1 cluster was as few as 1-3 non-transparent pixels, nearly
+        invisible against the planet at 5x scale. This candidate raises LV1 to a readable 6-8px structure
+        (steel greys + 1-2 Phosphor-orange lit pixels, no background) for every type, using each type's
+        SAME cluster pixels/order/anchor as the wired art above - only how many of those pixels LV1/LV2
+        reveal has changed. Biodome and Custom Module are the exception: their full (LV3) clusters were
+        only 7 and 5 pixels - too small to leave room for a staged reveal - so both were modestly enlarged
+        to 10 pixels each, same style/palette/anchor, still the two smallest clusters of the six.
+        <strong class="text-text">Not wired into <code class="font-mono">/colony</code></strong> - the
+        production files above are untouched; judge this art here first.
+      </p>
+    </div>
+
+    {% if planet_previews_candidate %}
+    <div class="flex flex-col gap-3">
+      <h3 class="font-display text-[11px] tracking-widest text-text-muted">FULL-PLANET PREVIEW · CANDIDATE</h3>
+      <div class="flex flex-wrap gap-6">
+        {% for preview in planet_previews_candidate %}
+        <figure class="flex flex-col items-center gap-2 p-4 bg-surface border border-border">
+          <img
+            src="{{ url_for('static', filename=preview.filename) }}"
+            alt="{{ preview.label }}"
+            style="image-rendering: pixelated; width: {{ preview.width * 5 }}px; height: {{ preview.height * 5 }}px;"
+          >
+          <figcaption class="font-body text-xs text-text-muted">{{ preview.label }}</figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+      <p class="font-body text-xs text-text-muted max-w-2xl">
+        The last preview reproduces the exact reported scenario (Defense Tower LV1, Custom Module LV2,
+        the other four locked/undrawn) for a direct before/after comparison against the wired art's own
+        mixed previews above.
+      </p>
+    </div>
+    {% endif %}
+
+    {% for row in planet_building_rows_candidate %}
+    <div class="flex flex-col gap-3">
+      <h3 class="font-display text-[11px] tracking-widest text-text-muted">{{ row.label|upper }} · CANDIDATE</h3>
+      <div class="flex flex-wrap gap-4">
+        {% for lvl in row.levels %}
+        <figure class="flex flex-col items-center gap-3 p-3 bg-surface border border-border">
+          <div class="flex items-end gap-4">
+            <div class="flex flex-col items-center gap-1">
+              <img
+                src="{{ url_for('static', filename=lvl.filename) }}"
+                alt="{{ row.label }} candidate LV{{ lvl.level }}, actual size"
+                style="image-rendering: pixelated; width: {{ lvl.width }}px; height: {{ lvl.height }}px;"
+              >
+              <span class="font-mono text-[9px] text-text-muted">x1</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <img
+                src="{{ url_for('static', filename=lvl.filename) }}"
+                alt="{{ row.label }} candidate LV{{ lvl.level }}, x4"
                 style="image-rendering: pixelated; width: {{ lvl.width * 4 }}px; height: {{ lvl.height * 4 }}px;"
               >
               <span class="font-mono text-[9px] text-text-muted">x4</span>

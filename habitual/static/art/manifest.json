@@ -690,7 +690,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale biodome, level 1 of 3 - review only, not wired in yet"
+    "notes": "planet-scale biodome, level 1 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_biodome_lv1_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale biodome, level 1 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_biodome_lv2",
@@ -699,7 +708,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale biodome, level 2 of 3 - review only, not wired in yet"
+    "notes": "planet-scale biodome, level 2 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_biodome_lv2_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale biodome, level 2 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_biodome_lv3",
@@ -708,7 +726,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale biodome, level 3 of 3 - review only, not wired in yet"
+    "notes": "planet-scale biodome, level 3 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_biodome_lv3_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale biodome, level 3 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_custom_module_lv1",
@@ -717,7 +744,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale custom_module, level 1 of 3 - review only, not wired in yet"
+    "notes": "planet-scale custom_module, level 1 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_custom_module_lv1_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale custom_module, level 1 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_custom_module_lv2",
@@ -726,7 +762,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale custom_module, level 2 of 3 - review only, not wired in yet"
+    "notes": "planet-scale custom_module, level 2 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_custom_module_lv2_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale custom_module, level 2 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_custom_module_lv3",
@@ -735,7 +780,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale custom_module, level 3 of 3 - review only, not wired in yet"
+    "notes": "planet-scale custom_module, level 3 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_custom_module_lv3_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale custom_module, level 3 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_defense_tower_lv1",
@@ -744,7 +798,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale defense_tower, level 1 of 3 - review only, not wired in yet"
+    "notes": "planet-scale defense_tower, level 1 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_defense_tower_lv1_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale defense_tower, level 1 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_defense_tower_lv2",
@@ -753,7 +816,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale defense_tower, level 2 of 3 - review only, not wired in yet"
+    "notes": "planet-scale defense_tower, level 2 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_defense_tower_lv2_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale defense_tower, level 2 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_defense_tower_lv3",
@@ -762,7 +834,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale defense_tower, level 3 of 3 - review only, not wired in yet"
+    "notes": "planet-scale defense_tower, level 3 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_defense_tower_lv3_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale defense_tower, level 3 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_observatory_lv1",
@@ -771,7 +852,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale observatory, level 1 of 3 - review only, not wired in yet"
+    "notes": "planet-scale observatory, level 1 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_observatory_lv1_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale observatory, level 1 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_observatory_lv2",
@@ -780,7 +870,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale observatory, level 2 of 3 - review only, not wired in yet"
+    "notes": "planet-scale observatory, level 2 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_observatory_lv2_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale observatory, level 2 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_observatory_lv3",
@@ -789,7 +888,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale observatory, level 3 of 3 - review only, not wired in yet"
+    "notes": "planet-scale observatory, level 3 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_observatory_lv3_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale observatory, level 3 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_power_reactor_lv1",
@@ -798,7 +906,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale power_reactor, level 1 of 3 - review only, not wired in yet"
+    "notes": "planet-scale power_reactor, level 1 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_power_reactor_lv1_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale power_reactor, level 1 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_power_reactor_lv2",
@@ -807,7 +924,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale power_reactor, level 2 of 3 - review only, not wired in yet"
+    "notes": "planet-scale power_reactor, level 2 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_power_reactor_lv2_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale power_reactor, level 2 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_power_reactor_lv3",
@@ -816,7 +942,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale power_reactor, level 3 of 3 - review only, not wired in yet"
+    "notes": "planet-scale power_reactor, level 3 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_power_reactor_lv3_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale power_reactor, level 3 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_research_lab_lv1",
@@ -825,7 +960,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale research_lab, level 1 of 3 - review only, not wired in yet"
+    "notes": "planet-scale research_lab, level 1 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_research_lab_lv1_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale research_lab, level 1 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_research_lab_lv2",
@@ -834,7 +978,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale research_lab, level 2 of 3 - review only, not wired in yet"
+    "notes": "planet-scale research_lab, level 2 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_research_lab_lv2_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale research_lab, level 2 of 3 - review only, pending approval"
   },
   {
     "name": "planet_building_research_lab_lv3",
@@ -843,7 +996,16 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet-scale research_lab, level 3 of 3 - review only, not wired in yet"
+    "notes": "planet-scale research_lab, level 3 of 3 - WIRED into /colony (habitual.colony.BUILDING_SLOTS)"
+  },
+  {
+    "name": "planet_building_research_lab_lv3_candidate",
+    "source_id": null,
+    "category": "planet_building_candidate",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "LV1-readability fix for planet-scale research_lab, level 3 of 3 - review only, pending approval"
   },
   {
     "name": "planet_deco_moon_1",
@@ -974,7 +1136,7 @@
     "used_in": [],
     "new": true,
     "phase": 4,
-    "notes": "planet_render_rust.png with the baked-in antenna/debris erased - review only, pending approval"
+    "notes": "planet_render_rust.png with the baked-in antenna/debris erased - WIRED into /colony"
   },
   {
     "name": "planet_render_verdant",
