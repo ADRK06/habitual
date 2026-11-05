@@ -221,11 +221,15 @@
     <div class="flex flex-col gap-3">
       <h3 class="font-display text-[11px] tracking-widest text-text-muted">PLANET VARIANT · ANTENNA/DEBRIS REMOVED?</h3>
       <p class="font-body text-xs text-text-muted max-w-2xl">
-        The baked-in antenna mast and its small debris cluster are erased by color (see
+        Rust's baked-in antenna mast and small debris cluster are erased by color (see
         <code class="font-mono">draw_planet_render_rust_clean</code>'s docstring - two earlier row-range
-        attempts got the extent wrong before a color-based erase isolated exactly the debris palette),
-        keeping the sphere's own rust body and blue atmosphere-rim highlight untouched. The clean variant
-        is the base every preview below builds back up from; the original file is unmodified either way.
+        attempts got the extent wrong before a color-based erase isolated exactly the debris palette).
+        <strong class="text-text">Dust and Verdant (new, Phase 4b)</strong> erase the SAME fixed pixel
+        positions instead of re-detecting by color on their own files - necessary, not just extra caution:
+        Verdant's own terrain texture separately reuses part of the debris color family much further down
+        the rim, so color-matching directly on it would carve holes in its own surface (see
+        <code class="font-mono">_world_debris_positions</code>'s docstring). Every clean variant keeps its
+        world's own body/atmosphere-rim intact; none of the three original files are modified.
       </p>
       <div class="flex flex-wrap gap-6">
         {% for variant in planet_variants %}

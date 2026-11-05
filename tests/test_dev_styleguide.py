@@ -70,3 +70,37 @@ def test_styleguide_shows_the_planet_scale_building_section():
         assert "_candidate.png" not in html
 
         db.drop_all()
+
+
+def test_styleguide_shows_the_phase_4b_world_and_moon_review_items():
+    # Phase 4b art, pending approval: Dust/Verdant clean world variants
+    # (position-based erase, see scripts/make_sprites.py's
+    # _world_debris_positions docstring for why), the moon overlay, and
+    # the collision-proof "all six at LV3 + moon" previews on all three
+    # starter worlds.
+    class DevTestConfig(TestConfig):
+        HABITUAL_DEV = True
+
+    app = create_app(DevTestConfig)
+    with app.app_context():
+        db.create_all()
+        client = app.test_client()
+
+        response = client.get("/dev/styleguide")
+
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        # Dust/Verdant originals next to their new clean variants.
+        assert "planet_render_dust.png" in html
+        assert "planet_render_dust_clean.png" in html
+        assert "planet_render_verdant.png" in html
+        assert "planet_render_verdant_clean.png" in html
+        # The moon overlay sprite itself (shown via the generic SPRITES
+        # grid - category planet_decoration).
+        assert "planet_moon_one.png" in html
+        # The collision-proof previews, one per starter world.
+        assert "planet_preview_all_with_moon.png" in html
+        assert "planet_preview_dust_with_moon.png" in html
+        assert "planet_preview_verdant_with_moon.png" in html
+
+        db.drop_all()

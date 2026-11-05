@@ -882,7 +882,15 @@ def draw_planet_render_rust_clean():
     special case. Crop-and-recolor of the existing art, not a redraw:
     same rust body, same atmosphere rim, same size and pixel grid.
     Shown next to the original in /dev/styleguide for approval; the
-    original file is untouched."""
+    original file is untouched.
+
+    This color-based detection is safe for Rust specifically (confirmed:
+    every debris-colored pixel in planet_render_rust.png sits in rows
+    0-18, exactly where the decoration itself is) - but it is NOT safe
+    to re-run on every world. See _world_debris_positions()/
+    draw_planet_render_verdant_clean() below for why Dust and Verdant
+    use a different (safer) approach instead of calling this same
+    color-detection logic on their own files."""
     from PIL import Image
 
     debris_colors = {GRAY_LIGHT[:3], GRAY_MID[:3], GRAY_DARK[:3], AMBER[:3], AMBER_LIGHT[:3], GREEN[:3]}
@@ -894,6 +902,102 @@ def draw_planet_render_rust_clean():
             if im.getpixel((x, y)) in debris_colors:
                 im.putpixel((x, y), bg)
     return [[im.getpixel((x, y)) + (255,) for x in range(w)] for y in range(h)]
+
+
+def _world_debris_positions() -> list[tuple[int, int]]:
+    """The exact (x, y) positions draw_planet_render_rust_clean erases,
+    computed once from planet_render_rust.png's own debris-color pixels.
+    Dust and Verdant's clean variants erase THIS fixed position set,
+    never their own color-based detection - confirmed necessary, not
+    just extra caution: Dust's own debris-colored pixels happen to sit
+    at exactly these 84 positions (color-detection would give the same
+    answer either way), but Verdant's own terrain texture separately
+    reuses part of this same color family much further down the rim
+    (rows 19-30, not just rows 0-18 where the decoration itself is) -
+    re-running color detection directly on Verdant erases those 84 real
+    debris pixels PLUS ~117 of Verdant's own legitimate surface pixels,
+    carving visible holes in its terrain. Every starter world shares
+    the identical decoration footprint regardless of this (confirmed:
+    each world's full undecorated-or-not silhouette is byte-for-byte
+    identical to Rust's), so the position set - not the color heuristic
+    - is what actually transfers safely between worlds."""
+    from PIL import Image
+
+    debris_colors = {GRAY_LIGHT[:3], GRAY_MID[:3], GRAY_DARK[:3], AMBER[:3], AMBER_LIGHT[:3], GREEN[:3]}
+    im = Image.open(DEST_DIR / "planet_render_rust.png").convert("RGB")
+    w, h = im.size
+    return [(x, y) for y in range(h) for x in range(w) if im.getpixel((x, y)) in debris_colors]
+
+
+def _draw_world_render_clean(source_name: str):
+    """Erases Rust's own validated debris-position mask (see
+    _world_debris_positions) from another starter world's render -
+    same crop-and-recolor approach as draw_planet_render_rust_clean,
+    just position-based instead of color-based. See that function and
+    _world_debris_positions for why."""
+    from PIL import Image
+
+    im = Image.open(DEST_DIR / f"{source_name}.png").convert("RGB")
+    bg = im.getpixel((0, 0))
+    for x, y in _world_debris_positions():
+        im.putpixel((x, y), bg)
+    w, h = im.size
+    return [[im.getpixel((x, y)) + (255,) for x in range(w)] for y in range(h)]
+
+
+def draw_planet_render_dust_clean():
+    """planet_render_dust.png with the same decoration erased as Rust's
+    clean variant, via the position-based approach (_draw_world_render_
+    clean) - verified visually identical to running Rust's own color-
+    based erase directly on Dust (0 differing positions), but written
+    this way for consistency with Verdant, where position-based erase
+    is required, not just equivalent. Reviewed at /dev/styleguide next
+    to the original, same approval step Rust's clean variant went
+    through."""
+    return _draw_world_render_clean("planet_render_dust")
+
+
+def draw_planet_render_verdant_clean():
+    """planet_render_verdant.png with the same decoration erased as
+    Rust's clean variant - MUST use the position-based approach
+    (_draw_world_render_clean), not a fresh color-based detection on
+    Verdant's own file. See _world_debris_positions's docstring for
+    why: Verdant's own terrain texture reuses part of the debris color
+    family much further down the rim, so color-matching directly on it
+    would erase ~117 of its own legitimate surface pixels alongside the
+    real 84 debris ones. Reviewed at /dev/styleguide next to the
+    original."""
+    return _draw_world_render_clean("planet_render_verdant")
+
+
+# A small cratered moon, lit top-left / shadowed bottom-right - same
+# lighting direction the planet's own rust shading and every building
+# cluster already use. 6x6, placed in the full-planet composite at
+# MOON_PREVIEW_ANCHOR (top-left corner, native 48x48 grid) - see that
+# constant's own comment for why that specific spot was chosen.
+MOON_ONE_PIXELS = [
+    (2, 0, GRAY_LIGHT), (3, 0, GRAY_LIGHT),
+    (1, 1, GRAY_LIGHT), (2, 1, GRAY_LIGHT), (3, 1, GRAY_MID), (4, 1, GRAY_MID),
+    (0, 2, GRAY_LIGHT), (1, 2, GRAY_LIGHT), (2, 2, GRAY_LIGHT), (3, 2, GRAY_MID), (4, 2, GRAY_MID), (5, 2, GRAY_DARK),
+    (0, 3, GRAY_LIGHT), (1, 3, GRAY_LIGHT), (2, 3, GRAY_MID), (3, 3, GRAY_MID), (4, 3, GRAY_DARK), (5, 3, GRAY_DARK),
+    (1, 4, GRAY_MID), (2, 4, GRAY_MID), (3, 4, GRAY_DARK), (4, 4, GRAY_DARK),
+    (2, 5, GRAY_MID), (3, 5, GRAY_DARK),
+]
+
+
+def draw_planet_moon_one():
+    c = new_canvas(6, 6)
+    for dx, dy, color in MOON_ONE_PIXELS:
+        set_px(c, dx, dy, color)
+    return c
+
+
+# Top-left corner (native 48x48 grid) for the moon overlay in the full-
+# planet composite - chosen to clear BOTH the sphere's own disc (its
+# clean bbox is columns 8-39) AND every habitual.colony.BUILDING_SLOTS
+# box (none reaches past column 37 or below row 19), with a few pixels
+# of margin on every side, including the canvas edge (column 47).
+MOON_PREVIEW_ANCHOR = (40, 5)
 
 NEW_SPRITES = {
     "building_damage_overlay": draw_damage_overlay,
@@ -913,6 +1017,9 @@ for _bt, _drawer in PLANET_BUILDING_DRAWERS.items():
     for _lv in (1, 2, 3):
         NEW_SPRITES[f"planet_building_{_bt}_lv{_lv}"] = (lambda d=_drawer, lv=_lv: d(lv))
 NEW_SPRITES["planet_render_rust_clean"] = draw_planet_render_rust_clean
+NEW_SPRITES["planet_render_dust_clean"] = draw_planet_render_dust_clean
+NEW_SPRITES["planet_render_verdant_clean"] = draw_planet_render_verdant_clean
+NEW_SPRITES["planet_moon_one"] = draw_planet_moon_one
 
 NEW_SPRITE_META = {
     "building_damage_overlay": {"category": "overlay", "phase": 5, "notes": "reusable on all 5 fixed buildings"},
@@ -937,6 +1044,19 @@ for _bt in PLANET_BUILDING_DRAWERS:
 NEW_SPRITE_META["planet_render_rust_clean"] = {
     "category": "planet_render", "phase": 4,
     "notes": "planet_render_rust.png with the baked-in antenna/debris erased - WIRED into /colony",
+}
+NEW_SPRITE_META["planet_render_dust_clean"] = {
+    "category": "planet_render", "phase": 4,
+    "notes": "planet_render_dust.png, same decoration erased - Phase 4b, review only, pending approval",
+}
+NEW_SPRITE_META["planet_render_verdant_clean"] = {
+    "category": "planet_render", "phase": 4,
+    "notes": "planet_render_verdant.png, same decoration erased (position-based, not color - see its "
+             "drawer's docstring) - Phase 4b, review only, pending approval",
+}
+NEW_SPRITE_META["planet_moon_one"] = {
+    "category": "planet_decoration", "phase": 4,
+    "notes": "Phase 4b starter moon overlay - review only, pending approval",
 }
 
 FIXED_BUILDINGS = [
@@ -1151,6 +1271,17 @@ def _paste_locked_dot(base_img, building_type: str) -> None:
         base_img.putpixel((x, y), blended + (255,))
 
 
+def _paste_moon(base_img) -> None:
+    """Pastes the moon overlay at MOON_PREVIEW_ANCHOR - same pixel-by-
+    pixel approach as _paste_planet_building, for the same off-by-one-
+    safety reason."""
+    anchor_x, anchor_y = MOON_PREVIEW_ANCHOR
+    for dx, dy, color in MOON_ONE_PIXELS:
+        x, y = anchor_x + dx, anchor_y + dy
+        if 0 <= x < base_img.width and 0 <= y < base_img.height:
+            base_img.putpixel((x, y), color)
+
+
 def _clean_planet_image():
     return canvas_to_image(draw_planet_render_rust_clean())
 
@@ -1189,6 +1320,28 @@ def build_planet_previews() -> None:
     for building_type in locked:
         _paste_locked_dot(base, building_type)
     base.save(COMPOSITES_DIR / "planet_preview_mixed_dot.png")
+
+    # Phase 4b: proof the moon overlay never collides with a built
+    # cluster - all six buildings at their FULLEST (LV3, largest
+    # footprint) plus the moon, the single worst-case layout for a
+    # collision to show up in.
+    base = _clean_planet_image()
+    for building_type in PLANET_BUILDING_DRAWERS:
+        _paste_planet_building(base, building_type, 3)
+    _paste_moon(base)
+    base.save(COMPOSITES_DIR / "planet_preview_all_with_moon.png")
+
+    # Phase 4b: Dust/Verdant clean variants, same all-six-at-LV3 + moon
+    # proof, on each starter world - confirms BUILDING_SLOTS' fixed
+    # coordinates and the moon's position both still line up correctly
+    # regardless of which world is selected (all three share the same
+    # 48x48 silhouette/rim).
+    for world, drawer in (("dust", draw_planet_render_dust_clean), ("verdant", draw_planet_render_verdant_clean)):
+        base = canvas_to_image(drawer())
+        for building_type in PLANET_BUILDING_DRAWERS:
+            _paste_planet_building(base, building_type, 3)
+        _paste_moon(base)
+        base.save(COMPOSITES_DIR / f"planet_preview_{world}_with_moon.png")
 
 
 if __name__ == "__main__":

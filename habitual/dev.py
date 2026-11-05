@@ -156,16 +156,21 @@ PLANET_PREVIEW_FILES = [
     ("planet_preview_lv3.png", "All six built · LV3 (reproduces the original bake)"),
     ("planet_preview_mixed_bare.png", "Realistic mix · 2 built, 4 locked (no marker)"),
     ("planet_preview_mixed_dot.png", "Realistic mix · 2 built, 4 locked (dim locked dot)"),
+    ("planet_preview_all_with_moon.png", "Phase 4b: all six at LV3 + moon · Rust (collision check)"),
+    ("planet_preview_dust_with_moon.png", "Phase 4b: all six at LV3 + moon · Dust"),
+    ("planet_preview_verdant_with_moon.png", "Phase 4b: all six at LV3 + moon · Verdant"),
 ]
 
 
 def _planet_previews() -> list[dict]:
-    """The five full-planet mockups built by scripts/make_sprites.py's
-    build_planet_previews() (empty / all-LV1 / all-LV3 / a realistic
-    2-built-4-locked mix shown both with and without the dim locked-dot
-    marker), shown large so the developer can judge how each building's
-    cluster reads on planet_render_rust_clean.png - the same art wired
-    into /colony."""
+    """The full-planet mockups built by scripts/make_sprites.py's
+    build_planet_previews(): the original five (empty / all-LV1 /
+    all-LV3 / a realistic 2-built-4-locked mix shown both with and
+    without the dim locked-dot marker) plus three Phase 4b additions -
+    all six buildings at their largest (LV3) footprint PLUS the moon
+    overlay, on each of the three starter worlds, specifically to prove
+    the moon never collides with a built cluster (the worst-case
+    layout for a collision to show up in)."""
     previews = []
     for filename, label in PLANET_PREVIEW_FILES:
         size = _png_size(COMPOSITES_DIR / filename)
@@ -175,12 +180,19 @@ def _planet_previews() -> list[dict]:
 
 
 def _planet_variant_comparison() -> list[dict]:
-    """The original planet_render_rust.png next to planet_render_rust_
-    clean.png (antenna/debris erased) for a side-by-side approval call -
-    see scripts/make_sprites.py's draw_planet_render_rust_clean docstring
-    for exactly what was removed and why."""
+    """Each starter world's original render next to its clean (antenna/
+    debris erased) variant, for a side-by-side approval call - see
+    scripts/make_sprites.py's draw_planet_render_rust_clean docstring
+    (Rust) and _world_debris_positions' docstring (Dust/Verdant, which
+    use a position-based erase instead of a fresh color-based one, for
+    a reason specific to Verdant's own terrain texture - see that
+    docstring) for exactly what was removed and why."""
     variants = []
-    for name, label in [("planet_render_rust", "Original"), ("planet_render_rust_clean", "Clean (antenna/debris removed)")]:
+    for name, label in [
+        ("planet_render_rust", "Rust · original"), ("planet_render_rust_clean", "Rust · clean"),
+        ("planet_render_dust", "Dust · original"), ("planet_render_dust_clean", "Dust · clean"),
+        ("planet_render_verdant", "Verdant · original"), ("planet_render_verdant_clean", "Verdant · clean"),
+    ]:
         size = _png_size(ART_DIR / f"{name}.png")
         if size is not None:
             variants.append({"label": label, "filename": f"art/{name}.png", "width": size[0], "height": size[1]})

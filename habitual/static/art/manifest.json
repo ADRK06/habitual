@@ -896,6 +896,15 @@
     "new": false
   },
   {
+    "name": "planet_moon_one",
+    "source_id": null,
+    "category": "planet_decoration",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "Phase 4b starter moon overlay - review only, pending approval"
+  },
+  {
     "name": "planet_render_dust",
     "source_id": "97acf132fff58afa09530844b64b8406",
     "category": "planet_render",
@@ -904,6 +913,15 @@
       "WebSector.dc.html"
     ],
     "new": false
+  },
+  {
+    "name": "planet_render_dust_clean",
+    "source_id": null,
+    "category": "planet_render",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "planet_render_dust.png, same decoration erased - Phase 4b, review only, pending approval"
   },
   {
     "name": "planet_render_ice",
@@ -988,6 +1006,15 @@
       "WebSector.dc.html"
     ],
     "new": false
+  },
+  {
+    "name": "planet_render_verdant_clean",
+    "source_id": null,
+    "category": "planet_render",
+    "used_in": [],
+    "new": true,
+    "phase": 4,
+    "notes": "planet_render_verdant.png, same decoration erased (position-based, not color - see its drawer's docstring) - Phase 4b, review only, pending approval"
   },
   {
     "name": "planet_world_dust",
