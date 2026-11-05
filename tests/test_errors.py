@@ -1,5 +1,6 @@
 from werkzeug.exceptions import Forbidden, TooManyRequests
 
+from habitual import game
 from habitual.errors import forbidden, not_found, rate_limited, server_error
 from habitual.models import User
 
@@ -7,7 +8,10 @@ VALID_PASSWORD = "Sup3r$ecret"
 
 
 def _login(client, db, username="aadhira"):
-    user = User(name="Aadhira", username=username, timezone="Asia/Kolkata")
+    # avatar set (not the Phase 4b onboarding NULL sentinel) - these
+    # tests need to actually reach /dashboard's body (past the
+    # onboarding gate) to exercise the monkeypatched error handlers.
+    user = User(name="Aadhira", username=username, timezone="Asia/Kolkata", avatar=dict(game.DEFAULT_AVATAR))
     user.set_password(VALID_PASSWORD)
     db.session.add(user)
     db.session.commit()

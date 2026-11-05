@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone as dt_timezone
 
+from habitual import game
 from habitual.auth import _aware_utc, safe_next_path
 from habitual.models import User
 
@@ -20,7 +21,11 @@ def _signup_payload(**overrides):
 
 
 def _create_user(db, username="aadhira", password=VALID_PASSWORD):
-    user = User(name="Aadhira", username=username, timezone="Asia/Kolkata")
+    # avatar set (not the Phase 4b onboarding NULL sentinel) - this
+    # helper is for tests exercising login/redirect behavior, not
+    # onboarding itself; _signup_payload below goes through the real
+    # /signup route instead, which deliberately leaves avatar NULL.
+    user = User(name="Aadhira", username=username, timezone="Asia/Kolkata", avatar=dict(game.DEFAULT_AVATAR))
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
@@ -73,8 +78,13 @@ def test_signup_creates_user_and_logs_in(client, db):
     assert User.query.filter_by(username="aadhira").count() == 1
     assert client.sent_emails[-1]["to"] == "aadhira@example.com"
 
+    # Phase 4b: a brand-new signup's avatar is NULL (the onboarding
+    # sentinel - see habitual.avatar.onboarding_redirect_or_none), so
+    # /dashboard redirects to the commander step instead of rendering -
+    # see tests/test_onboarding.py for the dedicated gate coverage.
     dashboard = client.get("/dashboard")
-    assert dashboard.status_code == 200
+    assert dashboard.status_code == 302
+    assert dashboard.location == "/commander?onboarding=1"
 
 
 def test_signup_password_mismatch_rejected(client, db):

@@ -15,6 +15,7 @@ from habitual.badges import (
     check_and_award,
     earned_badge_types,
 )
+from habitual import game
 from habitual.models import Badge, Checkin, Freeze, Habit, PointTransaction, Room, RoomCrown, RoomMember, User
 from habitual.rooms import generate_join_code
 
@@ -22,7 +23,9 @@ VALID_PASSWORD = "Sup3r$ecret"
 
 
 def _create_user(db, username="aadhira"):
-    user = User(name=username.title(), username=username, timezone="Asia/Kolkata")
+    # avatar set (not the Phase 4b onboarding NULL sentinel) - this
+    # file tests badges, not onboarding.
+    user = User(name=username.title(), username=username, timezone="Asia/Kolkata", avatar=dict(game.DEFAULT_AVATAR))
     user.set_password(VALID_PASSWORD)
     db.session.add(user)
     db.session.commit()

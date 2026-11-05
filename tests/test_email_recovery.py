@@ -2,6 +2,7 @@ import re
 from datetime import datetime, timedelta, timezone as dt_timezone
 from html.parser import HTMLParser
 
+from habitual import game
 from habitual.models import EmailToken, RateLimit, User, load_user
 
 VALID_PASSWORD = "Tangerine7!Comet"
@@ -11,7 +12,9 @@ LINK_RE = re.compile(r"https?://[^\s]+/(?:verify-email|reset-password)/([\w-]+)"
 
 
 def _create_user(db, username="aadhira", email="aadhira@example.com", password=VALID_PASSWORD, verified=True):
-    user = User(name="Aadhira", username=username, timezone="Asia/Kolkata", email=email)
+    # avatar set (not the Phase 4b onboarding NULL sentinel) - this
+    # file tests email verification/recovery, not onboarding itself.
+    user = User(name="Aadhira", username=username, timezone="Asia/Kolkata", email=email, avatar=dict(game.DEFAULT_AVATAR))
     user.set_password(password)
     if verified:
         user.email_verified_at = datetime.now(dt_timezone.utc)
@@ -106,7 +109,10 @@ def test_signup_sends_verification_email_and_logs_in(client, db):
     assert response.status_code == 302
     assert response.location == "/check-email"
     assert client.sent_emails[-1]["to"] == "aadhira@example.com"
-    assert client.get("/dashboard").status_code == 200
+    # Phase 4b: a brand-new signup's avatar is NULL (the onboarding
+    # sentinel), so /dashboard redirects to the commander step instead
+    # of rendering - see tests/test_onboarding.py for the gate itself.
+    assert client.get("/dashboard").status_code == 302
 
     user = User.query.filter_by(username="aadhira").first()
     assert user.email == "aadhira@example.com"
@@ -540,7 +546,7 @@ def test_change_password_keeps_current_session_but_bumps_version(client, db):
 
 
 def test_dashboard_nudges_to_add_email_when_none(client, db):
-    user = User(name="A", username="noemail", timezone="Asia/Kolkata")
+    user = User(name="A", username="noemail", timezone="Asia/Kolkata", avatar=dict(game.DEFAULT_AVATAR))
     user.set_password(VALID_PASSWORD)
     db.session.add(user)
     db.session.commit()

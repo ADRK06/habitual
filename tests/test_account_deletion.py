@@ -1,6 +1,7 @@
 import secrets
 from datetime import date, datetime, timedelta, timezone as dt_timezone
 
+from habitual import game
 from habitual.models import (
     Badge, Checkin, EmailToken, Freeze, Habit, PointTransaction, RateLimit, Room, RoomCrown, RoomMember,
     User, Vouch,
@@ -11,7 +12,10 @@ VALID_PASSWORD = "Tangerine7!Comet"
 
 
 def _create_user(db, username="aadhira", email=None, password=VALID_PASSWORD):
-    user = User(name=username.title(), username=username, timezone="Asia/Kolkata", email=email)
+    # avatar set (not the Phase 4b onboarding NULL sentinel) - this
+    # file tests account deletion, not onboarding, so every user here
+    # should behave like one who's already using the app.
+    user = User(name=username.title(), username=username, timezone="Asia/Kolkata", email=email, avatar=dict(game.DEFAULT_AVATAR))
     user.set_password(password)
     db.session.add(user)
     db.session.commit()

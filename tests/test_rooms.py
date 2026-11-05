@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 import habitual.points as points
 import habitual.rooms as rooms_module
+from habitual import game
 from habitual.frequency import WEEKDAY_BIT
 from habitual.habits import EMOJI_CHOICES
 from habitual.models import Checkin, Habit, PointTransaction, Room, RoomCrown, RoomMember, User, Vouch
@@ -26,7 +27,10 @@ VALID_PASSWORD = "Sup3r$ecret"
 
 
 def _create_user(db, username="aadhira", password=VALID_PASSWORD, timezone="Asia/Kolkata"):
-    user = User(name=username.title(), username=username, timezone=timezone)
+    # avatar set (not the Phase 4b onboarding NULL sentinel) - this file
+    # tests rooms/fleet behavior, not onboarding itself (see
+    # tests/test_onboarding.py for that).
+    user = User(name=username.title(), username=username, timezone=timezone, avatar=dict(game.DEFAULT_AVATAR))
     user.set_password(password)
     db.session.add(user)
     db.session.commit()

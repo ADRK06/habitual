@@ -17,7 +17,10 @@ VALID_PASSWORD = "Sup3r$ecret"
 
 
 def _create_user(db, username="aadhira", password=VALID_PASSWORD, timezone="Asia/Kolkata"):
-    user = User(name="Aadhira", username=username, timezone=timezone)
+    # avatar set (not the Phase 4b onboarding NULL sentinel) - this file
+    # tests habits/dashboard behavior, not onboarding itself (see
+    # tests/test_onboarding.py for that).
+    user = User(name="Aadhira", username=username, timezone=timezone, avatar=dict(game.DEFAULT_AVATAR))
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
