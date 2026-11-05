@@ -45,14 +45,24 @@
          widths with room to spare - verified in a real browser at both. #}
       <div id="colony-planet" class="relative flex items-center justify-center border border-border bg-void p-6" style="aspect-ratio: 358 / 310">
         {# Built buildings sit ON the planet - inner 240x240 box, same
-           fixed size as the planet image, so colony.PLANET_SLOTS' pixel
-           coordinates are correct at every width (this box never resizes,
-           same reasoning as the image above). Kept separate from
-           #colony-planet itself so the name label below stays positioned
-           against the OUTER padded box, not this inner one. #}
+           fixed size as the planet image, so colony.BUILDING_SLOTS' pixel
+           coordinates (in the art's own 48x48 grid, scaled by planet_scale)
+           land correctly at every width (this box never resizes, same
+           reasoning as the image above). Kept separate from #colony-planet
+           itself so the name label below stays positioned against the
+           OUTER padded box, not this inner one.
+
+           Round 3 (approved) of the planet-buildings follow-up: each
+           built building is its own small cluster sprite (habitual.
+           colony.BUILDING_SLOTS, decomposed from the original bake - see
+           scripts/make_sprites.py's PLANET_CLUSTER_PIXELS docstring),
+           pasted directly onto the clean planet at its fixed real
+           position - no background, no outline. A locked building draws
+           NOTHING (the developer's approved call over a faint marker -
+           it read as visual noise at this pixel scale). #}
         <div class="relative" style="width: 240px; height: 240px;">
           <img
-            src="{{ url_for('static', filename='art/planet_render_rust.png') }}"
+            src="{{ url_for('static', filename='art/planet_render_rust_clean.png') }}"
             alt="{{ colony.name }}"
             width="240"
             height="240"
@@ -62,18 +72,15 @@
           {% if tile.level >= 1 %}
           <img
             id="planet-building-{{ tile.type }}"
-            src="{{ url_for('static', filename='art/building_' ~ tile.type ~ '.png') }}"
+            src="{{ url_for('static', filename='art/planet_building_' ~ tile.type ~ '_lv' ~ tile.level ~ '.png') }}"
             alt="{{ tile.name }}"
             class="absolute"
-            style="left: {{ tile.slot_left }}px; top: {{ tile.slot_top }}px; width: {{ planet_sprite_size }}px; height: {{ planet_sprite_size }}px; image-rendering: pixelated;"
+            style="
+              left: {{ tile.slot_left * planet_scale }}px; top: {{ tile.slot_top * planet_scale }}px;
+              width: {{ tile.slot_width * planet_scale }}px; height: {{ tile.slot_height * planet_scale }}px;
+              image-rendering: pixelated;
+            "
           >
-          {% else %}
-          {# Locked - no building drawn yet, just a faint dashed footprint
-             so it's clear a slot is reserved there. #}
-          <div
-            class="absolute border border-dashed border-border opacity-30"
-            style="left: {{ tile.slot_left }}px; top: {{ tile.slot_top }}px; width: {{ planet_sprite_size }}px; height: {{ planet_sprite_size }}px;"
-          ></div>
           {% endif %}
           {% endfor %}
         </div>

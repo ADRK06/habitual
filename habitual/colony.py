@@ -93,30 +93,34 @@ BUILDING_EFFECT_NOTE = {
     game.CUSTOM_MODULE: "Purely cosmetic - you'll pick its design (coming soon)",
 }
 
-# Fixed pixel slot (top-left corner, for a PLANET_SPRITE_SIZE square) for
-# each building type on the 240x240 planet image (habitual/static/art/
-# planet_render_rust.png, displayed at that fixed size - see colony_panel.
-# html). No mock gives real coordinates for this: every WebHome/PhoneHome/
-# Globe/Isometric/SideView reference screen bakes its buildings into ONE
-# static illustration PNG (confirmed by inspecting docs/reference/colonies/
-# screens/*.dc.html and canvas.json - Globe.dc.html is "A - Round globe
-# (chosen)"), which can't represent a user's own derived 0-6 built subset.
-# These six slots are placed on our own plain planet_render_rust.png
-# (confirmed to have no baked decorations of its own except a thin antenna
-# mast and a couple of small debris pixels at the very top, roughly CSS
-# x:75-115 y:0-55 at this 240x240 display size) - spaced 48 degrees apart
-# around the lower 240 degrees of the sphere's rim (clockwise from top,
-# skipping straight up +/-60 degrees so nothing lands on or near the
-# antenna), at radius 68px from the sphere's own center (117, 130) and
-# this file's own PLANET_SPRITE_SIZE.
-PLANET_SPRITE_SIZE = 32
-PLANET_SLOTS = {
-    game.DEFENSE_TOWER: (160, 80),
-    game.RESEARCH_LAB: (166, 135),
-    game.POWER_REACTOR: (129, 176),
-    game.BIODOME: (74, 176),
-    game.OBSERVATORY: (37, 135),
-    game.CUSTOM_MODULE: (43, 80),
+# Native pixel size of planet_render_rust_clean.png (and the sprites
+# below) - habitual/templates/partials/colony_panel.html displays it at
+# an exact 5x (240px), the PLANET_SCALE every slot position/size here
+# assumes.
+PLANET_NATIVE_SIZE = 48
+PLANET_SCALE = 5
+
+# Fixed (left, top, width, height) in planet_render_rust_clean.png's own
+# 48x48 pixel grid for each building's cluster sprite (habitual/static/
+# art/planet_building_<type>_lv<N>.png) - round 3 of the Phase 4a planet-
+# buildings follow-up. These decompose the ORIGINAL planet_render_rust.
+# png's own baked decorations (antenna, green dome, two window blocks, a
+# far-rim block) into per-building clusters, so built up to LV3 the
+# planet reproduces that original bake - see scripts/make_sprites.py's
+# PLANET_CLUSTER_PIXELS docstring for the exact mapping/rationale. Each
+# value here is CLUSTER_ANCHORS[type] + _cluster_bbox_offset(type) (that
+# script's own helpers) - a fixed box that's the same size at every
+# level (LV1/LV2 just leave more of it transparent), which is what lets
+# this dict be static: no Pillow dependency here (dev-only, see
+# requirements-dev.txt), so this can't read the PNGs or recompute these
+# itself. Keep in sync if that art changes.
+BUILDING_SLOTS = {
+    game.DEFENSE_TOWER: (21, 0, 2, 12),
+    game.BIODOME: (25, 9, 6, 2),
+    game.RESEARCH_LAB: (13, 9, 6, 5),
+    game.POWER_REACTOR: (9, 14, 5, 5),
+    game.OBSERVATORY: (31, 11, 7, 5),
+    game.CUSTOM_MODULE: (24, 7, 2, 3),
 }
 
 
@@ -130,7 +134,7 @@ def _building_tile_context(building_type, category_checkins):
     category = game.CATEGORY_FOR_BUILDING_TYPE[building_type]
     level = game.level_for_checkins(category_checkins)
     target = game.next_threshold(category_checkins)
-    slot_left, slot_top = PLANET_SLOTS[building_type]
+    slot_left, slot_top, slot_width, slot_height = BUILDING_SLOTS[building_type]
 
     return {
         "type": building_type,
@@ -143,6 +147,8 @@ def _building_tile_context(building_type, category_checkins):
         "maxed": target is None,
         "slot_left": slot_left,
         "slot_top": slot_top,
+        "slot_width": slot_width,
+        "slot_height": slot_height,
         "effect_note": BUILDING_EFFECT_NOTE[building_type],
     }
 
@@ -166,7 +172,7 @@ def _colony_context(user):
         "building_tiles": building_tiles,
         "habit_cards": habit_cards,
         "building_type_for_category": game.BUILDING_TYPE_FOR_CATEGORY,
-        "planet_sprite_size": PLANET_SPRITE_SIZE,
+        "planet_scale": PLANET_SCALE,
         **header,
     }
 

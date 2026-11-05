@@ -230,6 +230,16 @@ For a completed day that is day **n** of the current streak:
   buildings, no construction timers — a check-in that crosses a threshold fires a toast + a short pulse
   on that building's tile, computed once, only on the check-in that actually crosses it (never on a
   page load, never from undo/freeze).
+- **Built buildings are drawn directly on the planet**, not pasted-on sprites: `/colony` shows
+  `planet_render_rust_clean.png` (the antenna/debris-free variant — see Sprite pipeline below) with each
+  built building's small pixel cluster composited on top at its own fixed real-world position
+  (`habitual.colony.BUILDING_SLOTS`, a static mirror of the sprite pipeline's `CLUSTER_ANCHORS` +
+  bounding-box offset — no Pillow dependency in the Flask app, so this can't be read from the art
+  itself). A locked building draws **nothing** — no placeholder, no footprint marker, that was tried and
+  rejected as visual noise at this pixel scale. The level-up pulse targets `#planet-building-<type>`
+  (present whenever `level >= 1`) exactly as it targets the grid tile; both update from the same
+  `colony_panel.html` re-render the check-in's HTMX/OOB response already does, so the planet reflects a
+  level-up with no page refresh.
 - **Category** (`Habit.category`) is editable any time via a dedicated route (same pattern as
   frequency, but with no streak-restart side effect — it only changes which building a habit powers).
   A room's category (`Room.category`) is creator-only, editable any time, and re-copies onto every
@@ -289,7 +299,9 @@ All Colonies pixel art lives in `habitual/static/art/`:
 - 80 sprites imported verbatim from `docs/reference/colonies/art/` (the UI reference's own PNGs), plus a
   small set of **new** sprites the game plan needs but the reference never shipped (damage/shield-dome
   overlays, scaffold frames, a check-in beam, the 3 fleet-station levels, the weekly boss, an open-crate
-  icon - 12 total right now).
+  icon - 12 total right now; plus the Phase 4a planet-buildings follow-up's 18 `planet_building_<type>_
+  lv<N>.png` clusters and `planet_render_rust_clean.png`, all wired into `/colony` - see the Colonies
+  business rules above and `habitual/colony.py`'s `BUILDING_SLOTS`).
 - `manifest.json` - one entry per sprite (`name`, `source_id`, `category`, `used_in`, `new`, plus `phase`/
   `notes` on new ones). Generated and updated by `scripts/make_sprites.py` - never hand-edited.
 - `_sheet.png` - an **export-only** contact sheet (`scripts/make_sprites.py sheet`). Its thumbnails are

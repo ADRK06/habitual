@@ -231,52 +231,65 @@ def test_category_edit_moves_historical_checkins_into_the_new_categorys_count(cl
     assert _category_checkin_counts(user).get("study", 0) == 10
 
 
-# -- buildings on the planet (Phase 4a follow-up) ------------------------------
+# -- buildings on the planet (Phase 4a follow-up, round 3 - approved art) ----
 
 
-def test_planet_slots_cover_every_building_type_exactly_once(client, db):
-    from habitual.colony import PLANET_SLOTS
+def test_building_slots_cover_every_building_type_exactly_once(client, db):
+    from habitual.colony import BUILDING_SLOTS
 
-    assert set(PLANET_SLOTS.keys()) == set(game.BUILDING_TYPES)
-
-
-def test_planet_slots_fit_inside_the_240px_box_with_no_overlap(client, db):
-    from habitual.colony import PLANET_SLOTS, PLANET_SPRITE_SIZE
-
-    positions = list(PLANET_SLOTS.values())
-    for left, top in positions:
-        assert 0 <= left <= 240 - PLANET_SPRITE_SIZE
-        assert 0 <= top <= 240 - PLANET_SPRITE_SIZE
-
-    # No two slots may overlap enough to visually collide - each pair's
-    # boxes must be separated on at least one axis by the sprite's own size.
-    for i, (left_a, top_a) in enumerate(positions):
-        for left_b, top_b in positions[i + 1:]:
-            separated = (
-                abs(left_a - left_b) >= PLANET_SPRITE_SIZE or abs(top_a - top_b) >= PLANET_SPRITE_SIZE
-            )
-            assert separated
+    assert set(BUILDING_SLOTS.keys()) == set(game.BUILDING_TYPES)
 
 
-def test_built_building_appears_on_the_planet_at_its_fixed_slot(client, db):
-    from habitual.colony import PLANET_SLOTS
+def test_building_slots_fit_inside_the_48px_planet(client, db):
+    from habitual.colony import PLANET_NATIVE_SIZE, BUILDING_SLOTS
+
+    # Unlike round 2's uniform grid, round 3's clusters are sparse and
+    # irregular (decomposed from the original bake's own real positions -
+    # see scripts/make_sprites.py's PLANET_CLUSTER_PIXELS docstring), so
+    # two bounding boxes may legitimately touch or overlap at a corner
+    # with no actual pixel collision (verified by hand against that
+    # module's own pixel data: no two clusters ever draw the same real
+    # (x, y)). Only the canvas-bounds invariant is checked here.
+    for left, top, width, height in BUILDING_SLOTS.values():
+        assert 0 <= left <= PLANET_NATIVE_SIZE - width
+        assert 0 <= top <= PLANET_NATIVE_SIZE - height
+
+
+def test_built_building_appears_on_the_planet_at_its_fixed_slot_scaled(client, db):
+    from habitual.colony import BUILDING_SLOTS, PLANET_SCALE
 
     user = _login(client, db)
     habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 10)
+    _give_checkins(db, habit, 10)  # LV1
 
     html = client.get("/colony").get_data(as_text=True)
 
     assert 'id="planet-building-defense_tower"' in html
-    assert "building_defense_tower.png" in html
-    left, top = PLANET_SLOTS[game.DEFENSE_TOWER]
+    assert "planet_building_defense_tower_lv1.png" in html
+    left, top, width, height = BUILDING_SLOTS[game.DEFENSE_TOWER]
     idx = html.index('id="planet-building-defense_tower"')
     nearby = html[idx:idx + 400]
-    assert f"left: {left}px" in nearby
-    assert f"top: {top}px" in nearby
+    assert f"left: {left * PLANET_SCALE}px" in nearby
+    assert f"top: {top * PLANET_SCALE}px" in nearby
+    assert f"width: {width * PLANET_SCALE}px" in nearby
+    assert f"height: {height * PLANET_SCALE}px" in nearby
 
 
-def test_locked_building_is_not_drawn_on_the_planet(client, db):
+def test_built_building_uses_its_own_levels_sprite(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 30)  # LV2
+
+    html = client.get("/colony").get_data(as_text=True)
+
+    assert "planet_building_defense_tower_lv2.png" in html
+    assert "planet_building_defense_tower_lv1.png" not in html
+    assert "planet_building_defense_tower_lv3.png" not in html
+
+
+def test_locked_building_draws_nothing_on_the_planet(client, db):
+    # Approved call: no marker at all (not even a faint footprint) - a
+    # dashed box read as visual noise at this pixel scale.
     user = _login(client, db)
     habit = _create_habit(db, user, category="fitness")
     _give_checkins(db, habit, 4)  # nowhere near LV1's 10
@@ -284,23 +297,19 @@ def test_locked_building_is_not_drawn_on_the_planet(client, db):
     html = client.get("/colony").get_data(as_text=True)
 
     assert 'id="planet-building-defense_tower"' not in html
-    assert "building_defense_tower.png" not in html
+    assert "planet_building_defense_tower" not in html
+    assert "border-dashed" not in html
 
 
-def test_locked_building_shows_a_faint_footprint_marker_on_the_planet(client, db):
-    from habitual.colony import PLANET_SLOTS
-
+def test_planet_uses_the_clean_variant_not_the_original(client, db):
+    # The original stays in the repo (scripts/make_sprites.py still reads
+    # it to derive the clean variant and for the /dev/styleguide side-by-
+    # side), but no real page may reference it any more.
     user = _login(client, db)
-    habit = _create_habit(db, user, category="fitness")
-    _give_checkins(db, habit, 4)
-
     html = client.get("/colony").get_data(as_text=True)
-    left, top = PLANET_SLOTS[game.DEFENSE_TOWER]
 
-    assert f"left: {left}px" in html
-    assert f"top: {top}px" in html
-    # Not the real sprite - a plain dashed footprint box standing in for it.
-    assert "border-dashed" in html
+    assert "planet_render_rust_clean.png" in html
+    assert "planet_render_rust.png" not in html
 
 
 def test_planet_shows_every_built_building_at_once(client, db):
@@ -316,6 +325,33 @@ def test_planet_shows_every_built_building_at_once(client, db):
     assert 'id="planet-building-research_lab"' in html
     # Still locked - must not appear.
     assert 'id="planet-building-power_reactor"' not in html
+
+
+def test_level_up_checkin_from_the_colony_page_shows_the_new_building_immediately(client, db):
+    # The colony_view flow (habits._colony_live_response) re-renders
+    # colony_panel.html whole, so a level-up must be visible in THAT
+    # response - no page refresh needed - not just on a later GET /colony.
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 9)
+
+    response = client.post(f"/habits/{habit.id}/checkin", data={"colony_view": "1"})
+
+    html = response.get_data(as_text=True)
+    assert 'id="planet-building-defense_tower"' in html
+    assert "planet_building_defense_tower_lv1.png" in html
+
+
+def test_checkin_that_upgrades_a_built_buildings_level_swaps_its_planet_sprite(client, db):
+    user = _login(client, db)
+    habit = _create_habit(db, user, category="fitness")
+    _give_checkins(db, habit, 29)  # already LV1, about to cross into LV2
+
+    response = client.post(f"/habits/{habit.id}/checkin", data={"colony_view": "1"})
+
+    html = response.get_data(as_text=True)
+    assert "planet_building_defense_tower_lv2.png" in html
+    assert "planet_building_defense_tower_lv1.png" not in html
 
 
 # -- UI / check-in integration -------------------------------------------------

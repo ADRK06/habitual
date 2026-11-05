@@ -793,10 +793,8 @@ def _level_pixels(building_type: str, level: int):
 
 def _bbox_canvas(pixels):
     """The smallest transparent canvas containing every (dx, dy, color)
-    pixel, used only for each level's STANDALONE preview image (x1/x4 in
-    /dev/styleguide) - the full-planet composites instead paste these
-    same offsets directly onto the planet at each building's real
-    CLUSTER_ANCHORS position, never through this cropped canvas."""
+    pixel. Used by _draw_planet_building against the FULL (LV3) pixel
+    list always, never a level-specific subset - see its docstring."""
     min_dx = min(p[0] for p in pixels)
     max_dx = max(p[0] for p in pixels)
     min_dy = min(p[1] for p in pixels)
@@ -808,8 +806,34 @@ def _bbox_canvas(pixels):
     return c
 
 
+def _cluster_bbox_offset(building_type: str) -> tuple[int, int]:
+    """(min_dx, min_dy) of a building's FULL (LV3) cluster - the top-left
+    corner of _draw_planet_building's canvas, relative to CLUSTER_ANCHORS.
+    Exposed (not just inlined) because habitual/colony.py's BUILDING_SLOTS
+    hardcodes CLUSTER_ANCHORS[type] + this same offset as its fixed wiring
+    position - keep that in sync if this cluster's pixels change."""
+    full = PLANET_CLUSTER_PIXELS[building_type]
+    return min(p[0] for p in full), min(p[1] for p in full)
+
+
 def _draw_planet_building(building_type: str, level: int):
-    return _bbox_canvas(_level_pixels(building_type, level))
+    """Crops to the FULL (LV3) cluster's bounding box at every level, not
+    the level-specific subset - so a building's LV1/LV2/LV3 standalone
+    sprite is always the same pixel size with the same anchor offset
+    (lower levels just leave more of that fixed canvas transparent). This
+    is what lets habitual/colony.py wire a building at one fixed slot and
+    simply swap which level's image fills it, with no per-level crop or
+    offset math of its own (and no Pillow dependency - that stays dev-
+    only, see requirements-dev.txt)."""
+    full = PLANET_CLUSTER_PIXELS[building_type]
+    min_dx, min_dy = _cluster_bbox_offset(building_type)
+    max_dx = max(p[0] for p in full)
+    max_dy = max(p[1] for p in full)
+    w, h = max_dx - min_dx + 1, max_dy - min_dy + 1
+    c = new_canvas(w, h)
+    for dx, dy, color in _level_pixels(building_type, level):
+        set_px(c, dx - min_dx, dy - min_dy, color)
+    return c
 
 
 PLANET_BUILDING_DRAWERS = {
@@ -955,7 +979,14 @@ def composite(base_name: str, overlay_canvas, scale: int = 1):
 
 
 def update_manifest_with_new_sprites() -> None:
+    """Re-running this must be idempotent - drop any existing entry for a
+    name in NEW_SPRITE_META before re-adding it, instead of appending a
+    fresh copy on top of whatever's already there. (Appending
+    unconditionally was a real bug: every past run of this command had
+    been piling up duplicate entries - 31 names ended up with 5 copies
+    each before this was caught and fixed.)"""
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    manifest = [entry for entry in manifest if entry["name"] not in NEW_SPRITE_META]
     for entry in manifest:
         entry["new"] = False
     for name, meta in NEW_SPRITE_META.items():
