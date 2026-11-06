@@ -29,11 +29,22 @@
   </header>
 
   {% if fleets %}
+  {% if active_fleets %}
   <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-    {% for fleet in fleets %}
+    {% for fleet in active_fleets %}
     {% include "partials/fleet_card.html" %}
     {% endfor %}
   </div>
+  {% endif %}
+
+  {% if ended_fleets %}
+  <h2 class="{{ 'mt-8' if active_fleets else '' }} mb-3 font-display text-xs uppercase tracking-wide text-text-muted">Ended</h2>
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+    {% for fleet in ended_fleets %}
+    {% include "partials/fleet_card.html" %}
+    {% endfor %}
+  </div>
+  {% endif %}
   {% else %}
   <div class="flex flex-col items-center justify-center border border-dashed border-border bg-surface px-6 py-20 text-center font-body">
     <div class="flex h-16 w-16 items-center justify-center border border-accent/40 bg-accent/10 text-3xl" aria-hidden="true">🛰️</div>

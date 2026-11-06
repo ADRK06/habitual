@@ -336,7 +336,12 @@ def nav_shell_context(user):
     habit list twice in one request."""
     header = _header_stats(user)
     today = local_today(user)
-    habit_rows = _user_habits(user)
+    # An ended Fleet habit's streak is frozen history, not an ongoing
+    # commitment - excluded here the same way it's excluded from the
+    # dashboard's own nav_streak (see _dashboard_context), so this shell's
+    # streak pill never reads "current" off a fleet nobody can check into
+    # any more.
+    habit_rows = [h for h in _user_habits(user) if not _is_ended_fleet_habit(h, user)]
     return {
         "nav_balance": header["balance"],
         "nav_freezes_held": header["freezes_held"],
@@ -363,6 +368,20 @@ def _user_habits(user):
         .order_by(Habit.created_on.desc(), Habit.id.desc())
         .all()
     )
+
+
+def _active_user_habits(user):
+    """_user_habits(user), minus any ended Fleet habit (rooms.member_ended
+    for this viewer) - the shared input for every "current/today" number
+    that isn't the dashboard's own ENDED tab: the 30-day overview, needs-
+    attention, the habits-left countdown, the nav streak pill. Every OOB
+    response that rebuilds these after a checkin/undo/freeze/delete
+    (checkin, undo_checkin, use_freeze, delete_habit below) uses this
+    instead of _user_habits directly, so an ended fleet can't silently
+    reappear in them the moment any OTHER habit on the page is acted on.
+    _dashboard_context filters _user_habits itself instead of calling this -
+    it also needs the ended-only complement, for the ENDED tab."""
+    return [h for h in _user_habits(user) if not _is_ended_fleet_habit(h, user)]
 
 
 def _active_habit_or_404(habit_id, user):
@@ -512,11 +531,24 @@ def _dashboard_context(form=None, room_form=None, join_code_form=None, join_code
 
     today = local_today(current_user)
     header = _header_stats(current_user)
-    habit_rows = _user_habits(current_user)
+    all_habit_rows = _user_habits(current_user)
+    # An ended Fleet habit (rooms.member_ended for this viewer) moves out
+    # of every "current"/"today" view - the ALL/SOLO/FLEET filters, the
+    # 30-day overview, needs-attention, the habits-left countdown, the nav
+    # streak pill - into its own read-only ENDED tab instead. Nothing here
+    # deletes or archives anything: checkins/points/building progress are
+    # untouched, this only decides which bucket a still-active Habit row
+    # renders into.
+    habit_rows = [h for h in all_habit_rows if not _is_ended_fleet_habit(h, current_user, room_bundle)]
+    ended_habit_rows = [h for h in all_habit_rows if _is_ended_fleet_habit(h, current_user, room_bundle)]
     context = {
         "habit_cards": [
             {**_habit_view(h, today, header["freezes_held"]), **_room_card_context(h, room_bundle)}
             for h in habit_rows
+        ],
+        "ended_habit_cards": [
+            {**_habit_view(h, today, header["freezes_held"]), **_room_card_context(h, room_bundle)}
+            for h in ended_habit_rows
         ],
         "form": form or HabitForm(),
         "room_form": room_form or rooms.RoomForm(),
@@ -644,7 +676,7 @@ def edit_habit_category(habit_id):
 WEEKDAY_LETTERS = "MTWTFSS"
 
 
-def _weekly_analytics_context(habit, today, now_hour):
+def _weekly_analytics_context(habit, today, now_hour, viewer_ended=False):
     """Weekly-habit twin of `_analytics_context` - same return shape, but
     everything is computed at week granularity (freezes key on a week's
     Monday, not a day) via points.py's weekly function family. Day cells
@@ -666,7 +698,7 @@ def _weekly_analytics_context(habit, today, now_hour):
     streak = points.weekly_streak(completed, target, today, frozen_weeks, floor)
     status_label, status_variant = analytics.habit_status(
         completed, frozen_weeks, froze_last_week, effective_start, today, now_hour,
-        not_due_today=(week_ring[0] >= target),
+        not_due_today=(week_ring[0] >= target), ended=viewer_ended,
     )
 
     def _day_state(d):
@@ -706,11 +738,14 @@ def _weekly_analytics_context(habit, today, now_hour):
     }
 
 
-def _analytics_context(habit, today, now_hour):
+def _analytics_context(habit, today, now_hour, viewer_ended=False):
     """Everything habits/detail.html's ring card needs, derived from
-    analytics.py's pure functions."""
+    analytics.py's pure functions. `viewer_ended` (rooms.member_ended for
+    the current viewer - False for a solo habit) overrides the status pill
+    to "Fleet ended" regardless of streak/completion data - see
+    analytics.habit_status's own docstring for why."""
     if habit.frequency_type == "weekly":
-        return _weekly_analytics_context(habit, today, now_hour)
+        return _weekly_analytics_context(habit, today, now_hour, viewer_ended)
 
     completed = {c.date for c in habit.checkins}
     frozen = {f.used_on for f in habit.freezes if f.used_on is not None}
@@ -734,7 +769,7 @@ def _analytics_context(habit, today, now_hour):
     streak = points.current_streak(completed, bridge, today, effective_start)
     status_label, status_variant = analytics.habit_status(
         completed, frozen, froze_used_yesterday, effective_start, today, now_hour,
-        not_due_today=(today in not_scheduled), not_scheduled=not_scheduled,
+        not_due_today=(today in not_scheduled), not_scheduled=not_scheduled, ended=viewer_ended,
     )
 
     week_days = [
@@ -832,9 +867,10 @@ def habit_detail(habit_id):
         if habit.room_id is not None
         else url_for("habits.dashboard")
     )
+    viewer_ended = _viewer_ended(habit)
     context = {
         **_habit_view(habit, today, freezes_held),
-        **_analytics_context(habit, today, now_hour),
+        **_analytics_context(habit, today, now_hour, viewer_ended),
         "calendar": _month_calendar_context(habit, calendar_month, today),
         "recent_checkins": (
             Checkin.query.filter_by(habit_id=habit.id).order_by(Checkin.date.desc()).limit(10).all()
@@ -847,7 +883,7 @@ def habit_detail(habit_id):
         "category_form": CategoryForm(category=habit.category),
         "category_choices": [(c, CATEGORY_DISPLAY_NAME[c]) for c in CATEGORY_CHOICES],
         "building_type_for_category": game.BUILDING_TYPE_FOR_CATEGORY,
-        "viewer_ended": _viewer_ended(habit),
+        "viewer_ended": viewer_ended,
         **nav_shell_context(current_user),
     }
     return render_template("habits/detail.html", **context)
@@ -866,6 +902,25 @@ def _viewer_ended(habit):
         return False
     from habitual import rooms  # local import avoids a circular import with rooms.py
     return rooms.member_ended(habit.room, current_user)
+
+
+def _is_ended_fleet_habit(habit, user, room_bundle=None):
+    """Same check as _viewer_ended, but for any `user` (not just
+    current_user) and able to reuse an already-fetched room_bundle (see
+    rooms.room_bundle_for_user) to avoid an N+1 lazy-load of `habit.room`
+    per fleet habit - the dashboard always has one; nav_shell_context's
+    other callers (colony.py, avatar.py) don't, and fall back to the lazy
+    load, same cost `_room_card_context` already accepts without one."""
+    if habit.room_id is None:
+        return False
+    from habitual import rooms  # local import avoids a circular import with rooms.py
+    room = None
+    if room_bundle is not None:
+        entry = room_bundle.get(habit.room_id)
+        room = entry["room"] if entry else None
+    if room is None:
+        room = habit.room
+    return rooms.member_ended(room, user)
 
 
 def _room_gate_or_404(habit):
@@ -979,14 +1034,15 @@ def _detail_live_response(habit, today, now_hour, toast=None, celebration=None, 
     if not request.values.get("detail_view"):
         return None
     freezes_held = Freeze.query.filter_by(user_id=current_user.id, used_on=None).count()
+    viewer_ended = _viewer_ended(habit)
     context = {
         **_habit_view(habit, today, freezes_held),
-        **_analytics_context(habit, today, now_hour),
+        **_analytics_context(habit, today, now_hour, viewer_ended),
         "calendar": _month_calendar_context(habit, today.replace(day=1), today),
         "recent_checkins": (
             Checkin.query.filter_by(habit_id=habit.id).order_by(Checkin.date.desc()).limit(10).all()
         ),
-        "viewer_ended": _viewer_ended(habit),
+        "viewer_ended": viewer_ended,
         **nav_shell_context(current_user),
         "oob": True,
     }
@@ -1182,7 +1238,7 @@ def checkin(habit_id):
         return colony_response
 
     header = _header_stats(current_user)
-    habit_rows = _user_habits(current_user)
+    habit_rows = _active_user_habits(current_user)
     context = {
         **_habit_view(habit, today, header["freezes_held"]),
         **_room_card_context(habit),
@@ -1245,7 +1301,7 @@ def undo_checkin(habit_id):
         return detail_response
 
     header = _header_stats(current_user)
-    habit_rows = _user_habits(current_user)
+    habit_rows = _active_user_habits(current_user)
     context = {
         **_habit_view(habit, today, header["freezes_held"]),
         **_room_card_context(habit),
@@ -1380,7 +1436,7 @@ def use_freeze(habit_id):
         return detail_response
 
     header = _header_stats(current_user)
-    habit_rows = _user_habits(current_user)
+    habit_rows = _active_user_habits(current_user)
     context = {
         **_habit_view(habit, today, header["freezes_held"]),
         **_room_card_context(habit),
@@ -1417,7 +1473,7 @@ def delete_habit(habit_id):
     db.session.commit()
 
     today = local_today(current_user)
-    remaining_rows = _user_habits(current_user)
+    remaining_rows = _active_user_habits(current_user)
     context = {
         **_header_stats(current_user),
         **_overview_context(remaining_rows, today),

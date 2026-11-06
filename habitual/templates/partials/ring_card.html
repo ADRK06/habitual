@@ -39,10 +39,13 @@
     {% elif status_variant == 'due' %}
       {% set status_classes = 'border-accent text-accent' %}
     {% else %}
+      {# "resting" (not due today) and "ended" (Fleet ended for this
+         viewer - rooms.member_ended) share the same neutral, no-action
+         treatment - neither is a success or a warning. #}
       {% set status_classes = 'border-border text-text-muted' %}
     {% endif %}
     <span class="flex shrink-0 items-center gap-1.5 border px-3 py-1 font-display text-xs uppercase tracking-wide {{ status_classes }}">
-      {% if status_variant == 'saved' %}🧊{% elif status_variant == 'due' %}📅{% elif status_variant == 'risk' %}⚠️{% elif status_variant == 'resting' %}🌿{% else %}✓{% endif %}
+      {% if status_variant == 'saved' %}🧊{% elif status_variant == 'due' %}📅{% elif status_variant == 'risk' %}⚠️{% elif status_variant == 'resting' %}🌿{% elif status_variant == 'ended' %}🏁{% else %}✓{% endif %}
       {{ status_label }}
     </span>
   </div>

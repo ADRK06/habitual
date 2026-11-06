@@ -127,13 +127,22 @@ def habit_status(
     now_hour: int,
     not_due_today: bool = False,
     not_scheduled: set[date] = frozenset(),
+    ended: bool = False,
 ) -> tuple[str, str]:
     """(label, variant) for the status pill. variant is one of
-    "saved" | "risk" | "due" | "ontrack" | "resting". now_hour is passed in
-    (rather than read from the clock) so this stays pure and testable — the
-    route supplies it from utils.time.local_now(user).hour. `not_due_today`
-    (today isn't scheduled for a Specific-Days habit, or this week's target
-    is already met for a Weekly one) is false for every existing caller."""
+    "saved" | "risk" | "due" | "ontrack" | "resting" | "ended". now_hour is
+    passed in (rather than read from the clock) so this stays pure and
+    testable — the route supplies it from utils.time.local_now(user).hour.
+    `not_due_today` (today isn't scheduled for a Specific-Days habit, or
+    this week's target is already met for a Weekly one) is false for every
+    existing caller. `ended` (a Fleet habit whose room has ended for this
+    viewer, rooms.member_ended) takes priority over everything else below -
+    once true, "On track"/"At risk"/"Due today" would all be stale: no
+    further check-in is possible, so none of those framings make sense
+    any more, regardless of what the streak/freeze/completion data says."""
+    if ended:
+        return "Fleet ended", "ended"
+
     if froze_used_yesterday:
         return "Streak saved", "saved"
 

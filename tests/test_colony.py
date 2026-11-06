@@ -1,8 +1,11 @@
 import json
+import secrets
 from datetime import date, timedelta
 
 from habitual import game
-from habitual.models import Checkin, Colony, Habit, PointTransaction, User
+from habitual.models import Checkin, Colony, Habit, PointTransaction, Room, RoomMember, User
+from habitual.rooms import generate_join_code
+from habitual.utils.time import local_today
 
 VALID_PASSWORD = "Sup3r$ecret"
 
@@ -45,6 +48,92 @@ def _give_energy(db, user, amount, date_on=None):
         user_id=user.id, habit_id=None, amount=amount, reason="daily", date=date_on or date.today(),
     ))
     db.session.commit()
+
+
+def _create_fleet_habit(db, user, title="Squad Run", category="fitness", ended=True, duration_days=14):
+    # local_today(user), not date.today() - the ended-ness this whole
+    # fixture exists to control (rooms.member_ended) is itself computed
+    # from local_today, so building it from anything else risks exactly
+    # the test-runner-timezone mismatch fixed in test_rooms.py's room
+    # tests. `ended=True` backdates start_date far enough that the room's
+    # final day (start_date + duration_days - 1) is already in the past
+    # for this user; `ended=False` starts it today instead.
+    today = local_today(user)
+    start_date = today - timedelta(days=duration_days + 5) if ended else today
+    room = Room(
+        title=title, emoji="🏃", creator_id=user.id, duration_days=duration_days, start_date=start_date,
+        invite_token=secrets.token_urlsafe(16), join_code=generate_join_code(), category=category,
+    )
+    db.session.add(room)
+    db.session.flush()
+    db.session.add(RoomMember(room_id=room.id, user_id=user.id, joined_on=start_date))
+    habit = Habit(
+        user_id=user.id, room_id=room.id, title=title, emoji="🏃", category=category, created_on=start_date,
+    )
+    db.session.add(habit)
+    db.session.commit()
+    return room, habit
+
+
+# -- ended fleets: excluded from Today, kept for building progress --------
+
+
+def test_colony_today_list_excludes_an_ended_fleet_habit(client, db):
+    user = _login(client, db)
+    _create_fleet_habit(db, user, title="Squad Run", ended=True)
+    _create_habit(db, user, title="Solo Read", category="study")
+
+    response = client.get("/colony").get_data(as_text=True)
+
+    assert "Squad Run" not in response
+    assert "Solo Read" in response
+
+
+def test_colony_today_counter_excludes_an_ended_fleet_habit(client, db):
+    user = _login(client, db)
+    room, fleet_habit = _create_fleet_habit(db, user, title="Squad Run", ended=True)
+    solo_habit = _create_habit(db, user, title="Solo Read", category="study")
+    db.session.add(Checkin(habit_id=solo_habit.id, date=local_today(user)))
+    db.session.commit()
+
+    response = client.get("/colony").get_data(as_text=True)
+
+    # Only the solo habit is counted - the ended fleet habit is excluded
+    # from both sides of the ratio, not just hidden from the list above it.
+    assert "1 / 1 done" in response
+
+
+def test_colony_today_counter_counts_an_active_fleet_habit(client, db):
+    user = _login(client, db)
+    _create_fleet_habit(db, user, title="Squad Run", ended=False)
+
+    response = client.get("/colony").get_data(as_text=True)
+
+    assert "Squad Run" in response
+    assert "0 / 1 done" in response
+
+
+def test_ended_fleet_habit_checkins_still_count_toward_building_progress(client, db):
+    # "Do NOT delete or archive anything... building progress... stay
+    # exactly as they are" - an ended fleet's PAST check-ins must keep
+    # powering its building exactly like an active habit's would, even
+    # though the habit itself no longer shows up in Today.
+    user = _login(client, db)
+    today = local_today(user)
+    room, habit = _create_fleet_habit(db, user, title="Squad Run", category="fitness", ended=True, duration_days=14)
+    # Backdate 10 check-ins into the room's own active window (before its
+    # final day), well before "today" (which is already past the room's
+    # end) - these are real history, not future-dated nonsense.
+    start = room.start_date
+    for i in range(10):
+        db.session.add(Checkin(habit_id=habit.id, date=start + timedelta(days=i)))
+    db.session.commit()
+
+    response = client.get("/colony").get_data(as_text=True)
+
+    # fitness -> Defense Tower, LV1 at 10 lifetime check-ins - reached
+    # entirely from the ended fleet's own (historical) check-ins.
+    assert "LV1" in _tile_button_html(response, game.DEFENSE_TOWER)
 
 
 def _tile_button_html(html, building_type):

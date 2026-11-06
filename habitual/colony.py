@@ -6,7 +6,9 @@ from wtforms import HiddenField, StringField
 from wtforms.validators import DataRequired, Length, ValidationError
 
 from habitual import db, game
-from habitual.habits import CATEGORY_DISPLAY_NAME, _habit_view, _header_stats, _user_habits, nav_shell_context
+from habitual.habits import (
+    CATEGORY_DISPLAY_NAME, _habit_view, _header_stats, _is_ended_fleet_habit, _user_habits, nav_shell_context,
+)
 from habitual.models import Checkin, Colony, Habit
 from habitual.utils.time import local_today
 
@@ -184,7 +186,18 @@ def _colony_context(user):
 
     header = _header_stats(user)
     today = local_today(user)
-    habit_cards = [_habit_view(h, today, header["freezes_held"]) for h in _user_habits(user)]
+    # "Today" is a current/actionable list - an ended Fleet habit
+    # (rooms.member_ended) moves out of it and its "x / y done" counter
+    # entirely, same as the dashboard's own ALL/FLEET filters (see
+    # habits._dashboard_context). Building progress (_category_checkin_
+    # counts above) is unfiltered on purpose - it counts every check-in
+    # this user has ever made, ended fleet or not, same as it already
+    # does for archived habits.
+    habit_cards = [
+        _habit_view(h, today, header["freezes_held"])
+        for h in _user_habits(user)
+        if not _is_ended_fleet_habit(h, user)
+    ]
     return {
         "colony": colony_row,
         "colony_level": game.colony_level(header["earned_points"]),

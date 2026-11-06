@@ -29,6 +29,7 @@
       <button type="button" @click="filter = 'all'" :class="filter === 'all' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">All</button>
       <button type="button" @click="filter = 'solo'" :class="filter === 'solo' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">Solo</button>
       <button type="button" @click="filter = 'fleet'" :class="filter === 'fleet' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">Fleet</button>
+      <button type="button" @click="filter = 'ended'" :class="filter === 'ended' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-[34px] border px-3 font-display text-[11px] uppercase transition-colors">Ended</button>
     </div>
   </header>
 
@@ -38,6 +39,7 @@
     <button type="button" @click="filter = 'all'" :class="filter === 'all' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">All</button>
     <button type="button" @click="filter = 'solo'" :class="filter === 'solo' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">Solo</button>
     <button type="button" @click="filter = 'fleet'" :class="filter === 'fleet' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">Fleet</button>
+    <button type="button" @click="filter = 'ended'" :class="filter === 'ended' ? 'bg-bone text-void border-bone' : 'border-border text-text-muted hover:border-accent'" class="h-8 border px-2.5 font-display text-[11px] uppercase transition-colors">Ended</button>
   </div>
 
   {% if not current_user.email %}
@@ -88,6 +90,7 @@
 
   <main class="flex flex-col gap-6 pb-20 lg:flex-row lg:items-start">
     <div class="min-w-0 flex-1">
+      <div id="active-habits-section" x-show="filter !== 'ended'">
       {% if habit_cards %}
       {% include "partials/dashboard_overview.html" %}
       <div id="habit-grid" class="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -112,6 +115,40 @@
       {% else %}
         {% include "partials/empty_state.html" %}
       {% endif %}
+      </div>
+
+      {# ENDED: fleets whose room has ended for this viewer (rooms.
+         member_ended) - read-only history, excluded from every "today"/
+         "current" view above (ALL/SOLO/FLEET, the 30-day overview, the
+         habits-left countdown, the nav streak pill - see habits.
+         _dashboard_context). No overview/entrance-animation here - this
+         list never changes from a check-in, there's nothing to animate
+         toward. #}
+      <div id="ended-habits-section" x-show="filter === 'ended'" x-cloak>
+      {% if ended_habit_cards %}
+      <div id="ended-habit-grid" class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {% for card in ended_habit_cards %}
+        {% with
+          habit=card.habit, current_streak=card.current_streak, longest_streak=card.longest_streak,
+          habit_points=card.habit_points, success_rate=card.success_rate, checked_in_today=card.checked_in_today,
+          can_save_streak=card.can_save_streak, has_freeze_to_use=card.has_freeze_to_use,
+          is_due_today=card.is_due_today, frequency_label=card.frequency_label,
+          frequency_badge_label=card.frequency_badge_label, streak_unit=card.streak_unit,
+          day_strip=card.day_strip, category_icon_type=card.category_icon_type,
+          room=card.room, member_count=card.member_count, days_remaining=card.days_remaining,
+          viewer_ended=card.viewer_ended, health_pct=card.health_pct, leader_name=card.leader_name,
+          leader_is_viewer=card.leader_is_viewer, is_creator=card.is_creator
+        %}
+          {% include "partials/habit_card.html" %}
+        {% endwith %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="flex flex-col items-center justify-center border border-dashed border-border bg-surface px-6 py-16 text-center font-body">
+        <p class="font-body text-sm text-text-muted">No ended fleets yet.</p>
+      </div>
+      {% endif %}
+      </div>
     </div>
 
     <aside class="flex shrink-0 flex-col gap-3 lg:w-[280px]">

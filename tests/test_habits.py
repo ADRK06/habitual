@@ -52,6 +52,28 @@ def _create_habit(
     return habit
 
 
+def _create_fleet_habit(db, user, title="Squad Run", category="other", ended=True, duration_days=14):
+    # local_today(user), not date.today() - rooms.member_ended (what
+    # `ended` controls here) is itself computed from local_today, so
+    # building this fixture from anything else risks the exact test-
+    # runner-timezone mismatch fixed in test_rooms.py's room tests.
+    today = local_today(user)
+    start_date = today - timedelta(days=duration_days + 5) if ended else today
+    room = Room(
+        title=title, emoji="🏃", creator_id=user.id, duration_days=duration_days, start_date=start_date,
+        invite_token=secrets.token_urlsafe(16), join_code=generate_join_code(), category=category,
+    )
+    db.session.add(room)
+    db.session.flush()
+    db.session.add(RoomMember(room_id=room.id, user_id=user.id, joined_on=start_date))
+    habit = Habit(
+        user_id=user.id, room_id=room.id, title=title, emoji="🏃", category=category, created_on=start_date,
+    )
+    db.session.add(habit)
+    db.session.commit()
+    return room, habit
+
+
 # -- dashboard ---------------------------------------------------------------
 
 
@@ -2104,3 +2126,163 @@ def test_undo_after_freeze_reprice_removes_both_entries_and_keeps_freeze(client,
     freeze = Freeze.query.filter_by(habit_id=habit.id).first()
     assert freeze is not None
     assert freeze.used_on == yesterday
+
+
+# -- ended fleets: ENDED tab, excluded from every "today"/"current" view ----
+
+
+def test_dashboard_excludes_ended_fleet_from_the_main_grid(client, db):
+    user = _login(client, db)
+    _create_fleet_habit(db, user, title="Squad Run", ended=True)
+
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    main_grid = response[response.index('id="active-habits-section"'):response.index('id="ended-habits-section"')]
+    assert "Squad Run" not in main_grid
+
+
+def test_dashboard_ended_tab_shows_the_ended_fleet_habit(client, db):
+    user = _login(client, db)
+    _create_fleet_habit(db, user, title="Squad Run", ended=True)
+
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    ended_grid = response[response.index('id="ended-habits-section"'):]
+    assert "Squad Run" in ended_grid
+    assert "Fleet ended" in ended_grid
+
+
+def test_dashboard_ended_tab_empty_state_when_no_ended_fleets(client, db):
+    user = _login(client, db)
+    _create_habit(db, user, title="Solo Read")
+
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    assert 'id="ended-habit-grid"' not in response
+    assert "No ended fleets yet" in response
+
+
+def test_dashboard_active_fleet_and_solo_habits_are_unchanged(client, db):
+    # Regression: an active (not-ended) fleet habit and a solo habit both
+    # still render in the main grid exactly as before - this feature only
+    # ever moves something OUT once it's actually ended.
+    user = _login(client, db)
+    _create_fleet_habit(db, user, title="Squad Run", ended=False)
+    _create_habit(db, user, title="Solo Read")
+
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    main_grid = response[response.index('id="active-habits-section"'):response.index('id="ended-habits-section"')]
+    assert "Squad Run" in main_grid
+    assert "Solo Read" in main_grid
+    assert "Fleet ended" not in main_grid
+
+
+def test_dashboard_habits_remaining_excludes_an_ended_fleet_habit(client, db):
+    user = _login(client, db)
+    _create_fleet_habit(db, user, title="Squad Run", ended=True)
+    _create_habit(db, user, title="Solo Read")
+
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    # Exactly 1 habit (the solo one) still left today - the ended fleet
+    # habit was never a candidate, not even counted and then excluded.
+    assert 'data-habits-remaining="1"' in response
+
+
+def test_dashboard_best_streak_ignores_an_ended_fleet_habit(client, db):
+    user = _login(client, db)
+    today = local_today(user)
+    room, fleet_habit = _create_fleet_habit(db, user, title="Squad Run", ended=True, duration_days=14)
+    # A long, strong streak entirely inside the room's own active window -
+    # if this leaked into the dashboard's "best current streak" nav pill
+    # it would swamp the much shorter solo habit below.
+    start = room.start_date
+    for i in range(10):
+        db.session.add(Checkin(habit_id=fleet_habit.id, date=start + timedelta(days=i)))
+    solo_habit = _create_habit(db, user, title="Solo Read", created_on=today)
+    db.session.commit()
+
+    response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    # nav_streak comes from _best_current_streak(habit_rows, today) over
+    # the ACTIVE rows only - with the solo habit brand new (0 current
+    # streak) and the ended fleet excluded, the best is 0, never 10.
+    assert b'data-current-streak="10"' not in response.data
+
+
+def test_habit_detail_shows_fleet_ended_status_for_an_ended_fleet_habit(client, db):
+    user = _login(client, db)
+    _, habit = _create_fleet_habit(db, user, title="Squad Run", ended=True)
+
+    response = client.get(f"/habits/{habit.id}").get_data(as_text=True)
+
+    assert "Fleet ended" in response
+    assert "At risk" not in response
+    assert "Due today" not in response
+
+
+def test_habit_detail_status_pill_unaffected_for_an_active_fleet_habit(client, db):
+    user = _login(client, db)
+    _, habit = _create_fleet_habit(db, user, title="Squad Run", ended=False)
+
+    response = client.get(f"/habits/{habit.id}")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'data-checked-in-today="false"' in html
+    assert "Fleet ended" not in html
+
+
+def test_ended_fleet_habit_at_the_exact_local_today_boundary(client, db):
+    # A room whose final day was exactly YESTERDAY in the viewer's own
+    # timezone (local_today, not date.today()) - the earliest possible
+    # moment member_ended flips true. duration_days counts start_date
+    # itself as day 1, so final_day = start_date + (duration_days - 1);
+    # start_date = today - duration_days puts final_day at today - 1.
+    user = _login(client, db)
+    today = local_today(user)
+    duration_days = 7
+    start_date = today - timedelta(days=duration_days)
+    room = Room(
+        title="Squad Run", emoji="🏃", creator_id=user.id, duration_days=duration_days, start_date=start_date,
+        invite_token=secrets.token_urlsafe(16), join_code=generate_join_code(),
+    )
+    db.session.add(room)
+    db.session.flush()
+    db.session.add(RoomMember(room_id=room.id, user_id=user.id, joined_on=start_date))
+    habit = Habit(user_id=user.id, room_id=room.id, title="Squad Run", emoji="🏃", created_on=start_date)
+    db.session.add(habit)
+    db.session.commit()
+
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    main_grid = response[response.index('id="active-habits-section"'):response.index('id="ended-habits-section"')]
+    assert "Squad Run" not in main_grid
+    ended_grid = response[response.index('id="ended-habits-section"'):]
+    assert "Squad Run" in ended_grid
+
+
+def test_fleet_habit_one_day_before_ending_is_still_active(client, db):
+    # One day earlier than the boundary test above - final_day is TODAY,
+    # not yesterday, so member_ended is still false.
+    user = _login(client, db)
+    today = local_today(user)
+    duration_days = 7
+    start_date = today - timedelta(days=duration_days - 1)
+    room = Room(
+        title="Squad Run", emoji="🏃", creator_id=user.id, duration_days=duration_days, start_date=start_date,
+        invite_token=secrets.token_urlsafe(16), join_code=generate_join_code(),
+    )
+    db.session.add(room)
+    db.session.flush()
+    db.session.add(RoomMember(room_id=room.id, user_id=user.id, joined_on=start_date))
+    habit = Habit(user_id=user.id, room_id=room.id, title="Squad Run", emoji="🏃", created_on=start_date)
+    db.session.add(habit)
+    db.session.commit()
+
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    main_grid = response[response.index('id="active-habits-section"'):response.index('id="ended-habits-section"')]
+    assert "Squad Run" in main_grid

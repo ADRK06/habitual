@@ -333,13 +333,17 @@ def room_card_extra(room, viewer, members=None, habits_by_user=None):
 def _personal_stats(habit, viewer):
     """The room page's personal stats panel reuses the exact same pure
     display logic as the solo habit card/analytics page - a room habit is
-    a normal habit (see CLAUDE.md's architecture decisions)."""
+    a normal habit (see CLAUDE.md's architecture decisions). viewer_ended
+    (member_ended for this viewer) overrides the status pill to "Fleet
+    ended" the same way the dashboard/habit-detail cards do - without it
+    this panel kept showing "At risk"/"Due today" on the room's own page
+    for a fleet that's already over."""
     today = local_today(viewer)
     now_hour = local_now(viewer).hour
     freezes_held = Freeze.query.filter_by(user_id=viewer.id, used_on=None).count()
     return {
         **_habit_view(habit, today, freezes_held),
-        **_analytics_context(habit, today, now_hour),
+        **_analytics_context(habit, today, now_hour, member_ended(habit.room, viewer)),
     }
 
 
@@ -960,8 +964,20 @@ def fleet_list():
         for entry in bundle.values()
     ]
     fleets.sort(key=lambda f: f["room"].title.lower())
+    # Active fleets first, ended ones (viewer_ended - member_ended for the
+    # viewer's own local date) in their own section below - same split as
+    # the dashboard's ALL/FLEET vs ENDED tabs (habits._dashboard_context).
+    # The card itself already renders the read-only "Fleet ended" state
+    # (fleet_card.html's viewer_ended branch) - this route just decides
+    # which section each fleet's card lands in.
+    active_fleets = [f for f in fleets if not f["viewer_ended"]]
+    ended_fleets = [f for f in fleets if f["viewer_ended"]]
 
-    return render_template("rooms/fleet_list.html", fleets=fleets, **nav_shell_context(current_user))
+    return render_template(
+        "rooms/fleet_list.html",
+        fleets=fleets, active_fleets=active_fleets, ended_fleets=ended_fleets,
+        **nav_shell_context(current_user),
+    )
 
 
 @rooms.get("/rooms/<int:room_id>")

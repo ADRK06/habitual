@@ -1573,6 +1573,31 @@ def test_fleet_list_card_shows_fleet_ended_instead_of_checkin_button(client, db)
     assert "Fleet ended" in card_html
 
 
+def test_fleet_list_puts_an_ended_fleet_in_its_own_section_below_active_ones(client, db):
+    user = _login(client, db)
+    ended_room, _ = _ended_room_habit(db, user)
+    active_room = _create_room(db, user, title="Active Fleet")
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    active_idx = response.index(f'id="fleet-card-{active_room.id}"')
+    ended_idx = response.index(f'id="fleet-card-{ended_room.id}"')
+    ended_heading_idx = response.index(">Ended<")
+    # The active fleet's card comes before the "Ended" heading, the ended
+    # fleet's card comes after it - active-first, ended in its own section
+    # below, same split the dashboard's ENDED tab uses.
+    assert active_idx < ended_heading_idx < ended_idx
+
+
+def test_fleet_list_shows_no_ended_heading_with_only_active_fleets(client, db):
+    user = _login(client, db)
+    _create_room(db, user, title="Active Fleet")
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    assert ">Ended<" not in response
+
+
 def test_habit_detail_page_shows_fleet_ended_instead_of_checkin_button(client, db):
     # Same gap, found on the habit's own detail page (reachable for a room
     # habit too - habit_detail() doesn't redirect those elsewhere) while
@@ -1585,6 +1610,23 @@ def test_habit_detail_page_shows_fleet_ended_instead_of_checkin_button(client, d
 
     assert f'hx-post="/habits/{habit.id}/checkin"' not in response
     assert "Fleet ended" in response
+
+
+def test_room_page_own_progress_panel_shows_fleet_ended_not_a_live_status(client, db):
+    # Caught live in the browser (ended-fleets feature): the room page's
+    # own "Your progress" panel (_personal_stats) reuses habits.
+    # _analytics_context the same way the dashboard/detail cards do, but
+    # was missed when threading viewer_ended through - it kept computing
+    # "At risk"/"Due today" off streak/completion data for a fleet that
+    # had already ended, right there on the room's own page.
+    user = _login(client, db)
+    room, habit = _ended_room_habit(db, user)
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+
+    assert "Fleet ended" in response
+    assert "At risk" not in response
+    assert "Due today" not in response
 
 
 # -- vouch ----------------------------------------------------------------
