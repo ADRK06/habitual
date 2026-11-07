@@ -47,7 +47,15 @@
           <span class="block truncate font-body text-base font-medium text-text">{{ fleet.room.title }}</span>
         </a>
       </h3>
-      <p class="font-body text-xs text-text-muted"><span class="font-mono">{{ fleet.member_count }}</span> commander{{ 's' if fleet.member_count != 1 else '' }}</p>
+      <p class="flex items-center gap-1 font-body text-xs text-text-muted">
+        <img
+          src="{{ url_for('static', filename='art/icon_' ~ building_type_for_category[fleet.room.category] ~ '.png') }}"
+          alt=""
+          class="h-3.5 w-3.5 shrink-0"
+          style="image-rendering: pixelated"
+        >
+        <span class="font-mono">{{ fleet.member_count }}</span> commander{{ 's' if fleet.member_count != 1 else '' }}
+      </p>
     </div>
     <div class="flex shrink-0 flex-col items-end">
       <span class="font-mono text-lg tabular-nums {{ 'text-streak' if fleet.streak_value else 'text-text-muted' }}">{{ fleet.streak_value }}{{ 'd' if fleet.room_streak_unit == 'day' else 'w' }}</span>

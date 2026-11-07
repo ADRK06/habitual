@@ -567,6 +567,86 @@ def test_join_room_copies_the_rooms_current_category(client, db):
     assert joiner_habit.category == "study"
 
 
+# -- owner report: category picker/edit control were missing from the UI --
+# (the backend above already worked - rooms.edit_room_category, join_room's
+# category copy, and create_room's category=form.category.data were all
+# correct; this is the fix for the UI never offering a way to reach any of
+# it)
+
+
+def test_create_room_form_accepts_a_category_and_sets_it_on_creators_habit(client, db):
+    user = _login(client, db)
+    response = client.post(
+        "/rooms", data={"title": "Run Club", "emoji": EMOJI_CHOICES[0], "duration_days": "14", "category": "fitness"},
+    )
+    assert response.status_code == 302
+
+    room = Room.query.filter_by(title="Run Club").first()
+    assert room.category == "fitness"
+    habit = Habit.query.filter_by(room_id=room.id, user_id=user.id).first()
+    assert habit.category == "fitness"
+
+
+def test_dashboard_create_fleet_modal_has_a_category_picker(client, db):
+    _login(client, db)
+    response = client.get("/dashboard").get_data(as_text=True)
+
+    # The picker lives inside the "New fleet" modal's own form, posting to
+    # rooms.create_room - this help text is specific to that form (the
+    # create-habit modal's own picker says "this habit", not "this
+    # fleet"), so it alone proves the fleet form has a working picker.
+    assert 'action="/rooms"' in response
+    assert "Category decides which colony building this fleet" in response
+    for category in ("Fitness", "Study", "Sleep", "Water", "Food", "Mind", "Other"):
+        assert category in response
+
+
+def test_room_page_shows_edit_category_control_to_the_creator(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, category="fitness")
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+
+    assert "Edit category" in response
+    assert f'action="/rooms/{room.id}/category"' in response
+
+
+def test_room_page_hides_edit_category_control_from_a_non_creator(client, db):
+    creator = _create_user(db, username="creator")
+    room = _create_room(db, creator, category="fitness")
+    member = _login(client, db, username="member")
+    _join_room_direct(db, room, member)
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+
+    assert "Edit category" not in response
+    assert f'action="/rooms/{room.id}/category"' not in response
+    # Read-only instead - the category is still visible, just not editable.
+    assert "Fitness" in response
+
+
+def test_room_page_shows_the_category_icon_for_everyone(client, db):
+    creator = _create_user(db, username="creator")
+    room = _create_room(db, creator, category="fitness")
+    member = _login(client, db, username="member")
+    _join_room_direct(db, room, member)
+
+    response = client.get(f"/rooms/{room.id}").get_data(as_text=True)
+
+    assert "icon_defense_tower.png" in response  # fitness -> Defense Tower
+
+
+def test_fleet_list_card_shows_the_category_icon(client, db):
+    user = _login(client, db)
+    room = _create_room(db, user, title="Squad Run", category="fitness")
+
+    response = client.get("/rooms").get_data(as_text=True)
+
+    card_start = response.index(f'id="fleet-card-{room.id}"')
+    card_html = response[card_start:card_start + 2000]
+    assert "icon_defense_tower.png" in card_html  # fitness -> Defense Tower
+
+
 # -- crown finalization: lazy, idempotent, per-member local dates -----------
 
 

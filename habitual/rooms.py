@@ -11,9 +11,11 @@ from sqlalchemy.orm import selectinload
 from wtforms import HiddenField, IntegerField, StringField
 from wtforms.validators import DataRequired, NumberRange, Optional
 
-from habitual import badges, db, frequency, points
+from habitual import badges, db, frequency, game, points
 from habitual.auth import _aware_utc, safe_next_path
 from habitual.habits import (
+    CATEGORY_CHOICES,
+    CATEGORY_DISPLAY_NAME,
     _analytics_context,
     _dashboard_context,
     _frequency_label,
@@ -976,6 +978,7 @@ def fleet_list():
     return render_template(
         "rooms/fleet_list.html",
         fleets=fleets, active_fleets=active_fleets, ended_fleets=ended_fleets,
+        building_type_for_category=game.BUILDING_TYPE_FOR_CATEGORY,
         **nav_shell_context(current_user),
     )
 
@@ -1019,6 +1022,10 @@ def room_detail(room_id):
         feed=_feed_context(room, members, current_user, habits_by_user=habits_by_user),
         invite_message=_invite_message(room),
         newly_awarded_badges=newly_awarded_badges,
+        category_form=RoomCategoryForm(category=room.category),
+        category_choices=[(c, CATEGORY_DISPLAY_NAME[c]) for c in CATEGORY_CHOICES],
+        category_display_name=CATEGORY_DISPLAY_NAME,
+        building_type_for_category=game.BUILDING_TYPE_FOR_CATEGORY,
         **_personal_stats(viewer_habit, current_user),
         **nav_shell_context(current_user),
     )

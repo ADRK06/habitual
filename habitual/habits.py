@@ -1005,7 +1005,8 @@ def _fleet_list_live_response(habit, toast=None, celebration=None, badges_earned
     from habitual import rooms  # local import avoids a circular import with rooms.py
     fleet = rooms.fleet_card_context(habit.room, current_user, habit=habit)
     resp = make_response(render_template(
-        "partials/fleet_card_response.html", fleet=fleet, **nav_shell_context(current_user)
+        "partials/fleet_card_response.html", fleet=fleet,
+        building_type_for_category=game.BUILDING_TYPE_FOR_CATEGORY, **nav_shell_context(current_user)
     ))
     trigger = {}
     if toast:
